@@ -1,0 +1,29 @@
+[pipeline]
+# Repository-relative defaults. Override from the CLI or by setting ROOT in scripts/pipeline.sh
+raw_pubmed_xml_dir = "data/raw_data/pubmed/xmls"
+raw_pubmed_jsonl_dir = "data/raw_data/pubmed/jsonl"
+external_dir = "data/external"
+processed_dir = "data/processed_data"
+manifest_dir = "data/manifests"
+
+[parse]
+year_info_only = false
+nlm_category = false
+author_list = false
+reference_list = false
+parse_mesh_subterms = true
+# Study filters belong outside parser semantics. Keep null for lossless parsing
+min_pub_year = null
+
+[external]
+scimago = "data/processed_data/scimago.csv"
+web_of_science = "data/processed_data/web_of_science.csv"
+doaj = "data/processed_data/doaj.csv"
+norwegian_list = "data/processed_data/norwegian_list.csv"
+retraction_watch = "data/processed_data/retraction_watch.csv"
+pubmed_journals = "data/external/pubmed-journals.csv"
+
+[transform]
+articles_tsv = "data/processed_data/articles.tsv"
+filters_csv = "data/processed_data/filter_counts.csv"
+min_received = "2013-01-01"

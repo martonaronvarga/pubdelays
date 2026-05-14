@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pubdelays"
+version = "0.1.0"
+description = "Reproducible PubMed/MEDLINE pipeline for publication-delay analyses"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "lxml>=4.9",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7",
+]
+
+[project.scripts]
+pubdelays-pipeline = "pubdelays.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
