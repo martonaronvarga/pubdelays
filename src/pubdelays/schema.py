@@ -1,8 +1,8 @@
 """Canonical schema constants for the publication-delay pipeline.
 
-The parser should preserve the MEDLINE/XML facts. This module defines the
-project-level schema used after parsing: filter names, output columns, and
-stable vocabularies used by the transformation layer.
+The active schema is legacy-compatible with ``process_data.R`` and
+``aggregate.R``: column order and inclusion semantics match the old TSV files,
+while the implementation is now Python-first, resumable, and auditable.
 """
 
 from __future__ import annotations
@@ -30,23 +30,21 @@ FILTER_STAGES: tuple[str, ...] = (
     "final_rows",
 )
 
+# Exact legacy article TSV schema selected by process_data.R before aggregate.R
+# binds rows and writes processed.csv.
 CANONICAL_ARTICLE_COLUMNS: tuple[str, ...] = (
     "is_covid",
-    "is_replication",
-    "is_retracted",
     "received",
-    "accepted",
     "article_date",
-    "pubdate",
+    "article_date_raw",
+    "publication_date_source",
     "acceptance_delay",
-    "publication_delay",
     "is_psych",
     "is_mega",
     "issn_linking",
-    "pmid",
-    "doi",
     "h_index_year",
     "open_access",
+    "publication_delay",
     "publication_types",
     "title",
     "journal",
@@ -63,6 +61,11 @@ CANONICAL_ARTICLE_COLUMNS: tuple[str, ...] = (
     "keywords",
     "apc",
     "apc_amount",
+    "doi",
+    "retraction_nature",
+    "reason",
+    "retraction_date",
+    "is_retracted",
 )
 
 COVID_SYNONYMS: tuple[str, ...] = (
@@ -90,7 +93,6 @@ REPLICATION_SYNONYMS: tuple[str, ...] = (
     "replication study",
 )
 
-# Same megajournal linking-ISSN list as the old R transformation script
 MEGAJOURNAL_ISSNS: frozenset[str] = frozenset(
     {
         "24701343",

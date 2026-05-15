@@ -37,6 +37,10 @@
 
           dependencies = with pythonPackages; [
             lxml
+            pandas
+            orjson
+            polars
+            tomli
           ];
 
           nativeCheckInputs = with pythonPackages; [
@@ -56,6 +60,10 @@
           with ps; [
             lxml
             pytest
+            polars
+            pandas
+            orjson
+            tomli
           ]);
 
         rEnv = pkgs.rWrapper.override {
@@ -95,6 +103,7 @@
 
           PYTHONPATH = "${toString ./.}/src";
           shellHook = ''
+            echo "pubdelays dev shell: run pubdelays-pipeline --help"
             exec zsh
           '';
         };

@@ -1,28 +1,38 @@
-"""Transform parse PubMed/MEDLINE records into pubdelay analysis rows.
+"""Polars implementation of the article transformation stage.
 
-This module ports the substantive filtering and enrichment logic from process_data.R
-into small, named, testable operations.
-It is intentionally conservative: parser semantics remain separate from study
-selection semantics, and every major filter stage is counted.
+The stage consumes parsed PubMed/MEDLINE JSONL shards, joins cleaned external
+metadata, applies explicit filter stages, and writes Parquet/TSV/CSV through
+atomic output files.  The hot path uses Polars DataFrames and native joins;
+small Python helpers are retained only for unit-level semantic checks.
 """
 
 from __future__ import annotations
-import csv
+
 import json
 import re
 from collections import Counter
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
+import polars as pl
+
+from pubdelays.external.common import (
+    doi_expr,
+    normalize_doi_text,
+    normalize_header,
+    normalize_issn_text,
+    issn_expr,
+    scan_tabular,
+    write_frame,
+)
 from pubdelays.schema import (
     CANONICAL_ARTICLE_COLUMNS,
     COVID_SYNONYMS,
     FILTER_STAGES,
     MEGAJOURNAL_ISSNS,
-    REPLICATION_SYNONYMS,
     REQUIRED_PARSED_FIELDS,
 )
 
@@ -32,8 +42,6 @@ Row = dict[str, Any]
 
 @dataclass(frozen=True)
 class ExternalInputs:
-    """Optional enrichment tables used by the transformation step."""
-
     scimago: Path | None = None
     web_of_science: Path | None = None
     doaj: Path | None = None
@@ -48,276 +56,90 @@ class TransformResult:
     counts: Mapping[str, int]
 
 
-def normalize_header(name: str) -> str:
-    """Convert external CSV headers to snake_case names."""
-
-    normalized = name.strip().lower()
-    normalized = re.sub(r"[^0-9a-zA-Z]+", "_", normalized)
-    normalized = re.sub(r"_+", "_", normalized)
-    return normalized.strip("_")
-
-
 def normalize_issn(value: Any) -> str:
-    if value is None:
-        return ""
-    return re.sub(r"[^0-9Xx]", "", str(value)).upper()
+    return normalize_issn_text(value)
 
 
 def normalize_doi(value: Any) -> str:
-    if value is None:
-        return ""
-    doi = str(value).strip().lower()
-    doi = re.sub(r"^https?://(?:dx\.)?doi\.org/", "", doi)
-    doi = re.sub(r"^doi:\s*", "", doi)
-    return doi.strip()
+    return normalize_doi_text(value)
 
 
 def parse_date(value: Any) -> date | None:
-    """Parse PubMed dates in YYYY, YYYY-MM, or YYYY-MM-DD form.
-
-    This mirrors the old R/lubridate behavior used for PubMed dates by filling
-    missing month/day components with ``01``.
-    """
-
-    if value is None:
+    text = "" if value is None else str(value).strip()
+    if not text:
         return None
-    if isinstance(value, date):
-        return value
-    text = str(value).strip()
-    if not text or text.lower() in {"na", "nan", "none", "null"}:
-        return None
-
-    match = re.match(
-        r"^(?P<year>\d{4})(?:-(?P<month>\d{1,2})(?:-(?P<day>\d{1,2}))?)?$", text
-    )
-    if not match:
-        return None
-    year = int(match.group("year"))
-    month = int(match.group("month") or 1)
-    day = int(match.group("day") or 1)
-    try:
-        return date(year, month, day)
-    except ValueError:
-        return None
+    for fmt in ("%Y-%m-%d", "%Y-%m", "%Y"):
+        try:
+            parsed = datetime.strptime(text, fmt)
+            return parsed.date()
+        except ValueError:
+            pass
+    return None
 
 
 def iso(value: date | None) -> str:
-    return value.isoformat() if value else ""
-
-
-def coerce_int(value: Any) -> int | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    if not text:
-        return None
-    try:
-        return int(float(text))
-    except ValueError:
-        return None
+    return "" if value is None else value.isoformat()
 
 
 def publication_type_labels(value: Any) -> str:
     if value is None:
         return ""
-    text = str(value)
     labels: list[str] = []
-    for part in re.split(r";\s*", text):
+    for part in re.split(r";\s*", str(value)):
         if not part:
             continue
         labels.append(part.split(":", 1)[1].strip() if ":" in part else part.strip())
     return ", ".join(label for label in labels if label)
 
 
-def contains_any_term(text: str, terms: Iterable[str]) -> bool:
-    haystack = text or ""
+def contains_any_term(text: str, terms: tuple[str, ...]) -> bool:
     for term in terms:
-        if re.search(rf"\b{re.escape(term)}\b", haystack, flags=re.IGNORECASE):
+        if re.search(rf"\b{re.escape(term)}\b", text or "", flags=re.IGNORECASE):
             return True
     return False
 
 
-def flatten_history(record: JsonRecord) -> Row:
-    row: Row = dict(record)
-    history = record.get("history")
-    if isinstance(history, dict):
-        row.update(history)
-    elif isinstance(history, list):
-        # Defensive support for JSON encoders that materialize a singleton
-        # history object as a one-element list.
-        for item in history:
-            if isinstance(item, dict):
-                row.update(item)
-    return row
+def date_expr(expr: pl.Expr) -> pl.Expr:
+    s = expr.cast(pl.Utf8, strict=False).str.strip_chars()
+    exact = s.str.strptime(pl.Date, "%Y-%m-%d", strict=False)
+    year_month = (s + pl.lit("-01")).str.strptime(pl.Date, "%Y-%m-%d", strict=False)
+    year = (s + pl.lit("-01-01")).str.strptime(pl.Date, "%Y-%m-%d", strict=False)
+    return exact.fill_null(year_month).fill_null(year)
 
 
-def iter_json_records(path: Path) -> Iterator[JsonRecord]:
-    if path.suffix == ".jsonl":
-        with path.open("r", encoding="utf-8") as handle:
-            for line in handle:
-                if line.strip():
-                    value = json.loads(line)
-                    if isinstance(value, dict):
-                        yield value
-        return
-
-    with path.open("r", encoding="utf-8") as handle:
-        value = json.load(handle)
-    if isinstance(value, list):
-        for item in value:
-            if isinstance(item, dict):
-                yield item
-    elif isinstance(value, dict):
-        yield value
-
-
-def iter_input_paths(input_path: Path) -> list[Path]:
-    if input_path.is_dir():
-        return sorted(
-            list(input_path.rglob("*.jsonl")) + list(input_path.rglob("*.json"))
-        )
-    return [input_path]
-
-
-def read_csv_rows(path: Path | None) -> list[Row]:
-    if path is None or not path.exists():
-        return []
-    with path.open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle)
-        return [
-            {
-                normalize_header(key): value
-                for key, value in row.items()
-                if key is not None
-            }
-            for row in reader
-        ]
-
-
-def candidate_issns(row: Mapping[str, Any]) -> set[str]:
-    keys = (
-        "issn_linking",
-        "issn",
-        "issn_print",
-        "issn_online",
-        "eissn",
-        "pissn",
-        "print_issn",
-        "online_issn",
-    )
-    values: set[str] = set()
-    for key in keys:
-        raw = row.get(key)
-        if raw is None:
-            continue
-        for part in re.split(r"[,;/|]\s*", str(raw)):
-            issn = normalize_issn(part)
-            if issn:
-                values.add(issn)
-    return values
-
-
-def index_by_issn(rows: Iterable[Row]) -> dict[str, list[Row]]:
-    index: dict[str, list[Row]] = {}
-    for row in rows:
-        for issn in candidate_issns(row):
-            index.setdefault(issn, []).append(row)
-    return index
-
-
-def index_retractions(rows: Iterable[Row]) -> dict[str, Row]:
-    index: dict[str, Row] = {}
-    for row in rows:
-        for key in ("doi", "retraction_doi"):
-            doi = normalize_doi(row.get(key))
-            if doi and doi not in index:
-                index[doi] = row
-    return index
-
-
-def merge_external(row: Row, incoming: Mapping[str, Any], source: str) -> Row:
-    merged = dict(row)
-    for key, value in incoming.items():
-        if key in {"issn", "issn_linking", "issn_print", "issn_online"}:
-            continue
-        if key not in merged or merged[key] in {None, ""}:
-            merged[key] = value
-        else:
-            merged[f"{key}_{source}"] = value
-    return merged
-
-
-def left_join_issn(
-    rows: Iterable[Row], index: Mapping[str, list[Row]], source: str
-) -> Iterator[Row]:
-    for row in rows:
-        issn = normalize_issn(row.get("issn_linking"))
-        matches = index.get(issn)
-        if not matches:
-            yield row
-            continue
-        for match in matches:
-            yield merge_external(row, match, source)
-
-
-def value_for_year(row: Mapping[str, Any], prefix: str, year: int | None) -> Any:
-    if year is None:
-        return ""
-    table_year = 2024 if year >= 2025 else year
-    keys = [f"{prefix}_{table_year}"]
-    if prefix == "npi_level":
-        keys.append(f"npi_level_{str(table_year)[-2:]}")
-    for key in keys:
-        value = row.get(key)
-        if value not in {None, ""}:
-            return value
-    return ""
-
-
-def is_psychology_asjc(value: Any) -> bool:
-    if value is None:
-        return False
-    for token in re.findall(r"\d+", str(value)):
-        code = coerce_int(token)
-        if code is not None and 3200 <= code <= 3207:
-            return True
-    return False
-
-
-def compute_open_access(row: Mapping[str, Any]) -> bool:
-    doaj_value = str(
-        row.get("does_the_journal_comply_to_doaj_s_definition_of_open_access", "")
-    ).strip()
-    wos_value = str(row.get("open_access_status", "")).strip()
-    npi_value = str(row.get("npi_open_access", "")).strip()
+def publication_types_expr(expr: pl.Expr) -> pl.Expr:
     return (
-        doaj_value.lower() == "yes"
-        or wos_value in {"Unpaywall Open Acess", "Unpaywall Open Access"}
-        or npi_value.upper() == "DOAJ"
+        expr.cast(pl.Utf8, strict=False)
+        .fill_null("")
+        .str.replace_all(r"[A-Za-z0-9]+:", "")
     )
 
 
-def journal_metadata_eligible(row: Mapping[str, Any], min_received: date) -> bool:
-    ceased = coerce_int(row.get("ceased"))
-    is_conference = coerce_int(row.get("is_conference"))
-    received = parse_date(row.get("received"))
-    ceased_ok = ceased is None or ceased <= 2014
-    conference_ok = is_conference == 0
-    received_ok = received is not None and received >= min_received
-    return ceased_ok and conference_ok and received_ok
+def bool_text_expr(expr: pl.Expr) -> pl.Expr:
+    return (
+        pl.when(expr.fill_null(False)).then(pl.lit("True")).otherwise(pl.lit("False"))
+    )
 
 
 def first_stage_record(record: JsonRecord, counts: Counter[str]) -> Row | None:
+    """Small semantic reference implementation used by unit tests.
+
+    The production transform is vectorized below.  This function keeps date and
+    ceased-year semantics easy to test without constructing a Polars frame.
+    """
+
     counts["raw_records"] += 1
     if record.get("delete"):
         return None
     counts["non_deleted_records"] += 1
-
     if any(field not in record for field in REQUIRED_PARSED_FIELDS):
         return None
     counts["has_required_parsed_fields"] += 1
 
-    row = flatten_history(record)
+    row: Row = dict(record)
+    history = record.get("history")
+    if isinstance(history, dict):
+        row.update(history)
     row["publication_types"] = publication_type_labels(row.get("publication_types"))
     row["keywords"] = str(row.get("keywords") or "").replace(";", ",")
     row["issn_linking"] = normalize_issn(row.get("issn_linking"))
@@ -327,100 +149,249 @@ def first_stage_record(record: JsonRecord, counts: Counter[str]) -> Row | None:
     accepted = parse_date(row.get("accepted"))
     pubdate = parse_date(row.get("pubdate"))
     article_dt = parse_date(row.get("article_date"))
-
     if received is None or accepted is None:
         return None
     counts["has_received_and_accepted_dates"] += 1
-
     if "Journal Article" not in row["publication_types"]:
         return None
     counts["journal_articles"] += 1
-
     if not row["issn_linking"]:
         return None
     counts["has_linking_issn"] += 1
 
-    # This intentionally mirrors the old R filter, which effectively required
-    # article_date to be present before computing the fallback publication delay.
+    publication_dt = article_dt or pubdate
+    source = (
+        "article_date"
+        if article_dt is not None
+        else "pubdate"
+        if pubdate is not None
+        else ""
+    )
     if (
-        article_dt is None
-        or received >= article_dt
-        or accepted >= article_dt
+        publication_dt is None
+        or received >= publication_dt
+        or accepted >= publication_dt
         or accepted <= received
     ):
         return None
     counts["coherent_dates"] += 1
-
     acceptance_delay = (accepted - received).days
-    publication_delay = (
-        (article_dt - accepted).days
-        if article_dt
-        else ((pubdate - accepted).days if pubdate else None)
-    )
-    if publication_delay is None or acceptance_delay < 0 or publication_delay < 0:
+    publication_delay = (publication_dt - accepted).days
+    if acceptance_delay < 0 or publication_delay < 0:
         return None
     counts["nonnegative_delays"] += 1
-
-    text_for_flags = " ".join(
-        [str(row.get("title") or ""), str(row.get("keywords") or "")]
-    )
     row.update(
         {
             "received": iso(received),
             "accepted": iso(accepted),
             "pubdate": iso(pubdate),
-            "article_date": iso(article_dt),
+            "article_date": iso(publication_dt),
+            "article_date_raw": iso(article_dt),
+            "publication_date_source": source,
             "acceptance_delay": acceptance_delay,
             "publication_delay": publication_delay,
-            "is_covid": contains_any_term(text_for_flags, COVID_SYNONYMS),
-            "is_replication": contains_any_term(text_for_flags, REPLICATION_SYNONYMS),
+            "is_covid": contains_any_term(
+                f"{row.get('title', '')} {row.get('keywords', '')}", COVID_SYNONYMS
+            ),
         }
     )
     return row
 
 
-def enrich_rows(rows: Iterable[Row], external: ExternalInputs) -> Iterator[Row]:
-    joined: Iterable[Row] = rows
-    for source, path in (
-        ("scimago", external.scimago),
-        ("wos", external.web_of_science),
-        ("doaj", external.doaj),
-        ("npi", external.norwegian_list),
-    ):
-        index = index_by_issn(read_csv_rows(path))
-        if index:
-            joined = left_join_issn(joined, index, source)
-    yield from joined
-
-
-def finalize_row(row: Row, retractions: Mapping[str, Row]) -> Row:
-    article_dt = parse_date(row.get("article_date"))
-    article_year = article_dt.year if article_dt else None
-
-    row["quartile_year"] = value_for_year(row, "quartile", article_year)
-    row["npi_year"] = value_for_year(row, "npi_level", article_year)
-    row["rank_year"] = value_for_year(row, "rank", article_year)
-    row["h_index_year"] = value_for_year(row, "h_index", article_year)
-    row["is_psych"] = is_psychology_asjc(row.get("asjc"))
-    row["is_mega"] = normalize_issn(row.get("issn_linking")) in MEGAJOURNAL_ISSNS
-    row["open_access"] = compute_open_access(row)
-
-    retraction = retractions.get(normalize_doi(row.get("doi")))
-    row["is_retracted"] = retraction is not None and (
-        bool(retraction.get("reason"))
-        or bool(retraction.get("retraction_nature"))
-        or bool(retraction.get("retraction_date"))
+def journal_metadata_eligible(row: Mapping[str, Any], min_received: date) -> bool:
+    is_conference = _coerce_int(row.get("is_conference"))
+    received = parse_date(row.get("received"))
+    publication_dt = parse_date(row.get("article_date")) or parse_date(
+        row.get("pubdate")
     )
-    if retraction is not None:
-        original_date = parse_date(retraction.get("original_date"))
-        if original_date is not None:
-            row["article_date"] = iso(original_date)
+    ceased_year = _coerce_int(row.get("ceased"))
+    if is_conference != 0 or received is None or received < min_received:
+        return False
+    return ceased_year is None or (
+        publication_dt is not None and ceased_year >= publication_dt.year
+    )
 
-    return {column: row.get(column, "") for column in CANONICAL_ARTICLE_COLUMNS}
+
+def _coerce_int(value: Any) -> int | None:
+    try:
+        text = str(value).strip()
+        if not text:
+            return None
+        return int(float(text))
+    except (TypeError, ValueError):
+        return None
+
+
+def _iter_input_paths(input_path: Path | list[Path] | tuple[Path, ...]) -> list[Path]:
+    if isinstance(input_path, (list, tuple)):
+        return [Path(path) for path in input_path]
+    input_path = Path(input_path)
+    if input_path.is_dir():
+        return sorted(
+            list(input_path.rglob("*.jsonl")) + list(input_path.rglob("*.json"))
+        )
+    return [input_path]
+
+
+def _read_json_frames(paths: list[Path]) -> pl.DataFrame:
+    frames: list[pl.DataFrame] = []
+    for path in paths:
+        if path.suffix == ".jsonl":
+            frames.append(pl.read_ndjson(path, infer_schema_length=10000))
+        else:
+            # Parsed legacy JSON arrays are accepted for migration, but JSONL is
+            # the canonical fast/resumable format.
+            with Path(path).open("r", encoding="utf-8") as handle:
+                data = json.load(handle)
+            if isinstance(data, dict):
+                data = [data]
+            frames.append(pl.DataFrame(data))
+    if not frames:
+        return pl.DataFrame()
+    return pl.concat(frames, how="diagonal_relaxed")
+
+
+def _ensure_columns(df: pl.DataFrame, columns: list[str]) -> pl.DataFrame:
+    exprs = [pl.lit(None).alias(col) for col in columns if col not in df.columns]
+    return df.with_columns(exprs) if exprs else df
+
+
+def _history_field_expr(df: pl.DataFrame, field: str) -> pl.Expr:
+    dtype = df.schema.get("history")
+    fields = getattr(dtype, "fields", []) if dtype is not None else []
+    names = {getattr(f, "name", "") for f in fields}
+    if field in names:
+        return (
+            pl.col("history")
+            .struct.field(field)
+            .cast(pl.Utf8, strict=False)
+            .alias(field)
+        )
+    return pl.lit(None).cast(pl.Utf8).alias(field)
+
+
+def _load_external(path: Path | None) -> pl.DataFrame:
+    if path is None or not Path(path).exists():
+        return pl.DataFrame()
+    df = scan_tabular(Path(path)).collect()
+    df = df.rename({name: normalize_header(name) for name in df.columns})
+    if "issn_linking" in df.columns:
+        df = df.with_columns(issn_expr(pl.col("issn_linking")).alias("issn_linking"))
+        df = df.filter(pl.col("issn_linking") != "").unique(
+            subset=["issn_linking"], keep="first", maintain_order=True
+        )
+    return df
+
+
+def _left_join_external(df: pl.DataFrame, path: Path | None) -> pl.DataFrame:
+    right = _load_external(path)
+    if right.is_empty() or "issn_linking" not in right.columns:
+        return df
+    return df.join(right, on="issn_linking", how="left", coalesce=True)
+
+
+def _load_retractions(path: Path | None) -> pl.DataFrame:
+    if path is None or not Path(path).exists():
+        return pl.DataFrame(
+            {
+                "doi": [],
+                "retraction_doi": [],
+                "retraction_nature": [],
+                "reason": [],
+                "retraction_date": [],
+                "original_date": [],
+            }
+        )
+    df = scan_tabular(Path(path)).collect()
+    df = df.rename({name: normalize_header(name) for name in df.columns})
+    for col in [
+        "doi",
+        "retraction_doi",
+        "retraction_nature",
+        "reason",
+        "retraction_date",
+        "original_date",
+    ]:
+        if col not in df.columns:
+            df = df.with_columns(pl.lit(None).cast(pl.Utf8).alias(col))
+    return (
+        df.with_columns(
+            doi_expr(pl.coalesce([pl.col("doi"), pl.col("retraction_doi")])).alias(
+                "doi"
+            )
+        )
+        .filter(pl.col("doi") != "")
+        .unique(subset=["doi"], keep="first", maintain_order=True)
+        .select(
+            "doi",
+            "retraction_doi",
+            "retraction_nature",
+            "reason",
+            "retraction_date",
+            "original_date",
+        )
+    )
+
+
+def _year_value_expr(prefix: str, year_expr: pl.Expr) -> pl.Expr:
+    expr: pl.Expr | None = None
+    for year in range(2015, 2025):
+        col = f"{prefix}_{year}"
+        if prefix == "npi_level":
+            col = f"npi_level_{str(year)[-2:]}"
+        branch = pl.when(year_expr == year).then(
+            pl.col(col) if col in _CURRENT_COLUMNS else pl.lit(None)
+        )
+        expr = (
+            branch
+            if expr is None
+            else expr.when(year_expr == year).then(
+                pl.col(col) if col in _CURRENT_COLUMNS else pl.lit(None)
+            )
+        )
+    # This function is rewritten below once columns are known.
+    return pl.lit(None)
+
+
+_CURRENT_COLUMNS: set[str] = set()
+
+
+def year_lookup_expr(df: pl.DataFrame, prefix: str, year_column: str) -> pl.Expr:
+    year_expr = (
+        pl.when(pl.col(year_column) >= 2025)
+        .then(pl.lit(2024))
+        .otherwise(pl.col(year_column))
+    )
+    result = pl.lit(None).cast(pl.Utf8)
+    for year in range(2015, 2025):
+        if prefix == "npi_level":
+            candidates = [f"npi_level_{str(year)[-2:]}", f"npi_level_{year}"]
+        else:
+            candidates = [f"{prefix}_{year}"]
+        value = next(
+            (
+                pl.col(c).cast(pl.Utf8, strict=False)
+                for c in candidates
+                if c in df.columns
+            ),
+            pl.lit(None).cast(pl.Utf8),
+        )
+        result = pl.when(year_expr == year).then(value).otherwise(result)
+    return result
+
+
+def _write_filter_counts(path: Path, counts: Mapping[str, int]) -> None:
+    df = pl.DataFrame(
+        {
+            "stage": list(FILTER_STAGES),
+            "count": [int(counts.get(stage, 0)) for stage in FILTER_STAGES],
+        }
+    )
+    write_frame(path, df)
 
 
 def transform_files(
-    input_path: Path,
+    input_path: Path | list[Path] | tuple[Path, ...],
     output_path: Path,
     *,
     filters_path: Path | None = None,
@@ -429,48 +400,242 @@ def transform_files(
 ) -> TransformResult:
     external = external or ExternalInputs()
     counts: Counter[str] = Counter({stage: 0 for stage in FILTER_STAGES})
-    paths = iter_input_paths(input_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    if filters_path is not None:
-        filters_path.parent.mkdir(parents=True, exist_ok=True)
+    paths = _iter_input_paths(Path(input_path))
+    df = _read_json_frames(paths)
 
-    retractions = index_retractions(read_csv_rows(external.retraction_watch))
-    seen_titles: set[str] = set()
+    counts["raw_records"] = df.height
+    if df.is_empty():
+        out = pl.DataFrame({col: [] for col in CANONICAL_ARTICLE_COLUMNS})
+        write_frame(Path(output_path), out)
+        if filters_path:
+            _write_filter_counts(filters_path, counts)
+        return TransformResult(Path(output_path), filters_path, dict(counts))
 
-    with output_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(
-            handle, fieldnames=list(CANONICAL_ARTICLE_COLUMNS), delimiter="\t"
+    df = _ensure_columns(
+        df,
+        [
+            *REQUIRED_PARSED_FIELDS,
+            "delete",
+            "title",
+            "keywords",
+            "doi",
+            "article_date",
+            "pubdate",
+        ],
+    )
+    df = df.filter(~pl.col("delete").fill_null(False).cast(pl.Boolean, strict=False))
+    counts["non_deleted_records"] = df.height
+
+    df = df.filter(
+        pl.all_horizontal([pl.col(c).is_not_null() for c in REQUIRED_PARSED_FIELDS])
+    )
+    counts["has_required_parsed_fields"] = df.height
+
+    df = df.with_columns(
+        _history_field_expr(df, "received"),
+        _history_field_expr(df, "accepted"),
+        publication_types_expr(pl.col("publication_types")).alias("publication_types"),
+        pl.col("keywords")
+        .cast(pl.Utf8, strict=False)
+        .fill_null("")
+        .str.replace_all(";", ",")
+        .alias("keywords"),
+        issn_expr(pl.col("issn_linking")).alias("issn_linking"),
+        doi_expr(pl.col("doi")).alias("doi"),
+    ).with_columns(
+        date_expr(pl.col("received")).alias("received_date"),
+        date_expr(pl.col("accepted")).alias("accepted_date"),
+        date_expr(pl.col("pubdate")).alias("pubdate_date"),
+        date_expr(pl.col("article_date")).alias("article_date_parsed"),
+    )
+
+    df = df.filter(
+        pl.col("received_date").is_not_null() & pl.col("accepted_date").is_not_null()
+    )
+    counts["has_received_and_accepted_dates"] = df.height
+
+    df = df.filter(pl.col("publication_types").str.contains("Journal Article"))
+    counts["journal_articles"] = df.height
+
+    df = df.filter(pl.col("issn_linking") != "")
+    counts["has_linking_issn"] = df.height
+
+    df = df.with_columns(
+        pl.coalesce([pl.col("article_date_parsed"), pl.col("pubdate_date")]).alias(
+            "publication_date"
+        ),
+        pl.when(pl.col("article_date_parsed").is_not_null())
+        .then(pl.lit("article_date"))
+        .when(pl.col("pubdate_date").is_not_null())
+        .then(pl.lit("pubdate"))
+        .otherwise(pl.lit(""))
+        .alias("publication_date_source"),
+    )
+    df = df.filter(
+        pl.col("publication_date").is_not_null()
+        & (pl.col("received_date") < pl.col("publication_date"))
+        & (pl.col("accepted_date") < pl.col("publication_date"))
+        & (pl.col("accepted_date") > pl.col("received_date"))
+    )
+    counts["coherent_dates"] = df.height
+
+    df = df.with_columns(
+        (pl.col("accepted_date") - pl.col("received_date"))
+        .dt.total_days()
+        .alias("acceptance_delay"),
+        (pl.col("publication_date") - pl.col("accepted_date"))
+        .dt.total_days()
+        .alias("publication_delay"),
+    ).filter((pl.col("acceptance_delay") >= 0) & (pl.col("publication_delay") >= 0))
+    counts["nonnegative_delays"] = df.height
+
+    covid_regex = "(?i)" + "|".join(
+        rf"\b{re.escape(term)}\b" for term in COVID_SYNONYMS
+    )
+    df = df.with_columns(
+        pl.col("received_date").dt.strftime("%Y-%m-%d").alias("received"),
+        pl.col("accepted_date").dt.strftime("%Y-%m-%d").alias("accepted"),
+        pl.col("publication_date").dt.strftime("%Y-%m-%d").alias("article_date"),
+        pl.col("article_date_parsed")
+        .dt.strftime("%Y-%m-%d")
+        .fill_null("")
+        .alias("article_date_raw"),
+        pl.col("pubdate_date").dt.strftime("%Y-%m-%d").fill_null("").alias("pubdate"),
+        (
+            pl.col("title").cast(pl.Utf8, strict=False).fill_null("")
+            + pl.lit(" ")
+            + pl.col("keywords").fill_null("")
         )
-        writer.writeheader()
+        .str.contains(covid_regex)
+        .fill_null(False)
+        .alias("is_covid_bool"),
+    )
 
-        for path in paths:
-            first_stage = (
-                row
-                for record in iter_json_records(path)
-                if (row := first_stage_record(record, counts)) is not None
+    for path in [
+        external.scimago,
+        external.web_of_science,
+        external.doaj,
+        external.norwegian_list,
+    ]:
+        df = _left_join_external(df, path)
+    counts["after_external_joins"] = df.height
+
+    # If NPI metadata is absent, keep local smoke tests usable.  Real full runs
+    # should provide NPI and are checked by `preflight`.
+    for col, default in [
+        ("is_conference", "0"),
+        ("ceased", None),
+        ("is_series", ""),
+        ("established", ""),
+    ]:
+        if col not in df.columns:
+            df = df.with_columns(pl.lit(default).alias(col))
+
+    df = df.with_columns(
+        pl.col("is_conference").cast(pl.Int64, strict=False).alias("is_conference_int"),
+        pl.col("ceased").cast(pl.Int64, strict=False).alias("ceased_year"),
+        pl.col("publication_date").dt.year().alias("article_year"),
+    ).filter(
+        (pl.col("is_conference_int") == 0)
+        & (pl.col("received_date") >= pl.lit(min_received))
+        & (
+            pl.col("ceased_year").is_null()
+            | (pl.col("ceased_year") >= pl.col("article_year"))
+        )
+    )
+    counts["eligible_journal_metadata"] = df.height
+
+    df = df.unique(subset=["title"], keep="first", maintain_order=True)
+    counts["distinct_titles"] = df.height
+
+    for col in [
+        "asjc",
+        "discipline",
+        "npi_discipline",
+        "npi_field",
+        "apc",
+        "apc_amount",
+        "country",
+        "country_of_publication",
+        "open_access_status",
+        "npi_open_access",
+        "does_the_journal_comply_to_doaj_s_definition_of_open_access",
+    ]:
+        if col not in df.columns:
+            df = df.with_columns(pl.lit(None).cast(pl.Utf8).alias(col))
+
+    df = df.with_columns(
+        year_lookup_expr(df, "quartile", "article_year").alias("quartile_year"),
+        year_lookup_expr(df, "rank", "article_year").alias("rank_year"),
+        year_lookup_expr(df, "h_index", "article_year").alias("h_index_year"),
+        year_lookup_expr(df, "npi_level", "article_year").alias("npi_year"),
+        pl.col("asjc")
+        .cast(pl.Int64, strict=False)
+        .is_between(3200, 3207)
+        .fill_null(False)
+        .alias("is_psych_bool"),
+        pl.col("issn_linking").is_in(list(MEGAJOURNAL_ISSNS)).alias("is_mega_bool"),
+        (
+            (
+                pl.col("does_the_journal_comply_to_doaj_s_definition_of_open_access")
+                == "Yes"
             )
-            for row in enrich_rows(first_stage, external):
-                counts["after_external_joins"] += 1
-                if not journal_metadata_eligible(row, min_received):
-                    continue
-                counts["eligible_journal_metadata"] += 1
+            | (pl.col("open_access_status") == "Unpaywall Open Acess")
+            | (pl.col("npi_open_access") == "DOAJ")
+        )
+        .fill_null(False)
+        .alias("open_access_bool"),
+    )
 
-                title_key = str(row.get("title") or "").strip().casefold()
-                if not title_key or title_key in seen_titles:
-                    continue
-                seen_titles.add(title_key)
-                counts["distinct_titles"] += 1
+    retractions = _load_retractions(external.retraction_watch)
+    if not retractions.is_empty():
+        df = df.join(
+            retractions, on="doi", how="left", suffix="_retraction", coalesce=True
+        )
+    for col in ["retraction_nature", "reason", "retraction_date", "original_date"]:
+        if col not in df.columns:
+            df = df.with_columns(pl.lit(None).cast(pl.Utf8).alias(col))
 
-                writer.writerow(finalize_row(row, retractions))
-                counts["final_rows"] += 1
+    df = df.with_columns(
+        (
+            (pl.col("reason").is_not_null() & (pl.col("reason") != ""))
+            | (
+                pl.col("retraction_nature").is_not_null()
+                & (pl.col("retraction_nature") != "")
+            )
+        ).alias("is_retracted_bool"),
+        date_expr(pl.col("original_date")).alias("original_date_parsed"),
+    ).with_columns(
+        pl.when(pl.col("original_date_parsed").is_not_null())
+        .then(pl.col("original_date_parsed").dt.strftime("%Y-%m-%d"))
+        .otherwise(pl.col("article_date"))
+        .alias("article_date"),
+        bool_text_expr(pl.col("is_covid_bool")).alias("is_covid"),
+        bool_text_expr(pl.col("is_psych_bool")).alias("is_psych"),
+        bool_text_expr(pl.col("is_mega_bool")).alias("is_mega"),
+        bool_text_expr(pl.col("open_access_bool")).alias("open_access"),
+        bool_text_expr(pl.col("is_retracted_bool")).alias("is_retracted"),
+        pl.coalesce([pl.col("country"), pl.col("country_of_publication")]).alias(
+            "country"
+        ),
+    )
+
+    for col in CANONICAL_ARTICLE_COLUMNS:
+        if col not in df.columns:
+            df = df.with_columns(pl.lit("").alias(col))
+
+    out = df.select(
+        [
+            pl.col(col).cast(pl.Utf8, strict=False).fill_null("").alias(col)
+            for col in CANONICAL_ARTICLE_COLUMNS
+        ]
+    )
+    counts["final_rows"] = out.height
+    write_frame(Path(output_path), out, format=None)
 
     if filters_path is not None:
-        with filters_path.open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=["stage", "count"])
-            writer.writeheader()
-            for stage in FILTER_STAGES:
-                writer.writerow({"stage": stage, "count": counts[stage]})
+        _write_filter_counts(Path(filters_path), counts)
 
     return TransformResult(
-        output_path=output_path, filters_path=filters_path, counts=dict(counts)
+        output_path=Path(output_path), filters_path=filters_path, counts=dict(counts)
     )

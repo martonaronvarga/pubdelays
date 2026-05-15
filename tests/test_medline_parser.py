@@ -94,7 +94,14 @@ def test_parse_custom_fields_and_delete_citation(tmp_path: Path) -> None:
     assert article["pubdate"] == "2017-01-05"
     assert article["article_date"] == "2016-12-31"
     assert article["history"] == {"received": "2016-10-01", "accepted": "2016-11-02"}
-    assert article["grant_ids"] == [{"grant_id": "G1", "grant_acronym": "", "country": "Hungary", "agency": "Agency"}]
+    assert article["grant_ids"] == [
+        {
+            "grant_id": "G1",
+            "grant_acronym": "",
+            "country": "Hungary",
+            "agency": "Agency",
+        }
+    ]
     assert article["affiliations"] == "Institute A|Institute B"
     assert article["doi"] == "10.123/example"
     assert article["mesh_terms"] == "D000001:Term* / Q000001:qualifier"
@@ -113,22 +120,27 @@ def test_cli_parse_jsonl(tmp_path: Path) -> None:
     input_dir.mkdir()
     write_gz(input_dir / "sample.xml.gz", sample_xml())
 
-    exit_code = main([
-        "parse",
-        "--input-dir",
-        str(input_dir),
-        "--output-dir",
-        str(output_dir),
-        "--jobs",
-        "1",
-        "--format",
-        "jsonl",
-        "--parse-mesh-subterms",
-    ])
+    exit_code = main(
+        [
+            "parse",
+            "--input-dir",
+            str(input_dir),
+            "--output-dir",
+            str(output_dir),
+            "--jobs",
+            "1",
+            "--format",
+            "jsonl",
+            "--parse-mesh-subterms",
+        ]
+    )
     assert exit_code == 0
 
     output_path = output_dir / "sample.xml.gz.jsonl"
-    rows = [json.loads(line) for line in output_path.read_text(encoding="utf-8").splitlines()]
+    rows = [
+        json.loads(line)
+        for line in output_path.read_text(encoding="utf-8").splitlines()
+    ]
     assert len(rows) == 3
     assert rows[0]["history"]["accepted"] == "2016-11-02"
 
@@ -138,5 +150,11 @@ def test_cli_parse_jsonl(tmp_path: Path) -> None:
 
 def test_parse_md5_sidecar_formats() -> None:
     digest = "d41d8cd98f00b204e9800998ecf8427e"
-    assert parse_md5_sidecar(f"{digest}  pubmed25n0001.xml.gz") == (digest, "pubmed25n0001.xml.gz")
-    assert parse_md5_sidecar(f"MD5 (pubmed25n0001.xml.gz) = {digest}") == (digest, "pubmed25n0001.xml.gz")
+    assert parse_md5_sidecar(f"{digest}  pubmed25n0001.xml.gz") == (
+        digest,
+        "pubmed25n0001.xml.gz",
+    )
+    assert parse_md5_sidecar(f"MD5 (pubmed25n0001.xml.gz) = {digest}") == (
+        digest,
+        "pubmed25n0001.xml.gz",
+    )
