@@ -148,6 +148,17 @@ Required comparisons:
 10. rows removed by ceased-year correction
 ```
 
+Run the lightweight differential harness:
+
+```bash
+pubdelays-pipeline compare-legacy \
+  --legacy path/to/legacy_processed.csv \
+  --new data/processed_data/processed.parquet \
+  --output data/processed_data/validation/differential.csv
+```
+
+The report classifies differences as `expected_correction`, `format_or_type_difference`, or `potential_migration_bug`. See `docs/SEMANTIC_DECISIONS.md` for the narrow expected-correction predicates.
+
 Suggested row-hash check:
 
 ```text

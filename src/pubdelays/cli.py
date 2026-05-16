@@ -52,6 +52,7 @@ from pubdelays.schema import CANONICAL_ARTICLE_COLUMNS, FILTER_STAGES
 from pubdelays.shards import expected_article_shard_path, validate_article_shards
 from pubdelays.transform import ExternalInputs, transform_files
 from pubdelays.ui import err, info, ok, print_kv_table, section, warn
+from pubdelays.validation import compare_legacy_outputs
 
 PUBMED_BASE_URLS = {
     "baseline": "https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/",
@@ -1379,6 +1380,14 @@ def cmd_manifest_retry_script(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_compare_legacy(args: argparse.Namespace) -> int:
+    output = Path(args.output)
+    result = compare_legacy_outputs(Path(args.legacy), Path(args.new), output)
+    ok(f"wrote differential validation report to {result.report_path}")
+    print_kv_table({"differences": result.rows, **result.categories})
+    return 0
+
+
 def add_common_stage_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--manifest",
@@ -1554,6 +1563,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_common_stage_args(aggregate_all)
     aggregate_all.set_defaults(func=cmd_aggregate_all)
+
+    compare_legacy = subparsers.add_parser(
+        "compare-legacy", help="compare legacy and new processed outputs"
+    )
+    compare_legacy.add_argument("--legacy", required=True)
+    compare_legacy.add_argument("--new", required=True)
+    compare_legacy.add_argument(
+        "--output", default="data/processed_data/validation/differential.csv"
+    )
+    compare_legacy.set_defaults(func=cmd_compare_legacy)
 
     download = subparsers.add_parser(
         "download", help="download PubMed baseline/updatefiles with MD5 verification"
