@@ -35,9 +35,23 @@
             && base != ".pytest_cache"
             && base != ".mypy_cache"
             && base != ".ruff_cache"
+            && base != ".swival"
+            && base != ".agents"
+            && base != ".claude"
+            && base != ".codex"
+            && base != ".cursor"
+            && base != ".windsurf"
             && base != ".git"
             && base != "result"
-            && !(lib.hasPrefix "data/raw_data/pubmed/xmls/" rel)
+            && base != "swival.toml"
+            && base != "AGENTS.md"
+            && base != "CLAUDE.md"
+            && base != "GEMINI.md"
+            && base != "uv.lock"
+            && base != ".mcp.json"
+            && !(lib.hasPrefix "prompts/" rel)
+            && rel != "scripts/swival-review.sh"
+            && !(lib.hasPrefix "data/raw_data/" rel)
             && !(lib.hasPrefix "data/temp_data/" rel)
             && !(lib.hasPrefix "data/processed_data/" rel)
             && !(lib.hasPrefix "data/manifests/" rel)
@@ -57,10 +71,7 @@
 
           dependencies = with pythonPackages; [
             lxml
-            pandas
-            orjson
             polars
-            tomli
           ];
 
           nativeCheckInputs = with pythonPackages; [
@@ -77,12 +88,14 @@
             "pubdelays"
             "pubdelays.cli"
             "pubdelays.aggregate"
+            "pubdelays.manifest"
+            "pubdelays.parser.medline"
+            "pubdelays.transform.articles"
             "pubdelays.external.scimago"
             "pubdelays.external.wos"
             "pubdelays.external.doaj"
             "pubdelays.external.npi"
             "pubdelays.external.retraction_watch"
-            "pubdelays.transform.articles"
           ];
         };
 
@@ -91,9 +104,6 @@
             lxml
             pytest
             polars
-            pandas
-            orjson
-            tomli
           ]);
 
         rEnv = pkgs.rWrapper.override {
@@ -135,7 +145,6 @@
           PYTHONPATH = "${toString ./.}/src";
           shellHook = ''
             echo "pubdelays dev shell: run pubdelays-pipeline --help"
-            exec zsh
           '';
         };
 

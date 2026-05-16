@@ -7,11 +7,10 @@ name = "pubdelays"
 version = "0.1.0"
 description = "Reproducible PubMed/MEDLINE pipeline for publication-delay analyses"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
   "lxml>=4.9",
-  "polars>=1.0",
-  "tomli>=2.0; python_version < '3.11'"
+  "polars>=1.0"
 ]
 
 [project.optional-dependencies]

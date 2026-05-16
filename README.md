@@ -15,14 +15,15 @@ src/pubdelays/manifest.py            # SQLite manifest, WAL mode, process-safe a
 src/pubdelays/cli.py                 # pubdelays-pipeline CLI
 config/default.toml                  # canonical paths and defaults
 DATA_LAYOUT.md                       # exact raw/generated data placement
-LEGACY_MIGRATION.md                  # semantics ported from legacy R/shell/Python
+docs/STAGE_CONTRACTS.md              # stage inputs, outputs, manifests, and failure behavior
+LEGACY.md                            # semantics ported from legacy R/shell/Python
 ```
 
-Legacy execution scripts have been replaced by the CLI and documented in `LEGACY_MIGRATION.md`.
+Legacy execution scripts have been replaced by the CLI and documented in `LEGACY.md`.
 
 ## Install
 
-Nix is the reference environment:
+Python 3.12 is the supported runtime. Nix is the reference environment:
 
 ```bash
 nix develop
@@ -105,7 +106,7 @@ Downloads keep `.md5` sidecars and verify them after transfer.
 
 ## Individual stages
 
-All commands use `config/default.toml` by default. Override with:
+All commands use `config/default.toml` by default and validate required sections, path keys, dates, and supported shard formats before running a stage. Stage inputs, outputs, manifest rows, resume behavior, and failure behavior are documented in `docs/STAGE_CONTRACTS.md`. Override config paths with:
 
 ```bash
 pubdelays-pipeline --config path/to/config.toml <command>
@@ -122,6 +123,8 @@ Parse XML:
 ```bash
 pubdelays-pipeline parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
 ```
+
+Parsing fails on malformed XML by default. Use `--recover-malformed-xml` only for explicit best-effort salvage runs. `jsonl` is the preferred full-scale output because it streams records; `json` writes one array and accumulates records in memory.
 
 Validate parsed JSONL:
 

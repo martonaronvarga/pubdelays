@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import re
+import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
 
-try:  # Python 3.11+
-    import tomllib  # type: ignore[attr-defined]
-except ModuleNotFoundError:  # pragma: no cover
-    import tomli as tomllib  # type: ignore[no-redef]
+
+class ConfigError(ValueError):
+    """Raised when a pipeline TOML config violates the public config contract."""
 
 
 @dataclass(frozen=True)
@@ -42,10 +44,94 @@ def discover_repo_root(start: Path | None = None) -> Path:
     return current
 
 
+REQUIRED_PATH_KEYS = (
+    "pipeline.manifest",
+    "pipeline.parse_inputs",
+    "pipeline.transform_inputs",
+    "pubmed.xml_dir",
+    "pubmed.jsonl_dir",
+    "external.raw.scimago_dir",
+    "external.raw.web_of_science_csv",
+    "external.raw.doaj_csv",
+    "external.raw.norwegian_list_csv",
+    "external.raw.retraction_watch_csv",
+    "external.processed.scimago",
+    "external.processed.web_of_science",
+    "external.processed.doaj",
+    "external.processed.norwegian_list",
+    "external.processed.retraction_watch",
+    "external.processed.pubmed_journals",
+    "transform.article_shard_dir",
+    "transform.article_shard_format",
+    "transform.min_received",
+    "aggregate.processed_parquet",
+    "aggregate.processed_csv",
+)
+
+REQUIRED_SECTIONS = ("pipeline", "pubmed", "external", "transform", "aggregate")
+SUPPORTED_ARTICLE_SHARD_FORMATS = {"parquet", "tsv", "csv"}
+
+
+def _config_error(config_path: Path, key: str, message: str) -> ConfigError:
+    return ConfigError(f"{config_path}: invalid config key '{key}': {message}")
+
+
+def _require_mapping(config_path: Path, values: Mapping[str, Any], key: str) -> Mapping[str, Any]:
+    current: Any = values
+    for part in key.split("."):
+        if not isinstance(current, Mapping) or part not in current:
+            raise _config_error(config_path, key, "missing required section")
+        current = current[part]
+    if not isinstance(current, Mapping):
+        raise _config_error(config_path, key, "expected a table")
+    return current
+
+
+def _get_required(config_path: Path, values: Mapping[str, Any], key: str) -> Any:
+    current: Any = values
+    for part in key.split("."):
+        if not isinstance(current, Mapping) or part not in current:
+            raise _config_error(config_path, key, "missing required value")
+        current = current[part]
+    return current
+
+
+def validate_config_values(config_path: Path, values: Mapping[str, Any]) -> None:
+    """Validate the public TOML config boundary before any stage runs."""
+
+    for section in REQUIRED_SECTIONS:
+        _require_mapping(config_path, values, section)
+    _require_mapping(config_path, values, "external.raw")
+    _require_mapping(config_path, values, "external.processed")
+
+    for key in REQUIRED_PATH_KEYS:
+        value = _get_required(config_path, values, key)
+        if not isinstance(value, str) or not value.strip():
+            raise _config_error(config_path, key, "expected a non-empty string")
+
+    shards = _get_required(config_path, values, "transform.default_shards")
+    if not isinstance(shards, int) or isinstance(shards, bool) or shards < 1:
+        raise _config_error(config_path, "transform.default_shards", "expected a positive integer")
+
+    fmt = _get_required(config_path, values, "transform.article_shard_format")
+    if fmt not in SUPPORTED_ARTICLE_SHARD_FORMATS:
+        supported = ", ".join(sorted(SUPPORTED_ARTICLE_SHARD_FORMATS))
+        raise _config_error(config_path, "transform.article_shard_format", f"expected one of: {supported}")
+
+    min_received = _get_required(config_path, values, "transform.min_received")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", min_received):
+        raise _config_error(config_path, "transform.min_received", "expected YYYY-MM-DD date")
+    try:
+        date.fromisoformat(min_received)
+    except ValueError as exc:
+        raise _config_error(config_path, "transform.min_received", "expected YYYY-MM-DD date") from exc
+
+
 def load_config(path: Path | str = "config/default.toml") -> PipelineConfig:
     config_path = Path(path).expanduser()
     if not config_path.is_absolute():
         config_path = discover_repo_root() / config_path
     with config_path.open("rb") as handle:
         values = tomllib.load(handle)
+    validate_config_values(config_path, values)
     return PipelineConfig(root=discover_repo_root(config_path.parent), values=values)

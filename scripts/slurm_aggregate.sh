@@ -9,4 +9,12 @@ ROOT="${ROOT:-$(pwd)}"
 CONFIG="${CONFIG:-$ROOT/config/default.toml}"
 RUN="${RUN:-pubdelays-pipeline}"
 
-"$RUN" --config "$CONFIG" aggregate-all --resume
+ARGS=(--resume)
+if [[ -n "${SHARDS:-}" ]]; then
+  ARGS+=(--shards "$SHARDS")
+fi
+if [[ -n "${FORMAT:-}" ]]; then
+  ARGS+=(--format "$FORMAT")
+fi
+
+"$RUN" --config "$CONFIG" aggregate-all "${ARGS[@]}"

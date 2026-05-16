@@ -484,14 +484,18 @@ def parse_medline_xml(
     reference_list: bool = False,
     parse_downto_mesh_subterms: bool = False,
     min_pub_year: int | None = None,
+    recover: bool = False,
 ) -> Iterator[dict[str, Any]]:
     """Stream MEDLINE XML records from `.xml` or `.xml.gz` files.
+
+    Malformed XML fails fast by default. Set ``recover=True`` only for explicit
+    best-effort salvage runs where lxml recovery is acceptable.
 
     `min_pub_year` is provided for convenience, but should be treated as a
     pipeline-level filter. Leave it as `None` for lossless parsing.
     """
     with _open_xml(path) as handle:
-        context = etree.iterparse(handle, events=("end",), recover=True)
+        context = etree.iterparse(handle, events=("end",), recover=recover)
         for _, element in context:
             if element.tag == "DeleteCitation":
                 for child in element.iterchildren():

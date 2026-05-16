@@ -27,13 +27,37 @@ result-*
 *.orig
 *.rej
 
+# Agent/provider-local tooling and AI artifacts
+.swival/
+.agents/
+.claude/
+.codex/
+.cursor/
+.windsurf/
+.aider*
+.roo/
+.crush/
+.gemini/
+.mcp.json
+swival.toml
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+TASKS.md
+TASKS_*.md
+review_tasks.md
+prompts/
+scripts/swival-review.sh
+
+# uv collaborator cache/lock artifacts; Nix/pyproject are project sources
+uv.lock
+
 # Raw/generated data
-data/raw_data/pubmed/xmls/*
-data/raw_data/pubmed/jsons/*
-data/temp_data/*
-data/processed_data/*
-data/manifests/*
-data/external/*
+data/raw_data/**
+data/temp_data/**
+data/processed_data/**
+data/manifests/**
+data/external/**
 
 # Keep directory skeleton/docs
 !data/raw_data/

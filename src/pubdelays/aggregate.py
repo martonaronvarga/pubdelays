@@ -8,17 +8,7 @@ import polars as pl
 
 from pubdelays.external.common import write_frame
 from pubdelays.schema import CANONICAL_ARTICLE_COLUMNS
-
-
-def iter_article_paths(input_path: Path) -> list[Path]:
-    input_path = Path(input_path)
-    if input_path.is_dir():
-        return sorted(
-            list(input_path.rglob("*.parquet"))
-            + list(input_path.rglob("*.tsv"))
-            + list(input_path.rglob("*.csv"))
-        )
-    return [input_path]
+from pubdelays.shards import iter_article_paths
 
 
 def _scan_article(path: Path) -> pl.LazyFrame:

@@ -25,8 +25,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import polars as pl
+
 from pubdelays.aggregate import aggregate_articles, aggregate_outputs
-from pubdelays.config import PipelineConfig, load_config
+from pubdelays.config import ConfigError, PipelineConfig, load_config
 from pubdelays.external import (
     preprocess_doaj,
     preprocess_npi,
@@ -34,6 +36,7 @@ from pubdelays.external import (
     preprocess_scimago,
     preprocess_wos,
 )
+from pubdelays.external.common import write_frame
 from pubdelays.fs import atomic_output_path, complete_file
 from pubdelays.manifest import (
     Manifest,
@@ -45,6 +48,8 @@ from pubdelays.manifest import (
 )
 from pubdelays.parser.medline import parse_medline_xml
 from pubdelays.paths import expected_input_paths, expected_output_paths
+from pubdelays.schema import CANONICAL_ARTICLE_COLUMNS, FILTER_STAGES
+from pubdelays.shards import expected_article_shard_path, validate_article_shards
 from pubdelays.transform import ExternalInputs, transform_files
 from pubdelays.ui import err, info, ok, print_kv_table, section, warn
 
@@ -193,6 +198,7 @@ def parse_one(
     reference_list: bool,
     parse_mesh_subterms: bool,
     min_pub_year: int | None,
+    recover: bool,
     manifest_path: str | Path | None = None,
     checksum: bool = True,
 ) -> ParseStats:
@@ -217,7 +223,11 @@ def parse_one(
                     deleted=0,
                     started_at=started_at,
                     start_seconds=start_seconds,
-                    metadata={"format": fmt, "reason": "existing_output"},
+                    metadata={
+                        "format": fmt,
+                        "reason": "existing_output",
+                        "recover_malformed_xml": recover,
+                    },
                     checksum=checksum,
                 )
             return stats
@@ -232,6 +242,7 @@ def parse_one(
             reference_list=reference_list,
             parse_downto_mesh_subterms=parse_mesh_subterms,
             min_pub_year=min_pub_year,
+            recover=recover,
         )
 
         with atomic_output_path(output_path) as tmp_path:
@@ -269,7 +280,11 @@ def parse_one(
                 deleted=deleted,
                 started_at=started_at,
                 start_seconds=start_seconds,
-                metadata={"format": fmt, "min_pub_year": min_pub_year},
+                metadata={
+                    "format": fmt,
+                    "min_pub_year": min_pub_year,
+                    "recover_malformed_xml": recover,
+                },
                 checksum=checksum,
             )
         return ParseStats(str(input_path), str(output_path), records, deleted)
@@ -285,6 +300,7 @@ def parse_one(
                 deleted=0,
                 started_at=started_at,
                 start_seconds=start_seconds,
+                metadata={"format": fmt, "recover_malformed_xml": recover},
                 error_message=repr(exc),
                 checksum=checksum,
             )
@@ -302,6 +318,7 @@ def parse_kwargs(args: argparse.Namespace) -> dict[str, Any]:
         "reference_list": args.reference_list,
         "parse_mesh_subterms": args.parse_mesh_subterms,
         "min_pub_year": args.min_pub_year,
+        "recover": args.recover_malformed_xml,
         "manifest_path": manifest_path,
         "checksum": not args.no_checksum,
     }
@@ -317,7 +334,11 @@ def cmd_parse_one(args: argparse.Namespace) -> int:
             args.format,
         )
     )
-    stats = parse_one(Path(args.input), output, **parse_kwargs(args))
+    try:
+        stats = parse_one(Path(args.input), output, **parse_kwargs(args))
+    except Exception as exc:
+        err(f"parse failed for {args.input}: {exc}")
+        return 1
     status = "skipped" if stats.skipped else "parsed"
     ok(f"{status} {stats.input_path} -> {stats.output_path}")
     print_kv_table({"records": stats.records, "deleted": stats.deleted})
@@ -341,9 +362,13 @@ def cmd_parse(args: argparse.Namespace) -> int:
     info(f"parse files={len(xml_paths)} jobs={jobs} output={output_dir}")
     if jobs == 1:
         for path in xml_paths:
-            stats = parse_one(
-                path, output_path_for(path, output_dir, args.format), **kwargs
-            )
+            try:
+                stats = parse_one(
+                    path, output_path_for(path, output_dir, args.format), **kwargs
+                )
+            except Exception as exc:
+                err(f"parse failed for {path}: {exc}")
+                return 1
             total_records += stats.records
             total_deleted += stats.deleted
             skipped += int(stats.skipped)
@@ -362,7 +387,11 @@ def cmd_parse(args: argparse.Namespace) -> int:
                 for path in xml_paths
             ]
             for future in as_completed(futures):
-                stats = future.result()
+                try:
+                    stats = future.result()
+                except Exception as exc:
+                    err(f"parse failed: {exc}")
+                    return 1
                 total_records += stats.records
                 total_deleted += stats.deleted
                 skipped += int(stats.skipped)
@@ -910,6 +939,37 @@ def cmd_aggregate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _expected_shards_from_args(args: argparse.Namespace) -> int:
+    value = getattr(args, "shards", None)
+    if value is not None:
+        return value
+    return int(cfg(args).get("transform.default_shards", 64))
+
+
+def _expected_shard_format_from_args(args: argparse.Namespace) -> str:
+    value = getattr(args, "format", None)
+    if value:
+        return str(value)
+    return str(cfg(args).get("transform.article_shard_format", "parquet"))
+
+
+def cmd_validate_shards(args: argparse.Namespace) -> int:
+    input_path = cfg_path(args, "input", "transform.article_shard_dir")
+    result = validate_article_shards(
+        input_path,
+        expected_shards=_expected_shards_from_args(args),
+        expected_format=_expected_shard_format_from_args(args),
+    )
+    if result.ok:
+        ok(
+            f"validate-shards: {len(result.shards)} complete {result.expected_format} shards in {input_path}"
+        )
+        return 0
+    for message in result.errors:
+        err(message)
+    return 1
+
+
 def cmd_aggregate_all(args: argparse.Namespace) -> int:
     manifest = manifest_from_args(args)
     started_at = utc_now()
@@ -918,6 +978,30 @@ def cmd_aggregate_all(args: argparse.Namespace) -> int:
     parquet_path = cfg_path(args, "parquet", "aggregate.processed_parquet")
     csv_path = cfg_path(args, "csv", "aggregate.processed_csv")
     outputs = [parquet_path, csv_path]
+    validation_metadata: dict[str, object] = {}
+    if not args.allow_incomplete:
+        validation = validate_article_shards(
+            input_path,
+            expected_shards=_expected_shards_from_args(args),
+            expected_format=_expected_shard_format_from_args(args),
+        )
+        validation_metadata = {"shard_validation": validation.metadata}
+        if not validation.ok:
+            for message in validation.errors:
+                err(message)
+            append_manifest(
+                manifest,
+                stage="aggregate-all",
+                status="failed",
+                input_path=input_path,
+                output_path=parquet_path,
+                started_at=started_at,
+                start_seconds=start_seconds,
+                metadata=validation_metadata,
+                error_message="incomplete article shard set",
+                checksum=not args.no_checksum,
+            )
+            return 1
     if args.resume and all(complete_file(path) for path in outputs):
         append_manifest(
             manifest,
@@ -927,7 +1011,11 @@ def cmd_aggregate_all(args: argparse.Namespace) -> int:
             output_path=parquet_path,
             started_at=started_at,
             start_seconds=start_seconds,
-            metadata={"reason": "existing_outputs", "csv": str(csv_path)},
+            metadata={
+                "reason": "existing_outputs",
+                "csv": str(csv_path),
+                **validation_metadata,
+            },
             checksum=not args.no_checksum,
         )
         warn(f"skip existing {parquet_path} and {csv_path}")
@@ -942,7 +1030,7 @@ def cmd_aggregate_all(args: argparse.Namespace) -> int:
         records=rows,
         started_at=started_at,
         start_seconds=start_seconds,
-        metadata={"csv": str(csv_path)},
+        metadata={"csv": str(csv_path), **validation_metadata},
         checksum=not args.no_checksum,
     )
     ok(f"aggregate-all: wrote {rows} rows to {parquet_path} and {csv_path}")
@@ -1031,9 +1119,8 @@ def cmd_transform_shard(args: argparse.Namespace) -> int:
         if index % args.shards == args.shard_index
     ]
     output_dir = cfg_path(args, "output_dir", "transform.article_shard_dir")
-    output_path = (
-        output_dir
-        / f"articles-shard-{args.shard_index:05d}-of-{args.shards:05d}.{args.format}"
+    output_path = expected_article_shard_path(
+        output_dir, args.shard_index, args.shards, args.format
     )
     filters_path = (
         output_dir
@@ -1041,7 +1128,55 @@ def cmd_transform_shard(args: argparse.Namespace) -> int:
     )
 
     if not selected:
-        warn(f"empty shard {args.shard_index}/{args.shards}")
+        if args.resume and complete_file(output_path):
+            append_manifest(
+                manifest,
+                stage="transform-shard",
+                status="skipped",
+                input_path=input_list,
+                output_path=output_path,
+                started_at=started_at,
+                start_seconds=start_seconds,
+                metadata={
+                    "reason": "existing_output",
+                    "shard_index": args.shard_index,
+                    "shards": args.shards,
+                    "inputs": 0,
+                },
+                checksum=not args.no_checksum,
+            )
+            warn(f"skip existing {output_path}")
+            return 0
+        counts = {stage: 0 for stage in FILTER_STAGES}
+        write_frame(
+            output_path,
+            pl.DataFrame({col: [] for col in CANONICAL_ARTICLE_COLUMNS}),
+        )
+        write_frame(
+            filters_path,
+            pl.DataFrame(
+                {"stage": list(FILTER_STAGES), "count": [0 for _ in FILTER_STAGES]}
+            ),
+        )
+        append_manifest(
+            manifest,
+            stage="transform-shard",
+            status="success",
+            input_path=input_list,
+            output_path=output_path,
+            records=0,
+            started_at=started_at,
+            start_seconds=start_seconds,
+            metadata={
+                "counts": counts,
+                "shard_index": args.shard_index,
+                "shards": args.shards,
+                "inputs": 0,
+                "empty_selection": True,
+            },
+            checksum=not args.no_checksum,
+        )
+        ok(f"transform-shard {args.shard_index}/{args.shards}: wrote empty {output_path}")
         return 0
     if args.resume and complete_file(output_path):
         append_manifest(
@@ -1177,6 +1312,11 @@ def add_parse_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--reference-list", action="store_true")
     parser.add_argument("--parse-mesh-subterms", action="store_true")
     parser.add_argument("--min-pub-year", type=int, default=None)
+    parser.add_argument(
+        "--recover-malformed-xml",
+        action="store_true",
+        help="enable lxml best-effort recovery instead of failing on malformed XML",
+    )
     add_common_stage_args(parser)
 
 
@@ -1290,6 +1430,16 @@ def build_parser() -> argparse.ArgumentParser:
     add_external_args(transform_shards)
     transform_shards.set_defaults(func=cmd_transform_shards)
 
+    validate_shards = subparsers.add_parser(
+        "validate-shards", help="validate article shard completeness before aggregation"
+    )
+    validate_shards.add_argument("--input", default=None)
+    validate_shards.add_argument("--shards", type=int, default=None)
+    validate_shards.add_argument(
+        "--format", choices=["parquet", "tsv", "csv"], default=None
+    )
+    validate_shards.set_defaults(func=cmd_validate_shards)
+
     aggregate = subparsers.add_parser(
         "aggregate", help="aggregate article shards into one processed dataset"
     )
@@ -1304,6 +1454,15 @@ def build_parser() -> argparse.ArgumentParser:
     aggregate_all.add_argument("--input", default=None)
     aggregate_all.add_argument("--parquet", default=None)
     aggregate_all.add_argument("--csv", default=None)
+    aggregate_all.add_argument("--shards", type=int, default=None)
+    aggregate_all.add_argument(
+        "--format", choices=["parquet", "tsv", "csv"], default=None
+    )
+    aggregate_all.add_argument(
+        "--allow-incomplete",
+        action="store_true",
+        help="aggregate discovered article shards without completeness validation",
+    )
     add_common_stage_args(aggregate_all)
     aggregate_all.set_defaults(func=cmd_aggregate_all)
 
@@ -1396,7 +1555,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except ConfigError as exc:
+        err(str(exc))
+        return 2
 
 
 if __name__ == "__main__":
