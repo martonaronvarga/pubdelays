@@ -690,45 +690,59 @@ def cmd_transform_one(args: argparse.Namespace) -> int:
     start_seconds = time.time()
     input_path = Path(args.input)
     output_path = Path(args.output)
-    if args.resume and complete_file(output_path):
+    try:
+        if args.resume and complete_file(output_path):
+            append_manifest(
+                manifest,
+                stage="transform",
+                status="skipped",
+                input_path=input_path,
+                output_path=output_path,
+                started_at=started_at,
+                start_seconds=start_seconds,
+                metadata={"reason": "existing_output"},
+                checksum=not args.no_checksum,
+            )
+            warn(f"skip existing {output_path}")
+            return 0
+        result = transform_files(
+            input_path,
+            output_path,
+            filters_path=_optional_path(args.filters_output),
+            external=external_inputs_from_args(args),
+            min_received=min_received_from_args(args),
+        )
         append_manifest(
             manifest,
             stage="transform",
-            status="skipped",
+            status="success",
+            input_path=input_path,
+            output_path=output_path,
+            records=result.counts.get("final_rows", 0),
+            started_at=started_at,
+            start_seconds=start_seconds,
+            metadata={
+                "counts": dict(result.counts),
+                "filters_path": str(result.filters_path or ""),
+            },
+            checksum=not args.no_checksum,
+        )
+        ok(f"wrote {result.output_path}")
+        print_kv_table(result.counts)
+        return 0
+    except Exception as exc:
+        append_manifest(
+            manifest,
+            stage="transform",
+            status="failed",
             input_path=input_path,
             output_path=output_path,
             started_at=started_at,
             start_seconds=start_seconds,
-            metadata={"reason": "existing_output"},
+            error_message=repr(exc),
             checksum=not args.no_checksum,
         )
-        warn(f"skip existing {output_path}")
-        return 0
-    result = transform_files(
-        input_path,
-        output_path,
-        filters_path=_optional_path(args.filters_output),
-        external=external_inputs_from_args(args),
-        min_received=min_received_from_args(args),
-    )
-    append_manifest(
-        manifest,
-        stage="transform",
-        status="success",
-        input_path=input_path,
-        output_path=output_path,
-        records=result.counts.get("final_rows", 0),
-        started_at=started_at,
-        start_seconds=start_seconds,
-        metadata={
-            "counts": dict(result.counts),
-            "filters_path": str(result.filters_path or ""),
-        },
-        checksum=not args.no_checksum,
-    )
-    ok(f"wrote {result.output_path}")
-    print_kv_table(result.counts)
-    return 0
+        raise
 
 
 def transform_worker(payload: dict[str, Any]) -> int:
@@ -909,34 +923,48 @@ def cmd_aggregate(args: argparse.Namespace) -> int:
     start_seconds = time.time()
     input_path = cfg_path(args, "input", "transform.article_shard_dir")
     output_path = cfg_path(args, "output", "aggregate.processed_parquet")
-    if args.resume and complete_file(output_path):
+    try:
+        if args.resume and complete_file(output_path):
+            append_manifest(
+                manifest,
+                stage="aggregate",
+                status="skipped",
+                input_path=input_path,
+                output_path=output_path,
+                started_at=started_at,
+                start_seconds=start_seconds,
+                metadata={"reason": "existing_output"},
+                checksum=not args.no_checksum,
+            )
+            warn(f"skip existing {output_path}")
+            return 0
+        rows = aggregate_articles(input_path, output_path)
         append_manifest(
             manifest,
             stage="aggregate",
-            status="skipped",
+            status="success",
+            input_path=input_path,
+            output_path=output_path,
+            records=rows,
+            started_at=started_at,
+            start_seconds=start_seconds,
+            checksum=not args.no_checksum,
+        )
+        ok(f"aggregate: wrote {rows} rows to {output_path}")
+        return 0
+    except Exception as exc:
+        append_manifest(
+            manifest,
+            stage="aggregate",
+            status="failed",
             input_path=input_path,
             output_path=output_path,
             started_at=started_at,
             start_seconds=start_seconds,
-            metadata={"reason": "existing_output"},
+            error_message=repr(exc),
             checksum=not args.no_checksum,
         )
-        warn(f"skip existing {output_path}")
-        return 0
-    rows = aggregate_articles(input_path, output_path)
-    append_manifest(
-        manifest,
-        stage="aggregate",
-        status="success",
-        input_path=input_path,
-        output_path=output_path,
-        records=rows,
-        started_at=started_at,
-        start_seconds=start_seconds,
-        checksum=not args.no_checksum,
-    )
-    ok(f"aggregate: wrote {rows} rows to {output_path}")
-    return 0
+        raise
 
 
 def _expected_shards_from_args(args: argparse.Namespace) -> int:
@@ -1002,39 +1030,54 @@ def cmd_aggregate_all(args: argparse.Namespace) -> int:
                 checksum=not args.no_checksum,
             )
             return 1
-    if args.resume and all(complete_file(path) for path in outputs):
+    try:
+        if args.resume and all(complete_file(path) for path in outputs):
+            append_manifest(
+                manifest,
+                stage="aggregate-all",
+                status="skipped",
+                input_path=input_path,
+                output_path=parquet_path,
+                started_at=started_at,
+                start_seconds=start_seconds,
+                metadata={
+                    "reason": "existing_outputs",
+                    "csv": str(csv_path),
+                    **validation_metadata,
+                },
+                checksum=not args.no_checksum,
+            )
+            warn(f"skip existing {parquet_path} and {csv_path}")
+            return 0
+        rows = aggregate_outputs(input_path, outputs)
         append_manifest(
             manifest,
             stage="aggregate-all",
-            status="skipped",
+            status="success",
+            input_path=input_path,
+            output_path=parquet_path,
+            records=rows,
+            started_at=started_at,
+            start_seconds=start_seconds,
+            metadata={"csv": str(csv_path), **validation_metadata},
+            checksum=not args.no_checksum,
+        )
+        ok(f"aggregate-all: wrote {rows} rows to {parquet_path} and {csv_path}")
+        return 0
+    except Exception as exc:
+        append_manifest(
+            manifest,
+            stage="aggregate-all",
+            status="failed",
             input_path=input_path,
             output_path=parquet_path,
             started_at=started_at,
             start_seconds=start_seconds,
-            metadata={
-                "reason": "existing_outputs",
-                "csv": str(csv_path),
-                **validation_metadata,
-            },
+            metadata={"csv": str(csv_path), **validation_metadata},
+            error_message=repr(exc),
             checksum=not args.no_checksum,
         )
-        warn(f"skip existing {parquet_path} and {csv_path}")
-        return 0
-    rows = aggregate_outputs(input_path, outputs)
-    append_manifest(
-        manifest,
-        stage="aggregate-all",
-        status="success",
-        input_path=input_path,
-        output_path=parquet_path,
-        records=rows,
-        started_at=started_at,
-        start_seconds=start_seconds,
-        metadata={"csv": str(csv_path), **validation_metadata},
-        checksum=not args.no_checksum,
-    )
-    ok(f"aggregate-all: wrote {rows} rows to {parquet_path} and {csv_path}")
-    return 0
+        raise
 
 
 def cmd_list_inputs(args: argparse.Namespace) -> int:
@@ -1279,14 +1322,46 @@ def cmd_transform_shards(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_manifest(args: argparse.Namespace) -> int:
-    rows = manifest_from_args(args).rows(limit=args.limit)
+def _print_manifest_rows(rows: list[dict[str, Any]], *, as_json: bool = False) -> int:
+    if as_json:
+        print(json.dumps(rows, ensure_ascii=False, sort_keys=True))
+        return 0
     if not rows:
         warn("manifest is empty")
         return 0
     for row in rows:
         print_kv_table(row)
         print("---")
+    return 0
+
+
+def cmd_manifest(args: argparse.Namespace) -> int:
+    return _print_manifest_rows(manifest_from_args(args).rows(limit=args.limit))
+
+
+def cmd_manifest_summary(args: argparse.Namespace) -> int:
+    rows = manifest_from_args(args).summary()
+    return _print_manifest_rows(rows, as_json=args.json)
+
+
+def cmd_manifest_failed(args: argparse.Namespace) -> int:
+    rows = manifest_from_args(args).rows(limit=args.limit, status="failed")
+    return _print_manifest_rows(rows, as_json=args.json)
+
+
+def cmd_manifest_show(args: argparse.Namespace) -> int:
+    rows = manifest_from_args(args).rows(limit=args.limit)
+    return _print_manifest_rows(rows, as_json=args.json)
+
+
+def cmd_manifest_retry_script(args: argparse.Namespace) -> int:
+    rows = manifest_from_args(args).rows(limit=args.limit, status="failed")
+    for row in reversed(rows):
+        stage = row.get("stage", "")
+        input_path = row.get("input_path", "")
+        output_path = row.get("output_path", "")
+        print(f"# retry {stage} failed run {row.get('id')}")
+        print(f"# input={input_path} output={output_path}")
     return 0
 
 
@@ -1544,10 +1619,35 @@ def build_parser() -> argparse.ArgumentParser:
     list_inputs.add_argument("--glob", default="*")
     list_inputs.set_defaults(func=cmd_list_inputs)
 
-    manifest = subparsers.add_parser("manifest", help="print recent manifest rows")
+    manifest = subparsers.add_parser("manifest", help="inspect manifest rows")
     manifest.add_argument("--manifest", default=None)
     manifest.add_argument("--limit", type=int, default=20)
     manifest.set_defaults(func=cmd_manifest)
+    manifest_sub = manifest.add_subparsers(dest="manifest_command")
+
+    manifest_summary = manifest_sub.add_parser("summary", help="summarize manifest rows")
+    manifest_summary.add_argument("--manifest", default=None)
+    manifest_summary.add_argument("--json", action="store_true")
+    manifest_summary.set_defaults(func=cmd_manifest_summary)
+
+    manifest_failed = manifest_sub.add_parser("failed", help="show failed manifest rows")
+    manifest_failed.add_argument("--manifest", default=None)
+    manifest_failed.add_argument("--limit", type=int, default=20)
+    manifest_failed.add_argument("--json", action="store_true")
+    manifest_failed.set_defaults(func=cmd_manifest_failed)
+
+    manifest_show = manifest_sub.add_parser("show", help="show manifest rows")
+    manifest_show.add_argument("--manifest", default=None)
+    manifest_show.add_argument("--limit", type=int, default=20)
+    manifest_show.add_argument("--json", action="store_true")
+    manifest_show.set_defaults(func=cmd_manifest_show)
+
+    manifest_retry = manifest_sub.add_parser(
+        "retry-script", help="emit comments for failed work to retry"
+    )
+    manifest_retry.add_argument("--manifest", default=None)
+    manifest_retry.add_argument("--limit", type=int, default=100)
+    manifest_retry.set_defaults(func=cmd_manifest_retry_script)
 
     return parser
 

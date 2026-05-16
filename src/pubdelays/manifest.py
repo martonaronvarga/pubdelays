@@ -152,17 +152,39 @@ class Manifest:
             )
             conn.execute("COMMIT")
 
-    def rows(self, *, limit: int = 20) -> list[dict[str, Any]]:
+    def rows(self, *, limit: int = 20, status: str | None = None) -> list[dict[str, Any]]:
+        where = "WHERE status = ?" if status else ""
+        params: tuple[Any, ...] = (status, limit) if status else (limit,)
         with self.connect() as conn:
             cur = conn.execute(
-                """
-                SELECT id, stage, status, input_path, output_path, records, deleted,
-                       started_at, finished_at, elapsed_seconds, error
+                f"""
+                SELECT id, stage, status, input_path, output_path, input_sha256,
+                       output_sha256, input_bytes, output_bytes, records, deleted,
+                       started_at, finished_at, elapsed_seconds, worker,
+                       metadata_json, error
                 FROM runs
+                {where}
                 ORDER BY id DESC
                 LIMIT ?
                 """,
-                (limit,),
+                params,
+            )
+            columns = [desc[0] for desc in cur.description]
+            rows = [dict(zip(columns, row, strict=False)) for row in cur.fetchall()]
+        for row in rows:
+            row["metadata"] = json.loads(str(row.pop("metadata_json") or "{}"))
+        return rows
+
+    def summary(self) -> list[dict[str, Any]]:
+        with self.connect() as conn:
+            cur = conn.execute(
+                """
+                SELECT stage, status, COUNT(*) AS runs,
+                       COALESCE(SUM(records), 0) AS records
+                FROM runs
+                GROUP BY stage, status
+                ORDER BY stage, status
+                """
             )
             columns = [desc[0] for desc in cur.description]
             return [dict(zip(columns, row, strict=False)) for row in cur.fetchall()]

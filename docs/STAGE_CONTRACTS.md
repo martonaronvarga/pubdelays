@@ -75,4 +75,6 @@ Every mutating manifested stage should record:
 stage, status, input_path, output_path, input/output bytes, input/output SHA-256 when enabled, records, deleted when stage-specific, timestamps, worker, metadata, error
 ```
 
-Skipped rows should include metadata explaining the skip reason. Failure rows should include `error` text where the command catches the exception.
+Skipped rows include metadata explaining the skip reason. Failure rows include `error` text where the command catches the exception.
+
+`pubdelays-pipeline manifest` prints recent rows. `manifest summary`, `manifest failed`, `manifest show --json`, and `manifest retry-script` provide lightweight audit and retry inspection without opening SQLite directly.
