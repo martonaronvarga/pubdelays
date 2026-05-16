@@ -542,7 +542,8 @@ def download_file(
 ) -> DownloadStats:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if resume and complete_file(output_path):
-        return DownloadStats(url, str(output_path), downloaded=False, skipped=True)
+        if output_path.suffix == ".md5" or complete_download(output_path):
+            return DownloadStats(url, str(output_path), downloaded=False, skipped=True)
     last: BaseException | None = None
     for attempt in range(retries):
         try:
@@ -590,6 +591,19 @@ def verify_md5_file(md5_path: Path) -> bool:
     expected, filename = parsed
     data_path = md5_path.parent / Path(filename).name
     return data_path.exists() and md5sum(data_path) == expected
+
+
+def expected_md5_sidecar(data_path: Path) -> Path:
+    return Path(f"{data_path}.md5")
+
+
+def verify_download_pair(data_path: Path) -> bool:
+    sidecar = expected_md5_sidecar(data_path)
+    return sidecar.exists() and verify_md5_file(sidecar)
+
+
+def complete_download(data_path: Path) -> bool:
+    return complete_file(data_path) and verify_download_pair(data_path)
 
 
 def cmd_download(args: argparse.Namespace) -> int:

@@ -102,7 +102,7 @@ Update files:
 pubdelays-pipeline download --source updatefiles --jobs 4 --resume
 ```
 
-Downloads keep `.md5` sidecars and verify them after transfer.
+Downloads keep `.md5` sidecars and verify them after transfer. Baseline and updatefiles use the same NCBI layout: each `.xml.gz` file is paired with a same-directory `.xml.gz.md5` sidecar. With `--resume`, existing data files are skipped only when the data file is non-empty and its sidecar verifies; existing sidecars are reused as complete metadata files.
 
 ## Individual stages
 
