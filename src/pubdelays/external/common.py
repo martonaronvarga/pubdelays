@@ -63,15 +63,13 @@ def doi_expr(expr: pl.Expr) -> pl.Expr:
     )
 
 
-def read_csv_polars(
-    path: Path, *, separator: str = ",", infer_schema_length: int = 10000
-) -> pl.DataFrame:
-    """Read CSV with Polars using string-preserving defaults."""
+def read_csv_polars(path: Path, *, separator: str = ",") -> pl.DataFrame:
+    """Read raw CSV/TSV-like inputs without inferring identifier columns."""
 
     return pl.read_csv(
         Path(path),
         separator=separator,
-        infer_schema_length=infer_schema_length,
+        infer_schema=False,
         ignore_errors=False,
         try_parse_dates=False,
         encoding="utf8-lossy",
@@ -126,5 +124,5 @@ def scan_tabular(path: Path, *, separator: str = ",") -> pl.LazyFrame:
     if path.suffix == ".parquet":
         return pl.scan_parquet(path)
     if path.suffix == ".tsv":
-        return pl.scan_csv(path, separator="\t", infer_schema_length=10000)
-    return pl.scan_csv(path, separator=separator, infer_schema_length=10000)
+        return pl.scan_csv(path, separator="\t", infer_schema=False)
+    return pl.scan_csv(path, separator=separator, infer_schema=False)

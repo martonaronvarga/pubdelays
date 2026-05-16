@@ -136,7 +136,7 @@ def preprocess_wos(input_csv: Path, output: Path) -> int:
         .with_columns(
             pl.col("all_science_journal_classification_codes_asjc")
             .cast(pl.Utf8)
-            .str.split("; ")
+            .str.split(";")
             .alias("asjc_parts"),
             pl.concat_list(
                 [pl.col("print_issn").cast(pl.Utf8), pl.col("e_issn").cast(pl.Utf8)]

@@ -14,7 +14,20 @@ from pubdelays.external.wos import discipline_for_asjc
 
 
 def rows(path: Path) -> list[dict[str, object]]:
-    return pl.read_csv(path).to_dicts()
+    return pl.read_csv(path, infer_schema=False).to_dicts()
+
+
+def test_external_raw_reader_preserves_identifier_like_strings(tmp_path: Path) -> None:
+    from pubdelays.external.common import read_csv_polars
+
+    raw = tmp_path / "ids.csv"
+    raw.write_text("issn,doi,asjc\n0123-4567,  HTTPS://DOI.ORG/10.X/ABC  ,03203\n", encoding="utf-8")
+
+    df = read_csv_polars(raw)
+
+    assert df["issn"].to_list() == ["0123-4567"]
+    assert df["doi"].to_list() == ["  HTTPS://DOI.ORG/10.X/ABC  "]
+    assert df["asjc"].to_list() == ["03203"]
 
 
 def test_wos_preprocessor_splits_asjc_and_issn_then_keeps_first_issn(
@@ -59,7 +72,7 @@ def test_retraction_watch_preprocessor_filters_dates(tmp_path: Path) -> None:
     raw = tmp_path / "rw.csv"
     raw.write_text(
         "RetractionDate,OriginalPaperDate,Title,OriginalPaperDOI,RetractionDOI,RetractionNature,Reason\n"
-        "01/02/2015 00:00,01/01/2013 00:00,Paper,10.1/x,10.1/r,Retraction,Error\n"
+        "01/02/2015 00:00,01/01/2013 00:00,Paper,  HTTPS://DOI.ORG/10.1/X  ,DOI: 10.1/R,Retraction,Error\n"
         "01/02/2014 00:00,01/01/2013 00:00,Old,10.1/y,10.1/ry,Retraction,Error\n",
         encoding="utf-8",
     )
@@ -67,7 +80,24 @@ def test_retraction_watch_preprocessor_filters_dates(tmp_path: Path) -> None:
     assert preprocess_retraction_watch(raw, out) == 1
     data = rows(out)
     assert data[0]["doi"] == "10.1/x"
+    assert data[0]["retraction_doi"] == "10.1/r"
     assert str(data[0]["retraction_date"]) == "2015-01-02"
+
+
+def test_wos_preserves_asjc_identifier_text_until_classification(tmp_path: Path) -> None:
+    raw = tmp_path / "wos.csv"
+    raw.write_text(
+        "Source Title,Print-ISSN,E-ISSN,Source Type,All Science Journal Classification Codes (ASJC),Open Access status\n"
+        "Journal A,0123-4567,,Journal,03203; 1000,No\n",
+        encoding="utf-8",
+    )
+    out = tmp_path / "wos_out.csv"
+
+    assert preprocess_wos(raw, out) == 1
+    data = rows(out)
+    assert data[0]["issn_linking"] == "01234567"
+    assert str(data[0]["asjc"]) == "03203"
+    assert data[0]["discipline"] == "social_sciences_and_humanities"
 
 
 def test_wos_discipline_boundaries_match_legacy_case_when() -> None:
@@ -81,12 +111,14 @@ def test_doaj_preprocessor_matches_legacy_selected_columns(tmp_path: Path) -> No
     raw = tmp_path / "doaj.csv"
     raw.write_text(
         "Journal title,Journal ISSN (print version),Journal EISSN (online version),Review process,APC,APC amount,Does the journal comply to DOAJ's definition of open access?,Ignored\n"
-        "Journal A,1234-567X,8765-4321,Peer review,Yes,1000,Yes,x\n",
+        "Journal A,1234-567X,8765-4321,Peer review,Yes,1000,Yes,x\n"
+        "No ISSN,,,Peer review,No,0,Yes,x\n",
         encoding="utf-8",
     )
     out = tmp_path / "doaj_out.csv"
     assert preprocess_doaj(raw, out) == 2
     data = rows(out)
     assert data[0]["issn_linking"] == "1234567X"
+    assert data[1]["issn_linking"] == "87654321"
     assert str(data[0]["apc_amount"]) == "1000"
     assert "ignored" not in data[0]
