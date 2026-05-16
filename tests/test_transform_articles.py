@@ -57,9 +57,7 @@ def test_transform_files_counts_filters_and_enriches_schema(tmp_path: Path) -> N
         },
     ]
     parsed = tmp_path / "parsed.jsonl"
-    parsed.write_text(
-        "\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8"
-    )
+    parsed.write_text("\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8")
 
     scimago = tmp_path / "scimago.csv"
     write_csv(

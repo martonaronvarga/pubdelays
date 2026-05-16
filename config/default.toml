@@ -1,5 +1,7 @@
 [pipeline]
 manifest = "data/manifests/pipeline.sqlite"
+parse_inputs = "data/manifests/parse_inputs.txt"
+transform_inputs = "data/manifests/transform_inputs.txt"
 
 [pubmed]
 xml_dir = "data/raw_data/pubmed/xmls"
@@ -24,6 +26,7 @@ pubmed_journals = "data/external/pubmed-journals.csv"
 article_shard_dir = "data/temp_data/article_parquet"
 article_shard_format = "parquet"
 min_received = "2013-01-01"
+default_shards = 64
 
 [aggregate]
 processed_parquet = "data/processed_data/processed.parquet"

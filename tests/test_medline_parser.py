@@ -137,10 +137,7 @@ def test_cli_parse_jsonl(tmp_path: Path) -> None:
     assert exit_code == 0
 
     output_path = output_dir / "sample.xml.gz.jsonl"
-    rows = [
-        json.loads(line)
-        for line in output_path.read_text(encoding="utf-8").splitlines()
-    ]
+    rows = [json.loads(line) for line in output_path.read_text(encoding="utf-8").splitlines()]
     assert len(rows) == 3
     assert rows[0]["history"]["accepted"] == "2016-11-02"
 

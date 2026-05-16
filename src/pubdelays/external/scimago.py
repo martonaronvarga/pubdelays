@@ -6,7 +6,13 @@ from pathlib import Path
 
 import polars as pl
 
-from .common import first_by_key, issn_expr, normalize_columns, read_csv_polars, write_frame
+from .common import (
+    first_by_key,
+    issn_expr,
+    normalize_columns,
+    read_csv_polars,
+    write_frame,
+)
 
 SCIMAGO_FIELDS = [
     "issn_linking",
@@ -87,16 +93,23 @@ def _read_scimago_file(path: Path, year: int) -> pl.DataFrame:
     )
 
 
-def preprocess_scimago(input_dir: Path, output: Path, *, start_year: int = 2015, end_year: int = 2024) -> int:
+def preprocess_scimago(
+    input_dir: Path, output: Path, *, start_year: int = 2015, end_year: int = 2024
+) -> int:
     input_dir = Path(input_dir)
     scimago = _read_scimago_file(input_dir / f"scimagojr {end_year}.csv", end_year)
     scimago = first_by_key(
-        scimago.filter(pl.col("quartile_2024").is_not_null() & (pl.col("quartile_2024") != "")),
+        scimago.filter(
+            pl.col("quartile_2024").is_not_null() & (pl.col("quartile_2024") != "")
+        ),
         "issn_linking",
     )
 
     for year in range(start_year, end_year):
-        year_df = first_by_key(_read_scimago_file(input_dir / f"scimagojr {year}.csv", year), "issn_linking")
+        year_df = first_by_key(
+            _read_scimago_file(input_dir / f"scimagojr {year}.csv", year),
+            "issn_linking",
+        )
         scimago = scimago.join(year_df, on="issn_linking", how="left")
 
     for col in SCIMAGO_FIELDS:
@@ -104,7 +117,10 @@ def preprocess_scimago(input_dir: Path, output: Path, *, start_year: int = 2015,
             scimago = scimago.with_columns(pl.lit(None).cast(pl.Utf8).alias(col))
     scimago = scimago.select(SCIMAGO_FIELDS).with_columns(
         [
-            pl.col(col).cast(pl.Utf8, strict=False).fill_null("").replace({"-": "", "NA": "", "_": ""})
+            pl.col(col)
+            .cast(pl.Utf8, strict=False)
+            .fill_null("")
+            .replace({"-": "", "NA": "", "_": ""})
             for col in SCIMAGO_FIELDS
         ]
     )

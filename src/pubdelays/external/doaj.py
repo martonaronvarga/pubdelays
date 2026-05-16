@@ -6,7 +6,13 @@ from pathlib import Path
 
 import polars as pl
 
-from .common import first_by_key, issn_expr, normalize_columns, read_csv_polars, write_frame
+from .common import (
+    first_by_key,
+    issn_expr,
+    normalize_columns,
+    read_csv_polars,
+    write_frame,
+)
 
 DOAJ_FIELDS = [
     "journal_title",
@@ -25,7 +31,11 @@ def preprocess_doaj(input_csv: Path, output: Path) -> int:
         "journal_eissn_online_version": "journal_eissn_online_version",
     }
     df = df.rename({k: v for k, v in rename.items() if k in df.columns})
-    for col in [*DOAJ_FIELDS, "journal_issn_print_version", "journal_eissn_online_version"]:
+    for col in [
+        *DOAJ_FIELDS,
+        "journal_issn_print_version",
+        "journal_eissn_online_version",
+    ]:
         if col not in df.columns:
             df = df.with_columns(pl.lit(None).cast(pl.Utf8).alias(col))
 

@@ -1,5 +1,5 @@
-import urllib.request
 import csv
+import urllib.request
 
 # FTP URL
 ftp_url = 'ftp://ftp.ncbi.nih.gov/pubmed/J_Medline.txt'

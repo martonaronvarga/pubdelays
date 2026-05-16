@@ -2,22 +2,23 @@
 
 Authors: Dominik Dianovics, Marton A. Varga, Miklos Bognar, Balazs Aczel
 
-This repository contains a reproducible pipeline for studying publication and editorial delays in PubMed/MEDLINE records. The active implementation is Python-first, Polars-backed for tabular work, Nix/uv reproducible, resumable, and safe for local or SLURM execution.
+This repository contains a reproducible pipeline for studying publication and editorial delays in PubMed/MEDLINE records. The active implementation is Python-first and Polars-backed for tabular work. It supports local bare-metal runs, Nix, uv, resumable atomic outputs, SQLite manifests, and opt-in SLURM job arrays.
 
-## Current implementation
-
-The canonical source code is under `src/pubdelays/`.
+## Active layout
 
 ```text
-src/pubdelays/parser/medline.py     # streaming self-vendored MEDLINE XML parser
-src/pubdelays/external/             # Polars preprocessors for Scimago, WoS, DOAJ, NPI, Retraction Watch
-src/pubdelays/transform/articles.py # Polars article filtering/enrichment
-src/pubdelays/aggregate.py          # Polars aggregation into processed outputs
-src/pubdelays/manifest.py           # SQLite manifest, WAL mode, process-safe append writes
-src/pubdelays/cli.py                # pubdelays-pipeline CLI
+src/pubdelays/parser/medline.py      # streaming self-vendored MEDLINE XML parser
+src/pubdelays/external/              # Polars preprocessors for Scimago, WoS, DOAJ, NPI, Retraction Watch
+src/pubdelays/transform/articles.py  # Polars article filtering and enrichment
+src/pubdelays/aggregate.py           # Polars aggregation into processed outputs
+src/pubdelays/manifest.py            # SQLite manifest, WAL mode, process-safe append writes
+src/pubdelays/cli.py                 # pubdelays-pipeline CLI
+config/default.toml                  # canonical paths and defaults
+DATA_LAYOUT.md                       # exact raw/generated data placement
+LEGACY_MIGRATION.md                  # semantics ported from legacy R/shell/Python
 ```
 
-Legacy ad hoc R/shell/Python scripts are not part of the active pipeline. Their behavior has been ported into named Python modules and documented in `LEGACY_MIGRATION.md` where relevant.
+Legacy execution scripts have been replaced by the CLI and documented in `LEGACY_MIGRATION.md`.
 
 ## Install
 
@@ -29,7 +30,7 @@ pubdelays-pipeline --help
 pytest -q
 ```
 
-Collaborator fallback without Nix:
+Fallback for collaborators without Nix:
 
 ```bash
 scripts/bootstrap_uv.sh
@@ -37,15 +38,15 @@ uv run pubdelays-pipeline --help
 uv run pytest -q
 ```
 
-## Place raw data
+## Place data
 
-Run:
+Create directories:
 
 ```bash
 pubdelays-pipeline init-dirs
 ```
 
-Then place files as described in `DATA_LAYOUT.md`:
+Place existing raw files as documented in `DATA_LAYOUT.md`:
 
 ```text
 data/raw_data/pubmed/xmls/*.xml.gz
@@ -62,124 +63,109 @@ Check readiness:
 pubdelays-pipeline preflight
 ```
 
-`io/` is intentionally unused.
-
 ## Local full pipeline
 
 ```bash
-JOBS=16 scripts/pipeline.sh
+JOBS=16 SHARDS=64 scripts/pipeline.sh
 ```
 
-Outputs:
+The local transform stage uses shard-level parallelism, not one job per JSON file. Each transform worker loads the external metadata once and processes many JSONL files.
+
+Primary outputs:
 
 ```text
-data/temp_data/pubmed/jsonl/        # parser shards
-data/temp_data/article_parquet/     # transformed article shards
-data/processed_data/processed.parquet
-data/processed_data/processed.csv
-data/manifests/pipeline.sqlite
+data/temp_data/pubmed/jsonl/         # parsed PubMed shards
+data/temp_data/article_parquet/      # transformed article shards
+data/processed_data/processed.parquet# preferred analysis dataset
+data/processed_data/processed.csv    # export/collaboration dataset
+data/manifests/pipeline.sqlite       # audit manifest
 ```
 
-The final Parquet file is the preferred internal analysis input. The CSV export exists for collaborators and downstream tools that do not read Parquet.
+## Download PubMed data
+
+Full baseline:
+
+```bash
+pubdelays-pipeline download --source baseline --jobs 4 --resume
+```
+
+Smoke test:
+
+```bash
+pubdelays-pipeline download --source baseline --limit 2 --jobs 2 --resume
+```
+
+Update files:
+
+```bash
+pubdelays-pipeline download --source updatefiles --jobs 4 --resume
+```
+
+Downloads keep `.md5` sidecars and verify them after transfer.
 
 ## Individual stages
 
-Download PubMed baseline XML and MD5 files:
+All commands use `config/default.toml` by default. Override with:
 
 ```bash
-pubdelays-pipeline download --source baseline --resume
+pubdelays-pipeline --config path/to/config.toml <command>
 ```
 
-For a smoke test:
+External metadata:
 
 ```bash
-pubdelays-pipeline download --source baseline --limit 2 --resume
+pubdelays-pipeline external-all --resume
 ```
 
-Clean external metadata:
+Parse XML:
 
 ```bash
-pubdelays-pipeline external-scimago \
-  --input-dir data/raw_data/scimago \
-  --output data/processed_data/scimago.csv \
-  --resume
-
-pubdelays-pipeline external-wos \
-  --input data/raw_data/web_of_science/wos.csv \
-  --output data/processed_data/web_of_science.csv \
-  --resume
-
-pubdelays-pipeline external-doaj \
-  --input data/raw_data/directory_of_open_access_journals/doaj_2025_05_15.csv \
-  --output data/processed_data/doaj.csv \
-  --resume
-
-pubdelays-pipeline external-npi \
-  --input data/raw_data/norwegian_publication_indicator/norwegian_list_2025_05_14.csv \
-  --output data/processed_data/norwegian_list.csv \
-  --resume
-
-pubdelays-pipeline external-retraction-watch \
-  --input data/raw_data/retraction_watch/retraction_watch.csv \
-  --output data/processed_data/retraction_watch.csv \
-  --resume
+pubdelays-pipeline parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
 ```
 
-Parse MEDLINE XML into JSONL:
+Validate parsed JSONL:
 
 ```bash
-pubdelays-pipeline parse \
-  --input-dir data/raw_data/pubmed/xmls \
-  --output-dir data/temp_data/pubmed/jsonl \
-  --format jsonl \
-  --parse-mesh-subterms \
-  --jobs 16 \
-  --resume
+pubdelays-pipeline validate
 ```
 
-Transform JSONL into article Parquet shards:
+Sharded transform:
 
 ```bash
-pubdelays-pipeline transform \
-  --input data/temp_data/pubmed/jsonl \
-  --output-dir data/temp_data/article_parquet \
-  --format parquet \
-  --scimago data/processed_data/scimago.csv \
-  --web-of-science data/processed_data/web_of_science.csv \
-  --doaj data/processed_data/doaj.csv \
-  --norwegian-list data/processed_data/norwegian_list.csv \
-  --retraction-watch data/processed_data/retraction_watch.csv \
-  --jobs 16 \
-  --resume
+pubdelays-pipeline transform-shards --shards 64 --jobs 16 --format parquet --resume
 ```
 
-Aggregate shards:
+Aggregate:
 
 ```bash
-pubdelays-pipeline aggregate \
-  --input data/temp_data/article_parquet \
-  --output data/processed_data/processed.parquet \
-  --resume
+pubdelays-pipeline aggregate-all --resume
 ```
 
-## SLURM mode
+For a single custom output format, use `aggregate --output path/to/output.parquet`.
 
-SLURM is opt-in. Local execution is the default.
-
-Prepare parse and transform input lists:
+Inspect manifest:
 
 ```bash
+pubdelays-pipeline manifest --limit 20
+```
+
+## SLURM job arrays
+
+SLURM is opt-in. Run external metadata preprocessing once, then use arrays for XML parsing and article transforms.
+
+```bash
+pubdelays-pipeline external-all --resume
 scripts/slurm_prepare_arrays.sh
 ```
 
-Submit parse array:
+Parse array:
 
 ```bash
 N=$(wc -l < data/manifests/parse_inputs.txt)
 sbatch --array=0-$((N - 1)) scripts/slurm_parse_array.sh
 ```
 
-After parsing finishes, refresh transform inputs and submit shard transforms:
+After parsing completes, refresh transform inputs and submit transform shards:
 
 ```bash
 pubdelays-pipeline list-inputs \
@@ -196,23 +182,36 @@ Aggregate after all transform jobs complete:
 sbatch scripts/slurm_aggregate.sh
 ```
 
-The transform SLURM stage uses modulo sharding. Each task loads external metadata once, processes many JSONL files, and writes one Parquet shard. This is much faster than reloading all external metadata once per PubMed XML file.
+The aggregation script uses `aggregate-all`, so the shard directory is scanned once and both Parquet and CSV outputs are written from the same collected frame.
 
-## Manifest
+## Manifest and resumability
 
 Every mutating stage writes a row to `data/manifests/pipeline.sqlite` with stage name, status, input/output paths, byte sizes, checksums when enabled, row counts, worker identity, timestamps, and error text.
 
-Inspect recent rows:
+Outputs are written through same-directory temporary files and atomically renamed on success. A failed task leaves the previous completed output intact.
 
-```bash
-pubdelays-pipeline manifest --limit 20
+## Performance model
+
+The main throughput path is:
+
+```text
+PubMed .xml.gz -> streaming parser -> JSONL shards -> Polars transform shards -> Parquet -> aggregate
 ```
 
-## Semantic corrections relative to legacy code
+Performance choices:
 
-Two legacy defects are intentionally corrected:
+- no decompression of PubMed XML to disk;
+- JSONL for parse shards, because it is append-free, line-oriented, resumable, and easy to validate;
+- Parquet for transformed article shards and final analysis input;
+- Polars for all tabular preprocessing, joins, and aggregation;
+- SLURM modulo sharding for transform tasks, so each worker amortizes external metadata loading over many PubMed files;
+- SQLite WAL manifest instead of shared progress text files.
 
-1. Missing `article_date` now falls back to `pubdate` when calculating `publication_delay`.
-2. Ceased journals are filtered against the article publication year instead of using the broken `ceased = is.numeric(ceased)` transformation.
+## Correctness notes
 
-Everything else is intended to preserve the legacy join/filter semantics unless explicitly documented otherwise.
+The migration preserves the legacy R data-logic sequence unless documented otherwise. Two legacy defects are intentionally corrected:
+
+1. Missing `article_date` falls back to `pubdate` for `publication_delay`.
+2. Ceased journals are filtered against the article publication year.
+
+See `LEGACY.md` for details.

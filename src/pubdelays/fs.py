@@ -5,8 +5,8 @@ from __future__ import annotations
 import contextlib
 import os
 import tempfile
-from pathlib import Path
 from collections.abc import Iterator
+from pathlib import Path
 
 
 @contextlib.contextmanager
@@ -21,7 +21,9 @@ def atomic_output_path(path: Path, *, mode: int = 0o644) -> Iterator[Path]:
 
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
     os.close(fd)
     tmp_path = Path(tmp_name)
     try:

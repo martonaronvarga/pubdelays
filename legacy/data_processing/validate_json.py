@@ -1,5 +1,6 @@
 import json
 
+
 def validate_json(json_data):
     # Add your validation logic here
     # Return True if the JSON is valid, otherwise False
@@ -13,7 +14,7 @@ def validate_json(json_data):
 def read_and_validate_json(file_path):
     # Read JSON file
     try:
-        with open(file_path, "r") as json_file:
+        with open(file_path) as json_file:
             json_data = json_file.read()
             if validate_json(json_data):
                 print("JSON validation successful.")

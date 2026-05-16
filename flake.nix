@@ -24,10 +24,30 @@
         python = pkgs.python312;
         pythonPackages = python.pkgs;
 
+        pySrc = lib.cleanSourceWith {
+          src = ./.;
+          filter = path: type: let
+            base = baseNameOf path;
+            rel = lib.removePrefix (toString ./. + "/") (toString path);
+          in
+            !(lib.hasInfix "/__pycache__/" ("/" + rel + "/"))
+            && !(lib.hasSuffix ".pyc" base)
+            && base != ".pytest_cache"
+            && base != ".mypy_cache"
+            && base != ".ruff_cache"
+            && base != ".git"
+            && base != "result"
+            && !(lib.hasPrefix "data/raw_data/pubmed/xmls/" rel)
+            && !(lib.hasPrefix "data/temp_data/" rel)
+            && !(lib.hasPrefix "data/processed_data/" rel)
+            && !(lib.hasPrefix "data/manifests/" rel)
+            && !(lib.hasPrefix "data/external/" rel);
+        };
+
         pubdelays = pythonPackages.buildPythonApplication {
           pname = "pubdelays";
           version = "0.1.0";
-          src = ./.;
+          src = pySrc;
           pyproject = true;
 
           build-system = with pythonPackages; [
@@ -53,7 +73,17 @@
             runHook postCheck
           '';
 
-          pythonImportsCheck = ["pubdelays"];
+          pythonImportsCheck = [
+            "pubdelays"
+            "pubdelays.cli"
+            "pubdelays.aggregate"
+            "pubdelays.external.scimago"
+            "pubdelays.external.wos"
+            "pubdelays.external.doaj"
+            "pubdelays.external.npi"
+            "pubdelays.external.retraction_watch"
+            "pubdelays.transform.articles"
+          ];
         };
 
         pythonEnv = python.withPackages (ps:
@@ -96,6 +126,7 @@
           packages = [
             pythonEnv
             rEnv
+            pkgs.uv
             pkgs.shellcheck
             pkgs.ruff
             pkgs.nixpkgs-fmt

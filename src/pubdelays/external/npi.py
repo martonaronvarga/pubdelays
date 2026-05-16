@@ -6,7 +6,13 @@ from pathlib import Path
 
 import polars as pl
 
-from .common import first_by_key, issn_expr, normalize_columns, read_csv_polars, write_frame
+from .common import (
+    first_by_key,
+    issn_expr,
+    normalize_columns,
+    read_csv_polars,
+    write_frame,
+)
 
 NPI_FIELDS = [
     "npi_title",
@@ -62,9 +68,12 @@ def preprocess_npi(input_csv: Path, output: Path) -> int:
 
     df = (
         df.with_columns(
-            pl.concat_list([pl.col("print_issn").cast(pl.Utf8), pl.col("online_issn").cast(pl.Utf8)]).alias(
-                "issn_parts"
-            )
+            pl.concat_list(
+                [
+                    pl.col("print_issn").cast(pl.Utf8),
+                    pl.col("online_issn").cast(pl.Utf8),
+                ]
+            ).alias("issn_parts")
         )
         .explode("issn_parts")
         .with_columns(issn_expr(pl.col("issn_parts")).alias("issn_linking"))

@@ -1,10 +1,11 @@
-import pubmed_parser as pp
 import json
-from concurrent.futures import ProcessPoolExecutor
 import logging
 import multiprocessing
 import os
 import threading
+from concurrent.futures import ProcessPoolExecutor
+
+import pubmed_parser as pp
 
 logging.basicConfig(filename='parsing_log.txt', level=logging.DEBUG)
 progress_lock = threading.Lock()
@@ -39,7 +40,7 @@ def parse_and_save_to_json(xml_file, progress_file, parsed_files, path_xml_list)
     try:
         logging.info(f"Parsing {xml_file}")
 
-        with open(progress_file, 'r') as progress:
+        with open(progress_file) as progress:
             parsed_files = progress.read().splitlines()
             if os.path.basename(xml_file) in parsed_files:
                 logging.info(f"Skipping {xml_file} (already parsed)")

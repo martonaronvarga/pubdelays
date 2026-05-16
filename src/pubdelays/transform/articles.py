@@ -21,10 +21,10 @@ import polars as pl
 
 from pubdelays.external.common import (
     doi_expr,
+    issn_expr,
     normalize_doi_text,
     normalize_header,
     normalize_issn_text,
-    issn_expr,
     scan_tabular,
     write_frame,
 )
@@ -400,7 +400,7 @@ def transform_files(
 ) -> TransformResult:
     external = external or ExternalInputs()
     counts: Counter[str] = Counter({stage: 0 for stage in FILTER_STAGES})
-    paths = _iter_input_paths(Path(input_path))
+    paths = _iter_input_paths(input_path)
     df = _read_json_frames(paths)
 
     counts["raw_records"] = df.height

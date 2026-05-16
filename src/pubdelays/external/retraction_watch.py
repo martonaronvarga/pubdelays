@@ -51,7 +51,9 @@ def preprocess_retraction_watch(input_csv: Path, output: Path) -> int:
         "retraction_doi": "retractiondoi",
         "retraction_nature": "retractionnature",
     }
-    df = df.rename({k: v for k, v in alt.items() if k in df.columns and v not in df.columns})
+    df = df.rename(
+        {k: v for k, v in alt.items() if k in df.columns and v not in df.columns}
+    )
     for col in needed:
         if col not in df.columns:
             df = df.with_columns(pl.lit(None).cast(pl.Utf8).alias(col))
@@ -61,13 +63,19 @@ def preprocess_retraction_watch(input_csv: Path, output: Path) -> int:
             pl.col("retractiondate")
             .cast(pl.Utf8)
             .str.strptime(pl.Date, "%m/%d/%Y %H:%M", strict=False)
-            .fill_null(pl.col("retractiondate").cast(pl.Utf8).str.strptime(pl.Date, "%m/%d/%Y", strict=False))
+            .fill_null(
+                pl.col("retractiondate")
+                .cast(pl.Utf8)
+                .str.strptime(pl.Date, "%m/%d/%Y", strict=False)
+            )
             .alias("retraction_date"),
             pl.col("originalpaperdate")
             .cast(pl.Utf8)
             .str.strptime(pl.Date, "%m/%d/%Y %H:%M", strict=False)
             .fill_null(
-                pl.col("originalpaperdate").cast(pl.Utf8).str.strptime(pl.Date, "%m/%d/%Y", strict=False)
+                pl.col("originalpaperdate")
+                .cast(pl.Utf8)
+                .str.strptime(pl.Date, "%m/%d/%Y", strict=False)
             )
             .alias("original_date"),
             doi_expr(pl.col("originalpaperdoi")).alias("doi"),

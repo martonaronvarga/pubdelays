@@ -21,7 +21,7 @@ def expected_input_paths(config: PipelineConfig) -> list[ExpectedPath]:
     return [
         ExpectedPath(
             "PubMed XML baseline/update files",
-            config.path("pipeline.raw_pubmed_xml_dir"),
+            config.path("pubmed.xml_dir"),
             "dir",
             True,
             "Put .xml.gz files from NCBI PubMed baseline/updatefiles here; keep .md5 sidecars when available.",
@@ -67,13 +67,32 @@ def expected_input_paths(config: PipelineConfig) -> list[ExpectedPath]:
 def expected_output_paths(config: PipelineConfig) -> list[ExpectedPath]:
     return [
         ExpectedPath(
-            "parsed JSONL shards", config.path("pipeline.raw_pubmed_jsonl_dir"), "dir", False, "Generated."
+            "parsed JSONL shards",
+            config.path("pubmed.jsonl_dir"),
+            "dir",
+            False,
+            "Generated.",
         ),
         ExpectedPath(
-            "article TSV shards", config.path("pipeline.article_tsv_dir"), "dir", False, "Generated."
+            "article Parquet shards",
+            config.path("transform.article_shard_dir"),
+            "dir",
+            False,
+            "Generated.",
         ),
         ExpectedPath(
-            "processed data directory", config.path("pipeline.processed_dir"), "dir", False, "Generated."
+            "processed Parquet",
+            config.path("aggregate.processed_parquet"),
+            "file",
+            False,
+            "Generated.",
+        ),
+        ExpectedPath(
+            "processed CSV",
+            config.path("aggregate.processed_csv"),
+            "file",
+            False,
+            "Generated.",
         ),
         ExpectedPath(
             "manifest database",

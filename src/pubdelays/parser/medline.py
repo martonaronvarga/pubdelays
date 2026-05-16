@@ -1,7 +1,7 @@
 """Streaming parser for PubMed/MEDLINE XML.
 
 This module is intentionally self-contained. It is derived from the small
-MEDLINE portion of `titipata/pubmed_parser`, with local fixes for this project:
+MEDLINE portion of `github/titipata/pubmed_parser`, with local fixes for this project:
 
 - keep project-specific fields (`history`, `article_date`, `grant_ids`),
 - `DeleteCitation` handling,

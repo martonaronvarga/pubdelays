@@ -7,9 +7,22 @@ from typing import Any
 
 import polars as pl
 
-from .common import first_by_key, issn_expr, normalize_columns, read_csv_polars, write_frame
+from .common import (
+    first_by_key,
+    issn_expr,
+    normalize_columns,
+    read_csv_polars,
+    write_frame,
+)
 
-WOS_FIELDS = ["source_title", "issn_linking", "open_access_status", "source_type", "asjc", "discipline"]
+WOS_FIELDS = [
+    "source_title",
+    "issn_linking",
+    "open_access_status",
+    "source_type",
+    "asjc",
+    "discipline",
+]
 
 
 def discipline_for_asjc(value: Any) -> str:
@@ -125,9 +138,9 @@ def preprocess_wos(input_csv: Path, output: Path) -> int:
             .cast(pl.Utf8)
             .str.split("; ")
             .alias("asjc_parts"),
-            pl.concat_list([pl.col("print_issn").cast(pl.Utf8), pl.col("e_issn").cast(pl.Utf8)]).alias(
-                "issn_parts"
-            ),
+            pl.concat_list(
+                [pl.col("print_issn").cast(pl.Utf8), pl.col("e_issn").cast(pl.Utf8)]
+            ).alias("issn_parts"),
         )
         .explode("asjc_parts")
         .explode("issn_parts")

@@ -63,17 +63,18 @@ def doi_expr(expr: pl.Expr) -> pl.Expr:
     )
 
 
-def read_csv_polars(path: Path, *, separator: str = ",", infer_schema_length: int = 10000) -> pl.DataFrame:
+def read_csv_polars(
+    path: Path, *, separator: str = ",", infer_schema_length: int = 10000
+) -> pl.DataFrame:
     """Read CSV with Polars using string-preserving defaults."""
 
     return pl.read_csv(
         Path(path),
         separator=separator,
         infer_schema_length=infer_schema_length,
-        ignore_errors=True,
+        ignore_errors=False,
         try_parse_dates=False,
         encoding="utf8-lossy",
-        schema_overrides={},
     )
 
 
@@ -93,12 +94,14 @@ def ensure_columns(df: pl.DataFrame, columns: list[str]) -> pl.DataFrame:
 def first_by_key(df: pl.DataFrame, key: str) -> pl.DataFrame:
     if key not in df.columns:
         return df
-    return df.filter(pl.col(key).is_not_null() & (pl.col(key).cast(pl.Utf8) != "")).unique(
-        subset=[key], keep="first", maintain_order=True
-    )
+    return df.filter(
+        pl.col(key).is_not_null() & (pl.col(key).cast(pl.Utf8) != "")
+    ).unique(subset=[key], keep="first", maintain_order=True)
 
 
-def write_frame(path: Path, df: pl.DataFrame, *, format: str | None = None, separator: str = ",") -> int:
+def write_frame(
+    path: Path, df: pl.DataFrame, *, format: str | None = None, separator: str = ","
+) -> int:
     """Atomically write a Polars DataFrame.
 
     Format is inferred from suffix unless explicitly supplied.  CSV/TSV remains

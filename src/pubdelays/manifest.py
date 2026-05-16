@@ -6,12 +6,12 @@ import hashlib
 import json
 import os
 import sqlite3
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from collections.abc import Iterator, Mapping
 
 SCHEMA_VERSION = 1
 
@@ -122,7 +122,9 @@ class Manifest:
     def append(self, row: ManifestRow) -> None:
         payload = asdict(row)
         metadata = payload.pop("metadata") or {}
-        payload["metadata_json"] = json.dumps(metadata, sort_keys=True, ensure_ascii=False)
+        payload["metadata_json"] = json.dumps(
+            metadata, sort_keys=True, ensure_ascii=False
+        )
         columns = [
             "stage",
             "status",

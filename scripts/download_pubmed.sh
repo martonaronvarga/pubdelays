@@ -2,17 +2,14 @@
 set -euo pipefail
 
 ROOT="${ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+CONFIG="${CONFIG:-$ROOT/config/default.toml}"
+RUN="${RUN:-pubdelays-pipeline}"
 SOURCE="${SOURCE:-baseline}"
-XML_DIR="${XML_DIR:-$ROOT/data/raw_data/pubmed/xmls}"
-
-cd "$ROOT"
-
-
-if [[ "${USE_NIX:-1}" == "1" ]] && command -v nix >/dev/null 2>&1; then
-  PIPELINE=(nix run "$ROOT#pubdelays-pipeline" --)
-else
-  export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
-  PIPELINE=(python3 -m pubdelays.cli)
+JOBS="${JOBS:-4}"
+LIMIT_ARGS=()
+if [[ -n "${LIMIT:-}" ]]; then
+  LIMIT_ARGS=(--limit "$LIMIT")
 fi
 
-"${PIPELINE[@]}" download --source "$SOURCE" --output-dir "$XML_DIR" --resume
+cd "$ROOT"
+"$RUN" --config "$CONFIG" download --source "$SOURCE" --jobs "$JOBS" --resume "${LIMIT_ARGS[@]}"

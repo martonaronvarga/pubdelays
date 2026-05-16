@@ -1,4 +1,11 @@
-"""Command-line entrypoint for the PubMed/MEDLINE publication-delay pipeline."""
+"""Command-line interface for the PubMed/MEDLINE publication-delay pipeline.
+
+The CLI is deliberately thin: XML parsing is in :mod:`pubdelays.parser`,
+external metadata cleaning is in :mod:`pubdelays.external`, article-level
+filtering/enrichment is in :mod:`pubdelays.transform`, and aggregation is in
+:mod:`pubdelays.aggregate`.  All mutating stages use atomic output files and
+write one manifest row.
+"""
 
 from __future__ import annotations
 
@@ -8,16 +15,18 @@ import hashlib
 import json
 import os
 import re
-import sys
 import time
+import urllib.error
 import urllib.request
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
-from pubdelays.aggregate import aggregate_articles
+from pubdelays.aggregate import aggregate_articles, aggregate_outputs
+from pubdelays.config import PipelineConfig, load_config
 from pubdelays.external import (
     preprocess_doaj,
     preprocess_npi,
@@ -35,15 +44,16 @@ from pubdelays.manifest import (
     utc_now,
 )
 from pubdelays.parser.medline import parse_medline_xml
+from pubdelays.paths import expected_input_paths, expected_output_paths
 from pubdelays.transform import ExternalInputs, transform_files
-from pubdelays.ui import err, info, ok, print_kv_table, warn
+from pubdelays.ui import err, info, ok, print_kv_table, section, warn
 
 PUBMED_BASE_URLS = {
     "baseline": "https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/",
     "updatefiles": "https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/",
 }
 
-DEFAULT_MANIFEST = Path("data/manifests/pipeline.sqlite")
+DEFAULT_CONFIG = "config/default.toml"
 
 
 @dataclass(frozen=True)
@@ -55,8 +65,34 @@ class ParseStats:
     skipped: bool = False
 
 
+@dataclass(frozen=True)
+class DownloadStats:
+    link: str
+    output_path: str
+    downloaded: bool
+    skipped: bool = False
+
+
+def cfg(args: argparse.Namespace) -> PipelineConfig:
+    return load_config(getattr(args, "config", DEFAULT_CONFIG))
+
+
+def cfg_path(
+    args: argparse.Namespace, attr: str, key: str, default: str | None = None
+) -> Path:
+    value = getattr(args, attr, None)
+    if value not in (None, ""):
+        return Path(value).expanduser()
+    return cfg(args).path(key, default)
+
+
 def manifest_from_args(args: argparse.Namespace) -> Manifest:
-    return Manifest(Path(getattr(args, "manifest", DEFAULT_MANIFEST)))
+    value = getattr(args, "manifest", None)
+    if value not in (None, ""):
+        return Manifest(Path(value))
+    return Manifest(
+        cfg(args).path("pipeline.manifest", "data/manifests/pipeline.sqlite")
+    )
 
 
 def elapsed(start: float) -> float:
@@ -212,7 +248,7 @@ def parse_one(
                         )
                         handle.write("\n")
             else:
-                data = []
+                data: list[dict[str, Any]] = []
                 for record in iterator:
                     records += 1
                     if record.get("delete"):
@@ -256,6 +292,7 @@ def parse_one(
 
 
 def parse_kwargs(args: argparse.Namespace) -> dict[str, Any]:
+    manifest_path = cfg_path(args, "manifest", "pipeline.manifest")
     return {
         "fmt": args.format,
         "resume": args.resume,
@@ -265,13 +302,22 @@ def parse_kwargs(args: argparse.Namespace) -> dict[str, Any]:
         "reference_list": args.reference_list,
         "parse_mesh_subterms": args.parse_mesh_subterms,
         "min_pub_year": args.min_pub_year,
-        "manifest_path": args.manifest,
+        "manifest_path": manifest_path,
         "checksum": not args.no_checksum,
     }
 
 
 def cmd_parse_one(args: argparse.Namespace) -> int:
-    stats = parse_one(Path(args.input), Path(args.output), **parse_kwargs(args))
+    output = (
+        Path(args.output)
+        if args.output
+        else output_path_for(
+            Path(args.input),
+            cfg_path(args, "output_dir", "pubmed.jsonl_dir"),
+            args.format,
+        )
+    )
+    stats = parse_one(Path(args.input), output, **parse_kwargs(args))
     status = "skipped" if stats.skipped else "parsed"
     ok(f"{status} {stats.input_path} -> {stats.output_path}")
     print_kv_table({"records": stats.records, "deleted": stats.deleted})
@@ -279,8 +325,8 @@ def cmd_parse_one(args: argparse.Namespace) -> int:
 
 
 def cmd_parse(args: argparse.Namespace) -> int:
-    input_dir = Path(args.input_dir)
-    output_dir = Path(args.output_dir)
+    input_dir = cfg_path(args, "input_dir", "pubmed.xml_dir")
+    output_dir = cfg_path(args, "output_dir", "pubmed.jsonl_dir")
     xml_paths = list_xml_paths(input_dir)
     if not xml_paths:
         err(f"No XML files found in {input_dir}")
@@ -294,11 +340,10 @@ def cmd_parse(args: argparse.Namespace) -> int:
 
     info(f"parse files={len(xml_paths)} jobs={jobs} output={output_dir}")
     if jobs == 1:
-        iterator = (
-            parse_one(path, output_path_for(path, output_dir, args.format), **kwargs)
-            for path in xml_paths
-        )
-        for stats in iterator:
+        for path in xml_paths:
+            stats = parse_one(
+                path, output_path_for(path, output_dir, args.format), **kwargs
+            )
             total_records += stats.records
             total_deleted += stats.deleted
             skipped += int(stats.skipped)
@@ -360,7 +405,9 @@ def cmd_validate(args: argparse.Namespace) -> int:
     manifest = manifest_from_args(args)
     started_at = utc_now()
     start_seconds = time.time()
-    input_path = Path(args.input)
+    input_path = (
+        Path(args.input) if args.input else cfg_path(args, "input", "pubmed.jsonl_dir")
+    )
     paths = list_json_paths(input_path) if input_path.is_dir() else [input_path]
     failures = 0
     total_records = 0
@@ -420,7 +467,7 @@ def cmd_journals(args: argparse.Namespace) -> int:
     manifest = manifest_from_args(args)
     started_at = utc_now()
     start_seconds = time.time()
-    output = Path(args.output)
+    output = cfg_path(args, "output", "external.processed.pubmed_journals")
     with urllib.request.urlopen(args.url) as response:
         text = response.read().decode("utf-8")
     rows = parse_j_medline(text)
@@ -461,18 +508,33 @@ def index_links(url: str) -> list[str]:
     return sorted(set(re.findall(r'href="([^"]+\.(?:gz|md5))"', html)))
 
 
-def download_file(url: str, output_path: Path) -> None:
+def download_file(
+    url: str, output_path: Path, *, resume: bool, retries: int = 5
+) -> DownloadStats:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with atomic_output_path(output_path) as tmp_path:
-        with urllib.request.urlopen(url) as response, tmp_path.open("wb") as handle:
-            while chunk := response.read(1024 * 1024):
-                handle.write(chunk)
+    if resume and complete_file(output_path):
+        return DownloadStats(url, str(output_path), downloaded=False, skipped=True)
+    last: BaseException | None = None
+    for attempt in range(retries):
+        try:
+            with atomic_output_path(output_path) as tmp_path:
+                with (
+                    urllib.request.urlopen(url, timeout=120) as response,
+                    tmp_path.open("wb") as handle,
+                ):
+                    while chunk := response.read(8 * 1024 * 1024):
+                        handle.write(chunk)
+            return DownloadStats(url, str(output_path), downloaded=True, skipped=False)
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last = exc
+            time.sleep(min(2**attempt, 30))
+    raise RuntimeError(f"failed to download {url}: {last!r}")
 
 
 def md5sum(path: Path) -> str:
     digest = hashlib.md5(usedforsecurity=False)
     with Path(path).open("rb") as handle:
-        while chunk := handle.read(1024 * 1024):
+        while chunk := handle.read(8 * 1024 * 1024):
             digest.update(chunk)
     return digest.hexdigest()
 
@@ -506,21 +568,33 @@ def cmd_download(args: argparse.Namespace) -> int:
     started_at = utc_now()
     start_seconds = time.time()
     base_url = PUBMED_BASE_URLS[args.source]
-    output_dir = Path(args.output_dir)
+    output_dir = cfg_path(args, "output_dir", "pubmed.xml_dir")
     links = index_links(base_url)
     if args.limit is not None:
         links = links[: args.limit]
+    jobs = max(args.jobs, 1)
+    info(
+        f"download source={args.source} files={len(links)} jobs={jobs} output={output_dir}"
+    )
+
     downloaded = 0
     skipped = 0
-    for link in links:
-        target = output_dir / link
-        if args.resume and complete_file(target):
-            skipped += 1
-            warn(f"skip {target}")
-            continue
-        info(f"download {base_url}{link} -> {target}")
-        download_file(base_url + link, target)
-        downloaded += 1
+    with ThreadPoolExecutor(max_workers=jobs) as executor:
+        futures = [
+            executor.submit(
+                download_file, base_url + link, output_dir / link, resume=args.resume
+            )
+            for link in links
+        ]
+        for future in as_completed(futures):
+            stats = future.result()
+            downloaded += int(stats.downloaded)
+            skipped += int(stats.skipped)
+            if stats.skipped:
+                warn(f"skip {stats.output_path}")
+            else:
+                ok(f"downloaded {stats.output_path}")
+
     failures = [
         str(path)
         for path in sorted(output_dir.glob("*.md5"))
@@ -554,18 +628,31 @@ def cmd_download(args: argparse.Namespace) -> int:
     return 0
 
 
-def _optional_path(value: str | None) -> Path | None:
+def _optional_path(value: str | Path | None) -> Path | None:
     return Path(value) if value else None
 
 
 def external_inputs_from_args(args: argparse.Namespace) -> ExternalInputs:
+    config = cfg(args)
     return ExternalInputs(
-        scimago=_optional_path(args.scimago),
-        web_of_science=_optional_path(args.web_of_science),
-        doaj=_optional_path(args.doaj),
-        norwegian_list=_optional_path(args.norwegian_list),
-        retraction_watch=_optional_path(args.retraction_watch),
+        scimago=_optional_path(getattr(args, "scimago", None))
+        or config.path("external.processed.scimago"),
+        web_of_science=_optional_path(getattr(args, "web_of_science", None))
+        or config.path("external.processed.web_of_science"),
+        doaj=_optional_path(getattr(args, "doaj", None))
+        or config.path("external.processed.doaj"),
+        norwegian_list=_optional_path(getattr(args, "norwegian_list", None))
+        or config.path("external.processed.norwegian_list"),
+        retraction_watch=_optional_path(getattr(args, "retraction_watch", None))
+        or config.path("external.processed.retraction_watch"),
     )
+
+
+def min_received_from_args(args: argparse.Namespace) -> date:
+    value = getattr(args, "min_received", None) or cfg(args).get(
+        "transform.min_received", "2013-01-01"
+    )
+    return date.fromisoformat(str(value))
 
 
 def cmd_transform_one(args: argparse.Namespace) -> int:
@@ -593,7 +680,7 @@ def cmd_transform_one(args: argparse.Namespace) -> int:
         output_path,
         filters_path=_optional_path(args.filters_output),
         external=external_inputs_from_args(args),
-        min_received=date.fromisoformat(args.min_received),
+        min_received=min_received_from_args(args),
     )
     append_manifest(
         manifest,
@@ -615,18 +702,27 @@ def cmd_transform_one(args: argparse.Namespace) -> int:
     return 0
 
 
+def transform_worker(payload: dict[str, Any]) -> int:
+    return cmd_transform_one(argparse.Namespace(**payload))
+
+
 def cmd_transform(args: argparse.Namespace) -> int:
-    input_path = Path(args.input)
-    output_dir = Path(args.output_dir)
+    """Compatibility command: one output file per input file.
+
+    For full corpus work prefer ``transform-shards`` because it loads external
+    metadata once per shard instead of once per PubMed XML file.
+    """
+
+    input_path = cfg_path(args, "input", "pubmed.jsonl_dir")
+    output_dir = cfg_path(args, "output_dir", "transform.article_shard_dir")
     inputs = list_json_paths(input_path) if input_path.is_dir() else [input_path]
     if not inputs:
         err(f"No JSON/JSONL files found in {input_path}")
         return 1
     jobs = args.jobs if args.jobs is not None else 1
-    common = {
-        "fmt": "unused",
-    }
-    del common
+    warn(
+        "transform processes one output per input; use transform-shards for the full corpus"
+    )
     info(f"transform files={len(inputs)} jobs={jobs} output_dir={output_dir}")
 
     payloads: list[dict[str, Any]] = []
@@ -644,17 +740,11 @@ def cmd_transform(args: argparse.Namespace) -> int:
             transform_worker(payload)
     else:
         with ProcessPoolExecutor(max_workers=jobs) as executor:
-            futures = [
-                executor.submit(transform_worker, payload) for payload in payloads
-            ]
-            for future in as_completed(futures):
+            for future in as_completed(
+                [executor.submit(transform_worker, payload) for payload in payloads]
+            ):
                 future.result()
     return 0
-
-
-def transform_worker(payload: dict[str, Any]) -> int:
-    args = argparse.Namespace(**payload)
-    return cmd_transform_one(args)
 
 
 def _preprocess_stage(
@@ -713,66 +803,83 @@ def _preprocess_stage(
 
 
 def cmd_external_scimago(args: argparse.Namespace) -> int:
+    input_dir = cfg_path(args, "input_dir", "external.raw.scimago_dir")
+    output = cfg_path(args, "output", "external.processed.scimago")
     return _preprocess_stage(
         args,
         stage="external-scimago",
-        input_path=Path(args.input_dir),
-        output_path=Path(args.output),
+        input_path=input_dir,
+        output_path=output,
         func=lambda: preprocess_scimago(
-            Path(args.input_dir),
-            Path(args.output),
-            start_year=args.start_year,
-            end_year=args.end_year,
+            input_dir, output, start_year=args.start_year, end_year=args.end_year
         ),
     )
 
 
 def cmd_external_wos(args: argparse.Namespace) -> int:
+    input_path = cfg_path(args, "input", "external.raw.web_of_science_csv")
+    output = cfg_path(args, "output", "external.processed.web_of_science")
     return _preprocess_stage(
         args,
         stage="external-wos",
-        input_path=Path(args.input),
-        output_path=Path(args.output),
-        func=lambda: preprocess_wos(Path(args.input), Path(args.output)),
+        input_path=input_path,
+        output_path=output,
+        func=lambda: preprocess_wos(input_path, output),
     )
 
 
 def cmd_external_npi(args: argparse.Namespace) -> int:
+    input_path = cfg_path(args, "input", "external.raw.norwegian_list_csv")
+    output = cfg_path(args, "output", "external.processed.norwegian_list")
     return _preprocess_stage(
         args,
         stage="external-npi",
-        input_path=Path(args.input),
-        output_path=Path(args.output),
-        func=lambda: preprocess_npi(Path(args.input), Path(args.output)),
+        input_path=input_path,
+        output_path=output,
+        func=lambda: preprocess_npi(input_path, output),
     )
 
 
 def cmd_external_retraction_watch(args: argparse.Namespace) -> int:
+    input_path = cfg_path(args, "input", "external.raw.retraction_watch_csv")
+    output = cfg_path(args, "output", "external.processed.retraction_watch")
     return _preprocess_stage(
         args,
         stage="external-retraction-watch",
-        input_path=Path(args.input),
-        output_path=Path(args.output),
-        func=lambda: preprocess_retraction_watch(Path(args.input), Path(args.output)),
+        input_path=input_path,
+        output_path=output,
+        func=lambda: preprocess_retraction_watch(input_path, output),
     )
 
 
 def cmd_external_doaj(args: argparse.Namespace) -> int:
+    input_path = cfg_path(args, "input", "external.raw.doaj_csv")
+    output = cfg_path(args, "output", "external.processed.doaj")
     return _preprocess_stage(
         args,
         stage="external-doaj",
-        input_path=Path(args.input),
-        output_path=Path(args.output),
-        func=lambda: preprocess_doaj(Path(args.input), Path(args.output)),
+        input_path=input_path,
+        output_path=output,
+        func=lambda: preprocess_doaj(input_path, output),
     )
+
+
+def cmd_external_all(args: argparse.Namespace) -> int:
+    section("external metadata")
+    cmd_external_scimago(args)
+    cmd_external_wos(args)
+    cmd_external_doaj(args)
+    cmd_external_npi(args)
+    cmd_external_retraction_watch(args)
+    return 0
 
 
 def cmd_aggregate(args: argparse.Namespace) -> int:
     manifest = manifest_from_args(args)
     started_at = utc_now()
     start_seconds = time.time()
-    input_path = Path(args.input)
-    output_path = Path(args.output)
+    input_path = cfg_path(args, "input", "transform.article_shard_dir")
+    output_path = cfg_path(args, "output", "aggregate.processed_parquet")
     if args.resume and complete_file(output_path):
         append_manifest(
             manifest,
@@ -787,7 +894,7 @@ def cmd_aggregate(args: argparse.Namespace) -> int:
         )
         warn(f"skip existing {output_path}")
         return 0
-    rows = aggregate_tsvs(input_path, output_path)
+    rows = aggregate_articles(input_path, output_path)
     append_manifest(
         manifest,
         stage="aggregate",
@@ -803,13 +910,53 @@ def cmd_aggregate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_aggregate_all(args: argparse.Namespace) -> int:
+    manifest = manifest_from_args(args)
+    started_at = utc_now()
+    start_seconds = time.time()
+    input_path = cfg_path(args, "input", "transform.article_shard_dir")
+    parquet_path = cfg_path(args, "parquet", "aggregate.processed_parquet")
+    csv_path = cfg_path(args, "csv", "aggregate.processed_csv")
+    outputs = [parquet_path, csv_path]
+    if args.resume and all(complete_file(path) for path in outputs):
+        append_manifest(
+            manifest,
+            stage="aggregate-all",
+            status="skipped",
+            input_path=input_path,
+            output_path=parquet_path,
+            started_at=started_at,
+            start_seconds=start_seconds,
+            metadata={"reason": "existing_outputs", "csv": str(csv_path)},
+            checksum=not args.no_checksum,
+        )
+        warn(f"skip existing {parquet_path} and {csv_path}")
+        return 0
+    rows = aggregate_outputs(input_path, outputs)
+    append_manifest(
+        manifest,
+        stage="aggregate-all",
+        status="success",
+        input_path=input_path,
+        output_path=parquet_path,
+        records=rows,
+        started_at=started_at,
+        start_seconds=start_seconds,
+        metadata={"csv": str(csv_path)},
+        checksum=not args.no_checksum,
+    )
+    ok(f"aggregate-all: wrote {rows} rows to {parquet_path} and {csv_path}")
+    return 0
+
+
 def cmd_list_inputs(args: argparse.Namespace) -> int:
+    input_dir = Path(args.input_dir)
     if args.kind == "xml":
-        paths = list_xml_paths(args.input_dir)
+        paths = list_xml_paths(input_dir)
     elif args.kind == "json":
-        paths = list_json_paths(args.input_dir)
+        paths = list_json_paths(input_dir)
     else:
-        paths = sorted(Path(args.input_dir).rglob(args.glob))
+        paths = sorted(input_dir.rglob(args.glob))
     output = Path(args.output)
     with atomic_output_path(output) as tmp_path:
         tmp_path.write_text("".join(f"{path}\n" for path in paths), encoding="utf-8")
@@ -818,49 +965,58 @@ def cmd_list_inputs(args: argparse.Namespace) -> int:
 
 
 def cmd_init_dirs(args: argparse.Namespace) -> int:
+    config = cfg(args)
     dirs = [
-        "data/raw_data/pubmed/xmls",
-        "data/raw_data/scimago",
-        "data/raw_data/web_of_science",
-        "data/raw_data/directory_of_open_access_journals",
-        "data/raw_data/norwegian_publication_indicator",
-        "data/raw_data/retraction_watch",
-        "data/temp_data/pubmed/jsonl",
-        "data/temp_data/article_parquet",
-        "data/processed_data",
-        "data/manifests",
-        "data/external",
+        config.path("pubmed.xml_dir"),
+        config.path("pubmed.jsonl_dir"),
+        config.path("external.raw.scimago_dir"),
+        config.path("external.raw.web_of_science_csv").parent,
+        config.path("external.raw.doaj_csv").parent,
+        config.path("external.raw.norwegian_list_csv").parent,
+        config.path("external.raw.retraction_watch_csv").parent,
+        config.path("transform.article_shard_dir"),
+        config.path("aggregate.processed_parquet").parent,
+        config.path("pipeline.manifest").parent,
+        config.path("external.processed.pubmed_journals").parent,
     ]
     for directory in dirs:
-        Path(directory).mkdir(parents=True, exist_ok=True)
+        directory.mkdir(parents=True, exist_ok=True)
     ok("created canonical data directories")
     return 0
 
 
 def cmd_preflight(args: argparse.Namespace) -> int:
-    checks = {
-        "PubMed XML dir": Path(args.pubmed_xml_dir),
-        "Scimago dir": Path(args.scimago_dir),
-        "Web of Science CSV": Path(args.web_of_science),
-        "DOAJ CSV": Path(args.doaj),
-        "NPI CSV": Path(args.norwegian_list),
-        "Retraction Watch CSV": Path(args.retraction_watch),
-    }
+    config = cfg(args)
     failures = 0
-    for label, path in checks.items():
-        exists = path.exists()
-        if exists:
-            ok(f"{label}: {path}")
+    for expected in [*expected_input_paths(config), *expected_output_paths(config)]:
+        path = expected.path
+        exists = path.is_dir() if expected.kind == "dir" else path.exists()
+        if exists or not expected.required:
+            ok(f"{expected.label}: {path}") if exists else warn(
+                f"will create {expected.label}: {path}"
+            )
         else:
-            warn(f"missing {label}: {path}")
+            warn(f"missing {expected.label}: {path}")
             failures += 1
     xml_count = (
-        len(list_xml_paths(args.pubmed_xml_dir))
-        if Path(args.pubmed_xml_dir).exists()
+        len(list_xml_paths(config.path("pubmed.xml_dir")))
+        if config.path("pubmed.xml_dir").exists()
         else 0
     )
-    print_kv_table({"xml_files": xml_count, "missing_inputs": failures})
+    print_kv_table({"xml_files": xml_count, "missing_required_inputs": failures})
     return 1 if failures else 0
+
+
+def read_input_list(path: Path) -> list[Path]:
+    return [
+        Path(line.strip())
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def transform_shard_payload_to_namespace(payload: dict[str, Any]) -> argparse.Namespace:
+    return argparse.Namespace(**payload)
 
 
 def cmd_transform_shard(args: argparse.Namespace) -> int:
@@ -868,17 +1024,13 @@ def cmd_transform_shard(args: argparse.Namespace) -> int:
     started_at = utc_now()
     start_seconds = time.time()
     input_list = Path(args.input_list)
-    paths = [
-        Path(line.strip())
-        for line in input_list.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    paths = read_input_list(input_list)
     selected = [
         path
         for index, path in enumerate(paths)
         if index % args.shards == args.shard_index
     ]
-    output_dir = Path(args.output_dir)
+    output_dir = cfg_path(args, "output_dir", "transform.article_shard_dir")
     output_path = (
         output_dir
         / f"articles-shard-{args.shard_index:05d}-of-{args.shards:05d}.{args.format}"
@@ -915,7 +1067,7 @@ def cmd_transform_shard(args: argparse.Namespace) -> int:
         output_path,
         filters_path=filters_path,
         external=external_inputs_from_args(args),
-        min_received=date.fromisoformat(args.min_received),
+        min_received=min_received_from_args(args),
     )
     append_manifest(
         manifest,
@@ -939,9 +1091,61 @@ def cmd_transform_shard(args: argparse.Namespace) -> int:
     return 0
 
 
+def transform_shard_worker(payload: dict[str, Any]) -> int:
+    return cmd_transform_shard(transform_shard_payload_to_namespace(payload))
+
+
+def cmd_transform_shards(args: argparse.Namespace) -> int:
+    json_dir = cfg_path(args, "input_dir", "pubmed.jsonl_dir")
+    manifest_dir = cfg_path(
+        args,
+        "input_list",
+        "pipeline.transform_inputs",
+        "data/manifests/transform_inputs.txt",
+    ).parent
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    input_list = (
+        Path(args.input_list)
+        if args.input_list
+        else manifest_dir / "transform_inputs.txt"
+    )
+    paths = list_json_paths(json_dir)
+    if not paths:
+        err(f"No JSON/JSONL files found in {json_dir}")
+        return 1
+    with atomic_output_path(input_list) as tmp_path:
+        tmp_path.write_text("".join(f"{path}\n" for path in paths), encoding="utf-8")
+    jobs = (
+        args.jobs
+        if args.jobs is not None
+        else min(args.shards, max((os.cpu_count() or 2) - 1, 1))
+    )
+    info(
+        f"transform-shards files={len(paths)} shards={args.shards} jobs={jobs} input_list={input_list}"
+    )
+    payloads = []
+    for shard_index in range(args.shards):
+        payload = {key: value for key, value in vars(args).items() if key != "func"}
+        payload["input_list"] = str(input_list)
+        payload["shard_index"] = shard_index
+        payloads.append(payload)
+    if jobs == 1:
+        for payload in payloads:
+            transform_shard_worker(payload)
+    else:
+        with ProcessPoolExecutor(max_workers=jobs) as executor:
+            for future in as_completed(
+                [
+                    executor.submit(transform_shard_worker, payload)
+                    for payload in payloads
+                ]
+            ):
+                future.result()
+    return 0
+
+
 def cmd_manifest(args: argparse.Namespace) -> int:
-    manifest = manifest_from_args(args)
-    rows = manifest.rows(limit=args.limit)
+    rows = manifest_from_args(args).rows(limit=args.limit)
     if not rows:
         warn("manifest is empty")
         return 0
@@ -953,7 +1157,9 @@ def cmd_manifest(args: argparse.Namespace) -> int:
 
 def add_common_stage_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        "--manifest", default=str(DEFAULT_MANIFEST), help="SQLite manifest path"
+        "--manifest",
+        default=None,
+        help="SQLite manifest path; defaults to config pipeline.manifest",
     )
     parser.add_argument(
         "--no-checksum", action="store_true", help="skip SHA-256 manifest checksums"
@@ -980,12 +1186,17 @@ def add_external_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--doaj", default=None)
     parser.add_argument("--norwegian-list", default=None)
     parser.add_argument("--retraction-watch", default=None)
-    parser.add_argument("--min-received", default="2013-01-01")
+    parser.add_argument("--min-received", default=None)
     add_common_stage_args(parser)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pubdelays-pipeline")
+    parser.add_argument(
+        "--config",
+        default=os.environ.get("PUBDELAYS_CONFIG", DEFAULT_CONFIG),
+        help="TOML config path",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     init_dirs = subparsers.add_parser(
@@ -996,44 +1207,28 @@ def build_parser() -> argparse.ArgumentParser:
     preflight = subparsers.add_parser(
         "preflight", help="check expected raw-data locations before a run"
     )
-    preflight.add_argument("--pubmed-xml-dir", default="data/raw_data/pubmed/xmls")
-    preflight.add_argument("--scimago-dir", default="data/raw_data/scimago")
-    preflight.add_argument(
-        "--web-of-science", default="data/raw_data/web_of_science/wos.csv"
-    )
-    preflight.add_argument(
-        "--doaj",
-        default="data/raw_data/directory_of_open_access_journals/doaj_2025_05_15.csv",
-    )
-    preflight.add_argument(
-        "--norwegian-list",
-        default="data/raw_data/norwegian_publication_indicator/norwegian_list_2025_05_14.csv",
-    )
-    preflight.add_argument(
-        "--retraction-watch",
-        default="data/raw_data/retraction_watch/retraction_watch.csv",
-    )
     preflight.set_defaults(func=cmd_preflight)
 
     parse_one_p = subparsers.add_parser(
         "parse-one", help="parse one MEDLINE XML/XML.GZ file"
     )
     parse_one_p.add_argument("--input", required=True)
-    parse_one_p.add_argument("--output", required=True)
+    parse_one_p.add_argument("--output", default=None)
+    parse_one_p.add_argument("--output-dir", default=None)
     add_parse_options(parse_one_p)
     parse_one_p.set_defaults(func=cmd_parse_one)
 
     parse_p = subparsers.add_parser(
-        "parse", help="parse all MEDLINE XML/XML.GZ files in a directory"
+        "parse", help="parse all MEDLINE XML/XML.GZ files in configured directory"
     )
-    parse_p.add_argument("--input-dir", required=True)
-    parse_p.add_argument("--output-dir", required=True)
+    parse_p.add_argument("--input-dir", default=None)
+    parse_p.add_argument("--output-dir", default=None)
     parse_p.add_argument("--jobs", type=int, default=None)
     add_parse_options(parse_p)
     parse_p.set_defaults(func=cmd_parse)
 
     validate = subparsers.add_parser("validate", help="validate JSON or JSONL outputs")
-    validate.add_argument("input")
+    validate.add_argument("input", nargs="?", default=None)
     add_common_stage_args(validate)
     validate.set_defaults(func=cmd_validate)
 
@@ -1043,12 +1238,12 @@ def build_parser() -> argparse.ArgumentParser:
     journals.add_argument(
         "--url", default="https://ftp.ncbi.nlm.nih.gov/pubmed/J_Medline.txt"
     )
-    journals.add_argument("--output", required=True)
+    journals.add_argument("--output", default=None)
     add_common_stage_args(journals)
     journals.set_defaults(func=cmd_journals)
 
     transform_one = subparsers.add_parser(
-        "transform-one", help="transform one parsed JSON/JSONL file to one TSV"
+        "transform-one", help="transform one parsed JSON/JSONL file"
     )
     transform_one.add_argument("--input", required=True)
     transform_one.add_argument("--output", required=True)
@@ -1057,10 +1252,10 @@ def build_parser() -> argparse.ArgumentParser:
     transform_one.set_defaults(func=cmd_transform_one)
 
     transform = subparsers.add_parser(
-        "transform", help="transform JSON/JSONL files to per-file article outputs"
+        "transform", help="compatibility mode: one transform output per input file"
     )
-    transform.add_argument("--input", required=True)
-    transform.add_argument("--output-dir", required=True)
+    transform.add_argument("--input", default=None)
+    transform.add_argument("--output-dir", default=None)
     transform.add_argument("--jobs", type=int, default=1)
     transform.add_argument(
         "--format", choices=["parquet", "tsv", "csv"], default="parquet"
@@ -1072,7 +1267,7 @@ def build_parser() -> argparse.ArgumentParser:
         "transform-shard", help="transform one modulo shard of a JSONL input list"
     )
     transform_shard.add_argument("--input-list", required=True)
-    transform_shard.add_argument("--output-dir", required=True)
+    transform_shard.add_argument("--output-dir", default=None)
     transform_shard.add_argument("--shard-index", type=int, required=True)
     transform_shard.add_argument("--shards", type=int, required=True)
     transform_shard.add_argument(
@@ -1081,13 +1276,36 @@ def build_parser() -> argparse.ArgumentParser:
     add_external_args(transform_shard)
     transform_shard.set_defaults(func=cmd_transform_shard)
 
-    aggregate = subparsers.add_parser(
-        "aggregate", help="aggregate per-file article shards into one processed dataset"
+    transform_shards = subparsers.add_parser(
+        "transform-shards", help="local sharded transform; preferred bare-metal mode"
     )
-    aggregate.add_argument("--input", required=True)
-    aggregate.add_argument("--output", required=True)
+    transform_shards.add_argument("--input-dir", default=None)
+    transform_shards.add_argument("--input-list", default=None)
+    transform_shards.add_argument("--output-dir", default=None)
+    transform_shards.add_argument("--shards", type=int, default=64)
+    transform_shards.add_argument("--jobs", type=int, default=None)
+    transform_shards.add_argument(
+        "--format", choices=["parquet", "tsv", "csv"], default="parquet"
+    )
+    add_external_args(transform_shards)
+    transform_shards.set_defaults(func=cmd_transform_shards)
+
+    aggregate = subparsers.add_parser(
+        "aggregate", help="aggregate article shards into one processed dataset"
+    )
+    aggregate.add_argument("--input", default=None)
+    aggregate.add_argument("--output", default=None)
     add_common_stage_args(aggregate)
     aggregate.set_defaults(func=cmd_aggregate)
+
+    aggregate_all = subparsers.add_parser(
+        "aggregate-all", help="aggregate once and write Parquet plus CSV outputs"
+    )
+    aggregate_all.add_argument("--input", default=None)
+    aggregate_all.add_argument("--parquet", default=None)
+    aggregate_all.add_argument("--csv", default=None)
+    add_common_stage_args(aggregate_all)
+    aggregate_all.set_defaults(func=cmd_aggregate_all)
 
     download = subparsers.add_parser(
         "download", help="download PubMed baseline/updatefiles with MD5 verification"
@@ -1095,48 +1313,66 @@ def build_parser() -> argparse.ArgumentParser:
     download.add_argument(
         "--source", choices=sorted(PUBMED_BASE_URLS), default="baseline"
     )
-    download.add_argument("--output-dir", default="data/raw_data/pubmed/xmls")
+    download.add_argument("--output-dir", default=None)
     download.add_argument(
         "--limit", type=int, default=None, help="debug only: first N links"
     )
+    download.add_argument("--jobs", type=int, default=4)
     add_common_stage_args(download)
     download.set_defaults(func=cmd_download)
+
+    external_all = subparsers.add_parser(
+        "external-all", help="preprocess all local external metadata inputs"
+    )
+    external_all.add_argument(
+        "--input-dir", default=None
+    )  # accepted for dispatch compatibility; ignored
+    external_all.add_argument(
+        "--input", default=None
+    )  # accepted for dispatch compatibility; ignored
+    external_all.add_argument(
+        "--output", default=None
+    )  # accepted for dispatch compatibility; ignored
+    external_all.add_argument("--start-year", type=int, default=2015)
+    external_all.add_argument("--end-year", type=int, default=2024)
+    add_common_stage_args(external_all)
+    external_all.set_defaults(func=cmd_external_all)
 
     scimago = subparsers.add_parser(
         "external-scimago", help="clean raw Scimago yearly CSVs"
     )
-    scimago.add_argument("--input-dir", required=True)
-    scimago.add_argument("--output", required=True)
+    scimago.add_argument("--input-dir", default=None)
+    scimago.add_argument("--output", default=None)
     scimago.add_argument("--start-year", type=int, default=2015)
     scimago.add_argument("--end-year", type=int, default=2024)
     add_common_stage_args(scimago)
     scimago.set_defaults(func=cmd_external_scimago)
 
     wos = subparsers.add_parser("external-wos", help="clean raw Web of Science CSV")
-    wos.add_argument("--input", required=True)
-    wos.add_argument("--output", required=True)
+    wos.add_argument("--input", default=None)
+    wos.add_argument("--output", default=None)
     add_common_stage_args(wos)
     wos.set_defaults(func=cmd_external_wos)
 
     doaj = subparsers.add_parser("external-doaj", help="clean raw DOAJ CSV")
-    doaj.add_argument("--input", required=True)
-    doaj.add_argument("--output", required=True)
+    doaj.add_argument("--input", default=None)
+    doaj.add_argument("--output", default=None)
     add_common_stage_args(doaj)
     doaj.set_defaults(func=cmd_external_doaj)
 
     npi = subparsers.add_parser(
         "external-npi", help="clean raw Norwegian Publication Indicator CSV"
     )
-    npi.add_argument("--input", required=True)
-    npi.add_argument("--output", required=True)
+    npi.add_argument("--input", default=None)
+    npi.add_argument("--output", default=None)
     add_common_stage_args(npi)
     npi.set_defaults(func=cmd_external_npi)
 
     rw = subparsers.add_parser(
         "external-retraction-watch", help="clean raw Retraction Watch CSV"
     )
-    rw.add_argument("--input", required=True)
-    rw.add_argument("--output", required=True)
+    rw.add_argument("--input", default=None)
+    rw.add_argument("--output", default=None)
     add_common_stage_args(rw)
     rw.set_defaults(func=cmd_external_retraction_watch)
 
@@ -1150,7 +1386,7 @@ def build_parser() -> argparse.ArgumentParser:
     list_inputs.set_defaults(func=cmd_list_inputs)
 
     manifest = subparsers.add_parser("manifest", help="print recent manifest rows")
-    manifest.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
+    manifest.add_argument("--manifest", default=None)
     manifest.add_argument("--limit", type=int, default=20)
     manifest.set_defaults(func=cmd_manifest)
 
