@@ -51,8 +51,6 @@ review_tasks.md
 prompts/
 scripts/swival-review.sh
 
-# uv collaborator cache/lock artifacts; Nix/pyproject are project sources
-uv.lock
 
 # Raw/generated data
 data/raw_data/**
