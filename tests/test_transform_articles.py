@@ -7,6 +7,7 @@ from pathlib import Path
 
 import polars as pl
 
+from pubdelays.schema import CANONICAL_ARTICLE_COLUMNS
 from pubdelays.transform import ExternalInputs, transform_files
 from pubdelays.transform.articles import first_stage_record, journal_metadata_eligible
 
@@ -68,6 +69,7 @@ def test_transform_files_counts_filters_and_enriches_schema(tmp_path: Path) -> N
                 "quartile_2020": "Q1",
                 "rank_2020": "10",
                 "h_index_2020": "50",
+                "scimago_categories": "Psychology|Medicine",
             }
         ],
     )
@@ -79,6 +81,8 @@ def test_transform_files_counts_filters_and_enriches_schema(tmp_path: Path) -> N
                 "issn_linking": "1234567X",
                 "asjc": "3203",
                 "discipline": "social_sciences_and_humanities",
+                "asjc_all": "3203|1000",
+                "discipline_all": "social_sciences_and_humanities|multidisciplinary",
                 "open_access_status": "Unpaywall Open Acess",
             }
         ],
@@ -126,6 +130,19 @@ def test_transform_files_counts_filters_and_enriches_schema(tmp_path: Path) -> N
             }
         ],
     )
+    publisher = tmp_path / "publisher.csv"
+    write_csv(
+        publisher,
+        [
+            {
+                "issn_linking": "1234567X",
+                "publisher": "Example Publisher",
+                "publisher_group": "Example Group",
+                "publisher_conflict": "False",
+                "publisher_group_conflict": "False",
+            }
+        ],
+    )
 
     output = tmp_path / "articles.parquet"
     filters = tmp_path / "filters.csv"
@@ -139,6 +156,7 @@ def test_transform_files_counts_filters_and_enriches_schema(tmp_path: Path) -> N
             doaj=doaj,
             norwegian_list=npi,
             retraction_watch=retractions,
+            publisher=publisher,
         ),
     )
 
@@ -155,6 +173,12 @@ def test_transform_files_counts_filters_and_enriches_schema(tmp_path: Path) -> N
     assert row["article_date"] == "2020-02-02"
     assert row["is_psych"] == "True"
     assert row["quartile_year"] == "Q1"
+    assert row["asjc_all"] == "3203|1000"
+    assert row["discipline_all"] == "social_sciences_and_humanities|multidisciplinary"
+    assert row["scimago_categories"] == "Psychology|Medicine"
+    assert row["publisher"] == "Example Publisher"
+    assert row["publisher_group"] == "Example Group"
+    assert row["publisher_conflict"] == "False"
     assert row["npi_year"] == "1"
     assert row["open_access"] == "True"
     assert {r["stage"] for r in pl.read_csv(filters).to_dicts()} >= {
@@ -232,3 +256,76 @@ def test_ceased_journal_filter_uses_publication_year() -> None:
         },
         min_received=date(2013, 1, 1),
     )
+
+
+
+def test_transform_retains_rows_with_missing_external_metadata(tmp_path: Path) -> None:
+    parsed = tmp_path / "parsed.jsonl"
+    parsed.write_text(
+        json.dumps(
+            {
+                "title": "No metadata article",
+                "journal": "Unknown Journal",
+                "pubdate": "2020-03-01",
+                "article_date": "2020-02-15",
+                "history": {"received": "2020-01-01", "accepted": "2020-02-01"},
+                "publication_types": "D016428:Journal Article",
+                "issn_linking": "0000-0001",
+                "keywords": "",
+                "doi": "HTTPS://DOI.ORG/10.555/MISSING",
+                "pmid": "9",
+                "delete": False,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "articles.parquet"
+    filters = tmp_path / "filters.csv"
+    result = transform_files(parsed, output, filters_path=filters, external=ExternalInputs())
+
+    rows = read_output(output)
+    assert result.counts["final_rows"] == 1
+    assert rows[0]["doi"] == "10.555/missing"
+    assert rows[0]["quartile_year"] == ""
+    assert rows[0]["open_access"] == "False"
+    assert rows[0]["is_retracted"] == "False"
+    assert pl.read_parquet(output).columns == list(CANONICAL_ARTICLE_COLUMNS)
+
+
+def test_zero_or_negative_delay_rows_are_counted_before_drop(tmp_path: Path) -> None:
+    parsed = tmp_path / "parsed.jsonl"
+    records = [
+        {
+            "title": "Zero publication delay",
+            "journal": "Example Journal",
+            "pubdate": "2020-02-01",
+            "article_date": "2020-02-01",
+            "history": {"received": "2020-01-01", "accepted": "2020-02-01"},
+            "publication_types": "D016428:Journal Article",
+            "issn_linking": "1234-5678",
+            "keywords": "",
+            "doi": "10.zero/delay",
+            "delete": False,
+        },
+        {
+            "title": "Good delay",
+            "journal": "Example Journal",
+            "pubdate": "2020-03-01",
+            "article_date": "2020-03-01",
+            "history": {"received": "2020-01-01", "accepted": "2020-02-01"},
+            "publication_types": "D016428:Journal Article",
+            "issn_linking": "1234-5678",
+            "keywords": "",
+            "doi": "10.good/delay",
+            "delete": False,
+        },
+    ]
+    parsed.write_text("\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8")
+
+    result = transform_files(parsed, tmp_path / "articles.parquet", external=ExternalInputs())
+
+    assert result.counts["has_linking_issn"] == 2
+    assert result.counts["coherent_dates"] == 1
+    assert result.counts["final_rows"] == 1

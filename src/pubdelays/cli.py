@@ -32,6 +32,7 @@ from pubdelays.config import ConfigError, PipelineConfig, load_config
 from pubdelays.external import (
     preprocess_doaj,
     preprocess_npi,
+    preprocess_publisher,
     preprocess_retraction_watch,
     preprocess_scimago,
     preprocess_wos,
@@ -48,8 +49,14 @@ from pubdelays.manifest import (
 )
 from pubdelays.parser.medline import parse_medline_xml
 from pubdelays.paths import expected_input_paths, expected_output_paths
-from pubdelays.schema import CANONICAL_ARTICLE_COLUMNS, FILTER_STAGES
+from pubdelays.schema import (
+    ANALYSIS_DATASET_VERSION,
+    CANONICAL_ARTICLE_COLUMNS,
+    FILTER_STAGES,
+    validate_analysis_dataset_schema,
+)
 from pubdelays.shards import expected_article_shard_path, validate_article_shards
+from pubdelays.summaries import derive_summary_tables
 from pubdelays.transform import ExternalInputs, transform_files
 from pubdelays.ui import err, info, ok, print_kv_table, section, warn
 from pubdelays.validation import compare_legacy_outputs
@@ -355,6 +362,9 @@ def cmd_parse(args: argparse.Namespace) -> int:
         return 1
 
     jobs = args.jobs if args.jobs is not None else max((os.cpu_count() or 2) - 1, 1)
+    if getattr(args, "dry_run", False):
+        info(f"dry-run parse files={len(xml_paths)} jobs={jobs} output={output_dir}")
+        return 0
     kwargs = parse_kwargs(args)
     total_records = 0
     total_deleted = 0
@@ -620,6 +630,9 @@ def cmd_download(args: argparse.Namespace) -> int:
     info(
         f"download source={args.source} files={len(links)} jobs={jobs} output={output_dir}"
     )
+    if getattr(args, "dry_run", False):
+        info("dry-run download: no files or manifest rows will be written")
+        return 0
 
     downloaded = 0
     skipped = 0
@@ -689,6 +702,8 @@ def external_inputs_from_args(args: argparse.Namespace) -> ExternalInputs:
         or config.path("external.processed.norwegian_list"),
         retraction_watch=_optional_path(getattr(args, "retraction_watch", None))
         or config.path("external.processed.retraction_watch"),
+        publisher=_optional_path(getattr(args, "publisher", None))
+        or config.path("external.processed.publisher"),
     )
 
 
@@ -922,13 +937,44 @@ def cmd_external_doaj(args: argparse.Namespace) -> int:
     )
 
 
+def cmd_external_publisher(args: argparse.Namespace) -> int:
+    input_path = cfg_path(args, "publisher_input", "external.raw.publisher_csv")
+    output = cfg_path(args, "publisher_output", "external.processed.publisher")
+    return _preprocess_stage(
+        args,
+        stage="external-publisher",
+        input_path=input_path,
+        output_path=output,
+        func=lambda: preprocess_publisher(input_path, output),
+    )
+
+
 def cmd_external_all(args: argparse.Namespace) -> int:
     section("external metadata")
+    if getattr(args, "dry_run", False):
+        config = cfg(args)
+        print_kv_table(
+            {
+                "external-scimago": config.path("external.processed.scimago"),
+                "external-wos": config.path("external.processed.web_of_science"),
+                "external-doaj": config.path("external.processed.doaj"),
+                "external-npi": config.path("external.processed.norwegian_list"),
+                "external-retraction-watch": config.path("external.processed.retraction_watch"),
+                "external-publisher": config.path("external.processed.publisher"),
+            }
+        )
+        info("dry-run external-all: no files or manifest rows will be written")
+        return 0
     cmd_external_scimago(args)
     cmd_external_wos(args)
     cmd_external_doaj(args)
     cmd_external_npi(args)
     cmd_external_retraction_watch(args)
+    publisher_input = cfg_path(args, "publisher_input", "external.raw.publisher_csv")
+    if complete_file(publisher_input):
+        cmd_external_publisher(args)
+    else:
+        warn(f"skip optional publisher metadata {publisher_input}")
     return 0
 
 
@@ -1022,6 +1068,9 @@ def cmd_aggregate_all(args: argparse.Namespace) -> int:
     csv_path = cfg_path(args, "csv", "aggregate.processed_csv")
     outputs = [parquet_path, csv_path]
     validation_metadata: dict[str, object] = {}
+    if getattr(args, "dry_run", False):
+        info(f"dry-run aggregate-all input={input_path} parquet={parquet_path} csv={csv_path}")
+        return 0
     if not args.allow_incomplete:
         validation = validate_article_shards(
             input_path,
@@ -1134,22 +1183,38 @@ def cmd_init_dirs(args: argparse.Namespace) -> int:
 def cmd_preflight(args: argparse.Namespace) -> int:
     config = cfg(args)
     failures = 0
-    for expected in [*expected_input_paths(config), *expected_output_paths(config)]:
+    optional_missing = 0
+    inputs = expected_input_paths(config)
+    outputs = expected_output_paths(config)
+    for expected in inputs:
         path = expected.path
         exists = path.is_dir() if expected.kind == "dir" else path.exists()
-        if exists or not expected.required:
-            ok(f"{expected.label}: {path}") if exists else warn(
-                f"will create {expected.label}: {path}"
-            )
-        else:
-            warn(f"missing {expected.label}: {path}")
+        if exists:
+            ok(f"{expected.label}: {path}")
+        elif expected.required:
+            warn(f"missing required {expected.label}: {path} -- {expected.description}")
             failures += 1
+        else:
+            warn(f"missing optional {expected.label}: {path} -- {expected.description}")
+            optional_missing += 1
+    for expected in outputs:
+        path = expected.path
+        exists = path.is_dir() if expected.kind == "dir" else path.exists()
+        ok(f"{expected.label}: {path}") if exists else warn(
+            f"will create {expected.label}: {path} -- {expected.description}"
+        )
     xml_count = (
         len(list_xml_paths(config.path("pubmed.xml_dir")))
         if config.path("pubmed.xml_dir").exists()
         else 0
     )
-    print_kv_table({"xml_files": xml_count, "missing_required_inputs": failures})
+    print_kv_table(
+        {
+            "xml_files": xml_count,
+            "missing_required_inputs": failures,
+            "missing_optional_inputs": optional_missing,
+        }
+    )
     return 1 if failures else 0
 
 
@@ -1306,6 +1371,16 @@ def cmd_transform_shards(args: argparse.Namespace) -> int:
     if not paths:
         err(f"No JSON/JSONL files found in {json_dir}")
         return 1
+    if getattr(args, "dry_run", False):
+        jobs = (
+            args.jobs
+            if args.jobs is not None
+            else min(args.shards, max((os.cpu_count() or 2) - 1, 1))
+        )
+        info(
+            f"dry-run transform-shards files={len(paths)} shards={args.shards} jobs={jobs} input_list={input_list}"
+        )
+        return 0
     with atomic_output_path(input_list) as tmp_path:
         tmp_path.write_text("".join(f"{path}\n" for path in paths), encoding="utf-8")
     jobs = (
@@ -1388,6 +1463,59 @@ def cmd_compare_legacy(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_schema(args: argparse.Namespace) -> int:
+    if args.input:
+        valid, errors = validate_analysis_dataset_schema(Path(args.input))
+        print_kv_table({"schema": ANALYSIS_DATASET_VERSION, "columns": len(CANONICAL_ARTICLE_COLUMNS)})
+        if valid:
+            ok(f"{args.input} matches {ANALYSIS_DATASET_VERSION}")
+            return 0
+        for error in errors:
+            err(error)
+        return 1
+    print(ANALYSIS_DATASET_VERSION)
+    for index, column in enumerate(CANONICAL_ARTICLE_COLUMNS, start=1):
+        print(f"{index:02d}\t{column}")
+    return 0
+
+
+def cmd_summaries(args: argparse.Namespace) -> int:
+    manifest = manifest_from_args(args)
+    started_at = utc_now()
+    start_seconds = time.time()
+    input_path = cfg_path(args, "input", "aggregate.processed_parquet")
+    output_dir = cfg_path(args, "output_dir", "aggregate.summary_dir")
+    try:
+        outputs = derive_summary_tables(input_path, output_dir)
+        append_manifest(
+            manifest,
+            stage="summaries",
+            status="success",
+            input_path=input_path,
+            output_path=output_dir,
+            records=len(outputs),
+            started_at=started_at,
+            start_seconds=start_seconds,
+            metadata={"tables": {key: str(value) for key, value in outputs.items()}},
+            checksum=not args.no_checksum,
+        )
+        ok(f"wrote {len(outputs)} summary tables to {output_dir}")
+        return 0
+    except Exception as exc:
+        append_manifest(
+            manifest,
+            stage="summaries",
+            status="failed",
+            input_path=input_path,
+            output_path=output_dir,
+            started_at=started_at,
+            start_seconds=start_seconds,
+            error_message=repr(exc),
+            checksum=not args.no_checksum,
+        )
+        raise
+
+
 def add_common_stage_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--manifest",
@@ -1418,18 +1546,34 @@ def add_parse_options(parser: argparse.ArgumentParser) -> None:
     add_common_stage_args(parser)
 
 
+def add_dry_run_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="show planned work without writing outputs or manifest rows",
+    )
+
+
 def add_external_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--scimago", default=None)
     parser.add_argument("--web-of-science", default=None)
     parser.add_argument("--doaj", default=None)
     parser.add_argument("--norwegian-list", default=None)
     parser.add_argument("--retraction-watch", default=None)
+    parser.add_argument("--publisher", default=None)
     parser.add_argument("--min-received", default=None)
     add_common_stage_args(parser)
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="pubdelays-pipeline")
+    parser = argparse.ArgumentParser(
+        prog="pubdelays-pipeline",
+        description="Run the PubMed publication-delay pipeline.",
+        epilog=(
+            "Main workflow: init-dirs -> preflight -> download -> external-all -> "
+            "parse -> validate -> transform-shards -> validate-shards -> aggregate-all -> manifest summary"
+        ),
+    )
     parser.add_argument(
         "--config",
         default=os.environ.get("PUBDELAYS_CONFIG", DEFAULT_CONFIG),
@@ -1462,6 +1606,7 @@ def build_parser() -> argparse.ArgumentParser:
     parse_p.add_argument("--input-dir", default=None)
     parse_p.add_argument("--output-dir", default=None)
     parse_p.add_argument("--jobs", type=int, default=None)
+    add_dry_run_arg(parse_p)
     add_parse_options(parse_p)
     parse_p.set_defaults(func=cmd_parse)
 
@@ -1525,6 +1670,7 @@ def build_parser() -> argparse.ArgumentParser:
     transform_shards.add_argument(
         "--format", choices=["parquet", "tsv", "csv"], default="parquet"
     )
+    add_dry_run_arg(transform_shards)
     add_external_args(transform_shards)
     transform_shards.set_defaults(func=cmd_transform_shards)
 
@@ -1561,6 +1707,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="aggregate discovered article shards without completeness validation",
     )
+    add_dry_run_arg(aggregate_all)
     add_common_stage_args(aggregate_all)
     aggregate_all.set_defaults(func=cmd_aggregate_all)
 
@@ -1574,6 +1721,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     compare_legacy.set_defaults(func=cmd_compare_legacy)
 
+    schema_cmd = subparsers.add_parser(
+        "schema", help="print or validate the analysis_dataset_v1 schema"
+    )
+    schema_cmd.add_argument("--input", default=None)
+    schema_cmd.set_defaults(func=cmd_schema)
+
+    summaries = subparsers.add_parser(
+        "summaries", help="derive analysis summary tables from processed.parquet"
+    )
+    summaries.add_argument("--input", default=None)
+    summaries.add_argument("--output-dir", default=None)
+    add_common_stage_args(summaries)
+    summaries.set_defaults(func=cmd_summaries)
+
     download = subparsers.add_parser(
         "download", help="download PubMed baseline/updatefiles with MD5 verification"
     )
@@ -1585,6 +1746,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--limit", type=int, default=None, help="debug only: first N links"
     )
     download.add_argument("--jobs", type=int, default=4)
+    add_dry_run_arg(download)
     add_common_stage_args(download)
     download.set_defaults(func=cmd_download)
 
@@ -1600,8 +1762,11 @@ def build_parser() -> argparse.ArgumentParser:
     external_all.add_argument(
         "--output", default=None
     )  # accepted for dispatch compatibility; ignored
+    external_all.add_argument("--publisher-input", default=None)
+    external_all.add_argument("--publisher-output", default=None)
     external_all.add_argument("--start-year", type=int, default=2015)
     external_all.add_argument("--end-year", type=int, default=2024)
+    add_dry_run_arg(external_all)
     add_common_stage_args(external_all)
     external_all.set_defaults(func=cmd_external_all)
 
@@ -1626,6 +1791,14 @@ def build_parser() -> argparse.ArgumentParser:
     doaj.add_argument("--output", default=None)
     add_common_stage_args(doaj)
     doaj.set_defaults(func=cmd_external_doaj)
+
+    publisher = subparsers.add_parser(
+        "external-publisher", help="clean raw publisher metadata CSV"
+    )
+    publisher.add_argument("--publisher-input", default=None)
+    publisher.add_argument("--publisher-output", default=None)
+    add_common_stage_args(publisher)
+    publisher.set_defaults(func=cmd_external_publisher)
 
     npi = subparsers.add_parser(
         "external-npi", help="clean raw Norwegian Publication Indicator CSV"

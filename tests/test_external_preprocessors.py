@@ -7,7 +7,9 @@ import polars as pl
 from pubdelays.external import (
     preprocess_doaj,
     preprocess_npi,
+    preprocess_publisher,
     preprocess_retraction_watch,
+    preprocess_scimago,
     preprocess_wos,
 )
 from pubdelays.external.wos import discipline_for_asjc
@@ -30,7 +32,7 @@ def test_external_raw_reader_preserves_identifier_like_strings(tmp_path: Path) -
     assert df["asjc"].to_list() == ["03203"]
 
 
-def test_wos_preprocessor_splits_asjc_and_issn_then_keeps_first_issn(
+def test_wos_preprocessor_splits_asjc_and_issn_then_preserves_all_codes(
     tmp_path: Path,
 ) -> None:
     raw = tmp_path / "wos.csv"
@@ -46,7 +48,10 @@ def test_wos_preprocessor_splits_asjc_and_issn_then_keeps_first_issn(
     assert data[0]["issn_linking"] == "1234567X"
     assert data[0]["asjc"] == 3203 or data[0]["asjc"] == "3203"
     assert data[0]["discipline"] == "social_sciences_and_humanities"
+    assert data[0]["asjc_all"] == "3203|1000"
+    assert data[0]["discipline_all"] == "social_sciences_and_humanities|multidisciplinary"
     assert data[1]["issn_linking"] == "22223333"
+    assert data[1]["asjc_all"] == "3203|1000"
 
 
 def test_npi_preprocessor_removes_issn_hyphens_and_splits_print_online(
@@ -66,6 +71,27 @@ def test_npi_preprocessor_removes_issn_hyphens_and_splits_print_online(
     assert data[0]["issn_linking"] == "1234567X"
     assert data[1]["issn_linking"] == "87654321"
     assert data[0]["npi_title"] == "Journal A"
+
+
+def test_publisher_preprocessor_keeps_first_values_and_flags_conflicts(tmp_path: Path) -> None:
+    raw = tmp_path / "publishers.csv"
+    raw.write_text(
+        "ISSN,Publisher,Publisher Group\n"
+        "1234-5678,Elsevier,RELX\n"
+        "1234-5678,Elsevier BV,RELX\n"
+        "2222-3333,,\n",
+        encoding="utf-8",
+    )
+    out = tmp_path / "publisher_metadata.csv"
+
+    assert preprocess_publisher(raw, out) == 2
+    data = rows(out)
+    assert data[0]["issn_linking"] == "12345678"
+    assert data[0]["publisher"] == "Elsevier"
+    assert data[0]["publisher_group"] == "RELX"
+    assert data[0]["publisher_conflict"] == "True"
+    assert data[0]["publisher_group_conflict"] == "False"
+    assert data[1]["publisher"] == ""
 
 
 def test_retraction_watch_preprocessor_filters_dates(tmp_path: Path) -> None:
@@ -97,6 +123,7 @@ def test_wos_preserves_asjc_identifier_text_until_classification(tmp_path: Path)
     data = rows(out)
     assert data[0]["issn_linking"] == "01234567"
     assert str(data[0]["asjc"]) == "03203"
+    assert data[0]["asjc_all"] == "03203|1000"
     assert data[0]["discipline"] == "social_sciences_and_humanities"
 
 
@@ -105,6 +132,23 @@ def test_wos_discipline_boundaries_match_legacy_case_when() -> None:
     assert discipline_for_asjc(1111) == "life_sciences"
     assert discipline_for_asjc(3207) == "social_sciences_and_humanities"
     assert discipline_for_asjc(3616) == "health_sciences"
+
+
+def test_scimago_preprocessor_preserves_multiple_categories(tmp_path: Path) -> None:
+    for year in (2023, 2024):
+        raw = tmp_path / f"scimagojr {year}.csv"
+        raw.write_text(
+            "Title;Issn;SJR Best Quartile;H index;Rank;SJR;Categories\n"
+            'Journal A;"1234-567X, 2222-3333";Q1;50;10;2.5;"Psychology; Medicine"\n',
+            encoding="utf-8",
+        )
+    out = tmp_path / "scimago.csv"
+
+    assert preprocess_scimago(tmp_path, out, start_year=2023, end_year=2024) == 2
+    data = rows(out)
+    assert data[0]["issn_linking"] == "1234567X"
+    assert data[0]["scimago_categories"] == "Psychology|Medicine"
+    assert data[1]["scimago_categories"] == "Psychology|Medicine"
 
 
 def test_doaj_preprocessor_matches_legacy_selected_columns(tmp_path: Path) -> None:

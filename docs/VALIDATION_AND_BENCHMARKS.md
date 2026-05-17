@@ -168,39 +168,87 @@ compare matched rows by DOI, then by PMID, then by normalized title+journal
 
 ## Performance benchmark plan
 
-Record hardware, filesystem, Python version, Polars version, Nix/uv environment, number of workers, and SLURM settings.
+Record hardware, filesystem, Python version, Polars version, Nix/uv environment, number of workers, and SLURM settings. Benchmark reports are generated artifacts; write them under `data/processed_data/benchmarks/` and do not commit them.
+
+Use this setup block before stage-specific commands:
+
+```bash
+mkdir -p data/processed_data/benchmarks
+REPORT="data/processed_data/benchmarks/benchmark-$(date -u +%Y%m%dT%H%M%SZ).txt"
+{
+  echo "# pubdelays benchmark"
+  date -u
+  uname -a
+  python --version
+  pubdelays-pipeline --help | head -1
+} > "$REPORT"
+TIME="/usr/bin/time -v -a -o $REPORT"
+```
+
+`/usr/bin/time -v` records elapsed time and peak RSS on Linux. On systems without GNU time, use `time -p` and record peak RSS from the scheduler or OS monitor.
+
+### External preprocessors
+
+Measure all external preprocessors together, or replace `external-all` with one `external-*` command for per-source timings:
+
+```bash
+$TIME pubdelays-pipeline external-all --resume
+```
+
+Record output rows from the manifest and output sizes:
+
+```bash
+pubdelays-pipeline manifest summary >> "$REPORT"
+du -h data/processed_data/scimago.csv data/processed_data/web_of_science.csv data/processed_data/doaj.csv data/processed_data/norwegian_list.csv data/processed_data/retraction_watch.csv data/processed_data/publisher_metadata.csv >> "$REPORT" 2>/dev/null || true
+```
 
 ### XML parse throughput
+
+Full-corpus parse benchmark:
+
+```bash
+XML_MB_BEFORE=$(find data/raw_data/pubmed/xmls -type f \( -name '*.xml' -o -name '*.xml.gz' \) -print0 | du --files0-from=- -cb | tail -1 | cut -f1)
+$TIME pubdelays-pipeline parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
+JSONL_MB_AFTER=$(find data/temp_data/pubmed/jsonl -type f -name '*.jsonl' -print0 | du --files0-from=- -cb | tail -1 | cut -f1)
+printf 'parse_input_bytes=%s\nparse_output_bytes=%s\n' "$XML_MB_BEFORE" "$JSONL_MB_AFTER" >> "$REPORT"
+pubdelays-pipeline manifest summary >> "$REPORT"
+```
+
+For a small reproducible smoke benchmark equivalent to `benchmark parse --limit 10`, copy or symlink ten XML/XML.GZ files into a temporary configured `pubmed.xml_dir`, then run the same parse command with that config.
 
 Measure:
 
 ```text
 XML files / minute
 records / second
-peak RSS per worker
+input MB / second
 output MB / second
-```
-
-Example:
-
-```bash
-time pubdelays-pipeline parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
-```
-
-### External preprocessors
-
-Measure each preprocessor separately and together:
-
-```bash
-time pubdelays-pipeline external-all --resume
+peak RSS per worker
 ```
 
 ### Transform throughput
 
-Canonical benchmark:
+Canonical local benchmark:
 
 ```bash
-time pubdelays-pipeline transform-shards --shards 64 --jobs 16 --format parquet --resume
+$TIME pubdelays-pipeline transform-shards --shards 64 --jobs 16 --format parquet --resume
+pubdelays-pipeline manifest summary >> "$REPORT"
+```
+
+Measure shard skew from filter sidecars:
+
+```bash
+python - <<'PY' >> "$REPORT"
+from pathlib import Path
+import csv
+rows = []
+for path in sorted(Path('data/temp_data/article_parquet').glob('*.filters.csv')):
+    with path.open(newline='', encoding='utf-8') as handle:
+        final = {row['stage']: int(row['count']) for row in csv.DictReader(handle)}.get('final_rows', 0)
+    rows.append(final)
+if rows:
+    print(f'transform_shards={len(rows)} min_rows={min(rows)} max_rows={max(rows)} skew={max(rows) / max(min(rows), 1):.2f}')
+PY
 ```
 
 Measure:
@@ -209,13 +257,24 @@ Measure:
 JSONL files / minute
 input records / second
 output rows / second
-metadata load time per shard
+input MB / second
+output MB / second
+peak RSS per worker
+shard skew
+```
+
+For a small reproducible smoke benchmark equivalent to `benchmark transform --shards 8`, run:
+
+```bash
+$TIME pubdelays-pipeline transform-shards --shards 8 --jobs 8 --format parquet --resume
 ```
 
 ### Aggregation throughput
 
 ```bash
-time pubdelays-pipeline aggregate-all --resume
+$TIME pubdelays-pipeline aggregate-all --resume
+pubdelays-pipeline manifest summary >> "$REPORT"
+du -h data/temp_data/article_parquet data/processed_data/processed.parquet data/processed_data/processed.csv >> "$REPORT" 2>/dev/null || true
 ```
 
 Measure:
@@ -223,8 +282,10 @@ Measure:
 ```text
 Parquet shard count
 input rows / second
+input MB / second
 final Parquet size
 CSV export time
+peak RSS
 ```
 
 ## Recommended defaults

@@ -61,6 +61,13 @@ def expected_input_paths(config: PipelineConfig) -> list[ExpectedPath]:
             True,
             "Raw Retraction Watch CSV export.",
         ),
+        ExpectedPath(
+            "Publisher metadata raw CSV",
+            config.path("external.raw.publisher_csv"),
+            "file",
+            False,
+            "Optional publisher metadata keyed by linking ISSN.",
+        ),
     ]
 
 
@@ -91,6 +98,13 @@ def expected_output_paths(config: PipelineConfig) -> list[ExpectedPath]:
             "processed CSV",
             config.path("aggregate.processed_csv"),
             "file",
+            False,
+            "Generated.",
+        ),
+        ExpectedPath(
+            "derived summary tables",
+            config.path("aggregate.summary_dir"),
+            "dir",
             False,
             "Generated.",
         ),

@@ -19,6 +19,7 @@ SCIMAGO_FIELDS = [
     "quartile_2024",
     "h_index_2024",
     "journal_title",
+    "scimago_categories",
     "rank_2024",
     "sjr_2024",
     "quartile_2015",
@@ -62,34 +63,47 @@ SCIMAGO_FIELDS = [
 
 def _read_scimago_file(path: Path, year: int) -> pl.DataFrame:
     df = normalize_columns(read_csv_polars(path, separator=";"))
-    required = ["title", "issn", "sjr_best_quartile", "h_index", "rank", "sjr"]
+    required = ["title", "issn", "sjr_best_quartile", "h_index", "rank", "sjr", "categories"]
     for col in required:
         if col not in df.columns:
             df = df.with_columns(pl.lit(None).cast(pl.Utf8).alias(col))
 
     df = (
         df.select(required)
-        .with_columns(pl.col("issn").cast(pl.Utf8).str.split(",").alias("issn_parts"))
+        .with_columns(
+            pl.col("issn").cast(pl.Utf8).str.split(",").alias("issn_parts"),
+            pl.col("categories").cast(pl.Utf8).str.split(";").alias("category_parts"),
+        )
         .explode("issn_parts")
-        .with_columns(issn_expr(pl.col("issn_parts")).alias("issn_linking"))
+        .explode("category_parts")
+        .with_columns(
+            issn_expr(pl.col("issn_parts")).alias("issn_linking"),
+            pl.col("category_parts")
+            .cast(pl.Utf8)
+            .str.strip_chars()
+            .alias("scimago_category"),
+        )
         .filter(pl.col("issn_linking") != "")
     )
 
     if year == 2024:
-        return df.select(
-            "issn_linking",
-            pl.col("sjr_best_quartile").alias("quartile_2024"),
-            pl.col("h_index").alias("h_index_2024"),
-            pl.col("title").alias("journal_title"),
-            pl.col("rank").alias("rank_2024"),
-            pl.col("sjr").alias("sjr_2024"),
+        return df.group_by("issn_linking", maintain_order=True).agg(
+            pl.col("sjr_best_quartile").first().alias("quartile_2024"),
+            pl.col("h_index").first().alias("h_index_2024"),
+            pl.col("title").first().alias("journal_title"),
+            pl.col("scimago_category")
+            .filter(pl.col("scimago_category") != "")
+            .unique(maintain_order=True)
+            .str.join("|")
+            .alias("scimago_categories"),
+            pl.col("rank").first().alias("rank_2024"),
+            pl.col("sjr").first().alias("sjr_2024"),
         )
-    return df.select(
-        "issn_linking",
-        pl.col("sjr_best_quartile").alias(f"quartile_{year}"),
-        pl.col("h_index").alias(f"h_index_{year}"),
-        pl.col("rank").alias(f"rank_{year}"),
-        pl.col("sjr").alias(f"sjr_{year}"),
+    return df.group_by("issn_linking", maintain_order=True).agg(
+        pl.col("sjr_best_quartile").first().alias(f"quartile_{year}"),
+        pl.col("h_index").first().alias(f"h_index_{year}"),
+        pl.col("rank").first().alias(f"rank_{year}"),
+        pl.col("sjr").first().alias(f"sjr_{year}"),
     )
 
 

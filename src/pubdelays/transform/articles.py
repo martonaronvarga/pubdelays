@@ -47,6 +47,7 @@ class ExternalInputs:
     doaj: Path | None = None
     norwegian_list: Path | None = None
     retraction_watch: Path | None = None
+    publisher: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -516,6 +517,7 @@ def transform_files(
         external.web_of_science,
         external.doaj,
         external.norwegian_list,
+        external.publisher,
     ]:
         df = _left_join_external(df, path)
     counts["after_external_joins"] = df.height
@@ -551,6 +553,13 @@ def transform_files(
     for col in [
         "asjc",
         "discipline",
+        "asjc_all",
+        "discipline_all",
+        "scimago_categories",
+        "publisher",
+        "publisher_group",
+        "publisher_conflict",
+        "publisher_group_conflict",
         "npi_discipline",
         "npi_field",
         "apc",

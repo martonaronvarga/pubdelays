@@ -16,6 +16,7 @@ src/pubdelays/cli.py                 # pubdelays-pipeline CLI
 config/default.toml                  # canonical paths and defaults
 DATA_LAYOUT.md                       # exact raw/generated data placement
 docs/STAGE_CONTRACTS.md              # stage inputs, outputs, manifests, and failure behavior
+docs/ANALYSIS_DATASET_V1.md          # final analysis schema and data dictionary
 LEGACY.md                            # semantics ported from legacy R/shell/Python
 ```
 
@@ -106,7 +107,7 @@ Downloads keep `.md5` sidecars and verify them after transfer. Baseline and upda
 
 ## Individual stages
 
-All commands use `config/default.toml` by default and validate required sections, path keys, dates, and supported shard formats before running a stage. Stage inputs, outputs, manifest rows, resume behavior, and failure behavior are documented in `docs/STAGE_CONTRACTS.md`. Override config paths with:
+All commands use `config/default.toml` by default and validate required sections, path keys, dates, and supported shard formats before running a stage. Stage inputs, outputs, manifest rows, resume behavior, and failure behavior are documented in `docs/STAGE_CONTRACTS.md`. The top-level `--help` output lists the canonical workflow order; expensive workflow commands such as `download`, `parse`, `external-all`, `transform-shards`, and `aggregate-all` support `--dry-run` for planning without writing outputs or manifest rows. Override config paths with:
 
 ```bash
 pubdelays-pipeline --config path/to/config.toml <command>
@@ -146,6 +147,12 @@ pubdelays-pipeline aggregate-all --resume
 
 For a single custom output format, use `aggregate --output path/to/output.parquet`.
 
+Derive analysis summaries:
+
+```bash
+pubdelays-pipeline summaries --resume
+```
+
 Inspect manifest:
 
 ```bash
@@ -154,7 +161,7 @@ pubdelays-pipeline manifest --limit 20
 
 ## SLURM job arrays
 
-SLURM is opt-in. Run external metadata preprocessing once, then use arrays for XML parsing and article transforms.
+SLURM is opt-in. Run external metadata preprocessing once locally or as one small job, then use arrays for XML parsing and article transforms. Recommended defaults are one XML file per parse array task, modulo JSONL sharding for transform tasks (`SHARDS=64` by default), and one aggregate job with enough memory for the final collect. SLURM logs are written under `logs/` with job and array IDs so failed tasks can be identified and rerun.
 
 ```bash
 pubdelays-pipeline external-all --resume
@@ -168,6 +175,8 @@ N=$(wc -l < data/manifests/parse_inputs.txt)
 sbatch --array=0-$((N - 1)) scripts/slurm_parse_array.sh
 ```
 
+The parse wrapper fails early when `data/manifests/parse_inputs.txt` is missing or empty. Rerun failed task IDs with the same array index after fixing inputs or resource limits.
+
 After parsing completes, refresh transform inputs and submit transform shards:
 
 ```bash
@@ -178,6 +187,8 @@ pubdelays-pipeline list-inputs \
 
 SHARDS=64 sbatch --array=0-63 scripts/slurm_transform_array.sh
 ```
+
+The transform wrapper fails early when `data/manifests/transform_inputs.txt` is missing or empty. Each task writes one deterministic modulo shard, so failed array indices can be rerun independently.
 
 Aggregate after all transform jobs complete:
 

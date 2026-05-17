@@ -29,6 +29,9 @@ data/raw_data/norwegian_publication_indicator/
 
 data/raw_data/retraction_watch/
   retraction_watch.csv
+
+data/raw_data/publisher_metadata/
+  publishers.csv  # optional ISSN-keyed publisher enrichment
 ```
 
 The PubMed parser reads `.xml.gz` directly. Do not gunzip the PubMed baseline unless you have a specific storage reason.
@@ -53,8 +56,10 @@ data/processed_data/web_of_science.csv
 data/processed_data/doaj.csv
 data/processed_data/norwegian_list.csv
 data/processed_data/retraction_watch.csv
+data/processed_data/publisher_metadata.csv
 data/processed_data/processed.parquet  # preferred analysis input
 data/processed_data/processed.csv      # collaborator/export format
+data/processed_data/summaries/         # derived analysis summary CSV tables
 ```
 
-`processed.parquet` is the canonical analysis dataset. CSV is emitted for collaborators and tools that do not read Parquet.
+`processed.parquet` is the canonical `analysis_dataset_v1` input documented in `docs/ANALYSIS_DATASET_V1.md`. CSV is emitted for collaborators and tools that do not read Parquet. Multi-valued subject metadata is stored as pipe-delimited text columns (`asjc_all`, `discipline_all`, `scimago_categories`) for CSV/R/Python interoperability while scalar `asjc` and `discipline` retain first-category compatibility semantics. Optional publisher metadata joins on normalized linking ISSN; missing publisher input becomes empty publisher columns in article outputs.

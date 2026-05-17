@@ -7,6 +7,12 @@ while the implementation is now Python-first, resumable, and auditable.
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import polars as pl
+
+ANALYSIS_DATASET_VERSION = "analysis_dataset_v1"
+
 REQUIRED_PARSED_FIELDS: tuple[str, ...] = (
     "history",
     "journal",
@@ -52,6 +58,13 @@ CANONICAL_ARTICLE_COLUMNS: tuple[str, ...] = (
     "rank_year",
     "discipline",
     "asjc",
+    "discipline_all",
+    "asjc_all",
+    "scimago_categories",
+    "publisher",
+    "publisher_group",
+    "publisher_conflict",
+    "publisher_group_conflict",
     "npi_discipline",
     "npi_field",
     "npi_year",
@@ -118,3 +131,28 @@ MEGAJOURNAL_ISSNS: frozenset[str] = frozenset(
         "20461402",
     }
 )
+
+
+def read_analysis_columns(path: Path) -> list[str]:
+    path = Path(path)
+    suffix = path.suffix.lower()
+    if suffix == ".parquet":
+        return list(pl.scan_parquet(path).collect_schema().names())
+    if suffix == ".tsv":
+        return list(pl.read_csv(path, separator="\t", n_rows=0).columns)
+    return list(pl.read_csv(path, n_rows=0).columns)
+
+
+def validate_analysis_dataset_schema(path: Path) -> tuple[bool, list[str]]:
+    columns = read_analysis_columns(path)
+    expected = list(CANONICAL_ARTICLE_COLUMNS)
+    errors: list[str] = []
+    missing = [column for column in expected if column not in columns]
+    extra = [column for column in columns if column not in expected]
+    if missing:
+        errors.append("missing columns: " + ", ".join(missing))
+    if extra:
+        errors.append("unexpected columns: " + ", ".join(extra))
+    if not missing and not extra and columns != expected:
+        errors.append("column order differs from analysis_dataset_v1")
+    return not errors, errors

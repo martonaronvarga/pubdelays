@@ -96,11 +96,12 @@ def config_copy() -> dict[str, object]:
                 "doaj": "data/processed_data/doaj.csv",
                 "norwegian_list": "data/processed_data/norwegian_list.csv",
                 "retraction_watch": "data/processed_data/retraction_watch.csv",
+                "publisher": "data/processed_data/publisher_metadata.csv",
                 "pubmed_journals": "data/external/pubmed-journals.csv",
             },
         },
         "transform": {"article_shard_dir": "", "article_shard_format": "parquet", "min_received": "2013-01-01", "default_shards": 2},
-        "aggregate": {"processed_parquet": "", "processed_csv": ""},
+        "aggregate": {"processed_parquet": "", "processed_csv": "", "summary_dir": "data/processed_data/summaries"},
     }
 
 
@@ -114,12 +115,14 @@ def configure(tmp_path: Path) -> Path:
     values["transform"]["default_shards"] = 2
     values["aggregate"]["processed_parquet"] = "data/processed_data/processed.parquet"
     values["aggregate"]["processed_csv"] = "data/processed_data/processed.csv"
+    values["aggregate"]["summary_dir"] = "data/processed_data/summaries"
     raw = values["external"]["raw"]
     raw["scimago_dir"] = "data/raw_data/scimago"
     raw["web_of_science_csv"] = "data/raw_data/web_of_science/wos.csv"
     raw["doaj_csv"] = "data/raw_data/directory_of_open_access_journals/doaj.csv"
     raw["norwegian_list_csv"] = "data/raw_data/norwegian_publication_indicator/npi.csv"
     raw["retraction_watch_csv"] = "data/raw_data/retraction_watch/retraction_watch.csv"
+    raw["publisher_csv"] = "data/raw_data/publisher_metadata/publishers.csv"
     return write_config(tmp_path / "config.toml", values)
 
 
@@ -157,6 +160,12 @@ def write_external_inputs(root: Path) -> None:
         "01/02/2021 00:00,12/31/2016 00:00,Example title,10.123/example,10.123/retract,Retraction,Error\n",
         encoding="utf-8",
     )
+    (root / "data/raw_data/publisher_metadata").mkdir(parents=True)
+    (root / "data/raw_data/publisher_metadata/publishers.csv").write_text(
+        "ISSN,Publisher,Publisher Group\n"
+        "1234-5678,Example Publisher,Example Group\n",
+        encoding="utf-8",
+    )
 
 
 def test_tiny_end_to_end_pipeline(tmp_path: Path) -> None:
@@ -183,6 +192,8 @@ def test_tiny_end_to_end_pipeline(tmp_path: Path) -> None:
     assert row["quartile_year"] == "Q1"
     assert row["is_psych"] == "True"
     assert row["open_access"] == "True"
+    assert row["publisher"] == "Example Publisher"
+    assert row["publisher_group"] == "Example Group"
     assert row["is_retracted"] == "True"
     fallback = rows["Pubdate fallback title"]
     assert fallback["publication_date_source"] == "pubdate"

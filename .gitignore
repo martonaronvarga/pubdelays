@@ -19,6 +19,8 @@ result-*
 # R/editor/local
 .Rhistory
 .RData
+**/.Rhistory
+**/.RData
 *.Rproj.user/
 *.out
 *.log

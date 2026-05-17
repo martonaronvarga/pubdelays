@@ -55,17 +55,20 @@ REQUIRED_PATH_KEYS = (
     "external.raw.doaj_csv",
     "external.raw.norwegian_list_csv",
     "external.raw.retraction_watch_csv",
+    "external.raw.publisher_csv",
     "external.processed.scimago",
     "external.processed.web_of_science",
     "external.processed.doaj",
     "external.processed.norwegian_list",
     "external.processed.retraction_watch",
+    "external.processed.publisher",
     "external.processed.pubmed_journals",
     "transform.article_shard_dir",
     "transform.article_shard_format",
     "transform.min_received",
     "aggregate.processed_parquet",
     "aggregate.processed_csv",
+    "aggregate.summary_dir",
 )
 
 REQUIRED_SECTIONS = ("pipeline", "pubmed", "external", "transform", "aggregate")

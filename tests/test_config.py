@@ -26,6 +26,7 @@ VALID_CONFIG: dict[str, Any] = {
             "doaj_csv": "data/raw_data/directory_of_open_access_journals/doaj.csv",
             "norwegian_list_csv": "data/raw_data/norwegian_publication_indicator/npi.csv",
             "retraction_watch_csv": "data/raw_data/retraction_watch/retraction_watch.csv",
+            "publisher_csv": "data/raw_data/publisher_metadata/publishers.csv",
         },
         "processed": {
             "scimago": "data/processed_data/scimago.csv",
@@ -33,6 +34,7 @@ VALID_CONFIG: dict[str, Any] = {
             "doaj": "data/processed_data/doaj.csv",
             "norwegian_list": "data/processed_data/norwegian_list.csv",
             "retraction_watch": "data/processed_data/retraction_watch.csv",
+            "publisher": "data/processed_data/publisher_metadata.csv",
             "pubmed_journals": "data/external/pubmed-journals.csv",
         },
     },
@@ -45,6 +47,7 @@ VALID_CONFIG: dict[str, Any] = {
     "aggregate": {
         "processed_parquet": "data/processed_data/processed.parquet",
         "processed_csv": "data/processed_data/processed.csv",
+        "summary_dir": "data/processed_data/summaries",
     },
 }
 

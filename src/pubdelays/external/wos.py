@@ -8,7 +8,6 @@ from typing import Any
 import polars as pl
 
 from .common import (
-    first_by_key,
     issn_expr,
     normalize_columns,
     read_csv_polars,
@@ -22,6 +21,8 @@ WOS_FIELDS = [
     "source_type",
     "asjc",
     "discipline",
+    "asjc_all",
+    "discipline_all",
 ]
 
 
@@ -130,7 +131,7 @@ def preprocess_wos(input_csv: Path, output: Path) -> int:
         if col not in df.columns:
             df = df.with_columns(pl.lit(None).cast(pl.Utf8).alias(col))
 
-    df = (
+    exploded = (
         df.filter(pl.col("source_type") == "Journal")
         .select(needed)
         .with_columns(
@@ -150,6 +151,17 @@ def preprocess_wos(input_csv: Path, output: Path) -> int:
         )
         .filter((pl.col("asjc") != "") & (pl.col("issn_linking") != ""))
         .with_columns(discipline_expr(pl.col("asjc")).alias("discipline"))
-        .select(WOS_FIELDS)
     )
-    return write_frame(output, first_by_key(df, "issn_linking"))
+    df = exploded.group_by("issn_linking", maintain_order=True).agg(
+        pl.col("source_title").first(),
+        pl.col("open_access_status").first(),
+        pl.col("source_type").first(),
+        pl.col("asjc").first().alias("asjc"),
+        pl.col("discipline").first().alias("discipline"),
+        pl.col("asjc").unique(maintain_order=True).str.join("|").alias("asjc_all"),
+        pl.col("discipline")
+        .unique(maintain_order=True)
+        .str.join("|")
+        .alias("discipline_all"),
+    )
+    return write_frame(output, df.select(WOS_FIELDS))
