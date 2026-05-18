@@ -116,8 +116,12 @@ pubdelays-pipeline --config path/to/config.toml <command>
 External metadata:
 
 ```bash
+pubdelays-pipeline download-external --source doaj --resume
+pubdelays-pipeline download-external --source retraction-watch --resume
 pubdelays-pipeline external-all --resume
 ```
+
+`download-external --source all --dry-run` lists configured public metadata downloads. DOAJ uses the public journal CSV at `https://doaj.org/csv`; Retraction Watch uses Crossref's public GitLab mirror. SCImago, Web of Science, Norwegian Publication Indicator snapshots, and publisher metadata may require manual/licensed source selection, so their raw paths remain documented in `DATA_LAYOUT.md`.
 
 Parse XML:
 

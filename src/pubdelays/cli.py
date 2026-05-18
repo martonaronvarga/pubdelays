@@ -96,6 +96,13 @@ class DownloadStats:
     skipped: bool = False
 
 
+@dataclass(frozen=True)
+class ExternalDownloadPlan:
+    source: str
+    url: str
+    output_path: Path
+
+
 def cfg(args: argparse.Namespace) -> PipelineConfig:
     return load_config(getattr(args, "config", DEFAULT_CONFIG))
 
@@ -537,10 +544,12 @@ def index_links(url: str) -> list[str]:
     return sorted(set(re.findall(r'href="([^"]+\.(?:gz|md5))"', html)))
 
 
-def download_file(url: str, output_path: Path, *, resume: bool, retries: int = 5) -> DownloadStats:
+def download_file(
+    url: str, output_path: Path, *, resume: bool, retries: int = 5, require_md5: bool = True
+) -> DownloadStats:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if resume and complete_file(output_path):
-        if output_path.suffix == ".md5" or complete_download(output_path):
+        if not require_md5 or output_path.suffix == ".md5" or complete_download(output_path):
             return DownloadStats(url, str(output_path), downloaded=False, skipped=True)
     last: BaseException | None = None
     for attempt in range(retries):
@@ -657,6 +666,84 @@ def cmd_download(args: argparse.Namespace) -> int:
             err(f"  {failure}")
         return 1
     ok(f"downloaded={downloaded} skipped={skipped} into {output_dir}; MD5 checks passed")
+    return 0
+
+
+def external_download_plans(args: argparse.Namespace) -> list[ExternalDownloadPlan]:
+    config = cfg(args)
+    requested = {args.source} if args.source != "all" else {"doaj", "retraction-watch", "scimago"}
+    plans: list[ExternalDownloadPlan] = []
+    if "doaj" in requested:
+        plans.append(
+            ExternalDownloadPlan(
+                "doaj",
+                str(config.get("external.download.doaj_url", "https://doaj.org/csv")),
+                config.path("external.raw.doaj_csv"),
+            )
+        )
+    if "retraction-watch" in requested:
+        plans.append(
+            ExternalDownloadPlan(
+                "retraction-watch",
+                str(
+                    config.get(
+                        "external.download.retraction_watch_url",
+                        "https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv",
+                    )
+                ),
+                config.path("external.raw.retraction_watch_csv"),
+            )
+        )
+    if "scimago" in requested:
+        template = str(config.get("external.download.scimago_url_template", ""))
+        if not template:
+            raise RuntimeError("external.download.scimago_url_template is empty; SCImago automated URL is unavailable")
+        for year in range(args.start_year, args.end_year + 1):
+            plans.append(
+                ExternalDownloadPlan(
+                    "scimago",
+                    template.format(year=year),
+                    config.path("external.raw.scimago_dir") / f"scimagojr {year}.csv",
+                )
+            )
+    return plans
+
+
+def cmd_download_external(args: argparse.Namespace) -> int:
+    manifest = manifest_from_args(args)
+    started_at = utc_now()
+    start_seconds = time.time()
+    try:
+        plans = external_download_plans(args)
+    except RuntimeError as exc:
+        err(str(exc))
+        return 2
+    if getattr(args, "dry_run", False):
+        for plan in plans:
+            print_kv_table({"source": plan.source, "url": plan.url, "output": str(plan.output_path)})
+            print("---")
+        return 0
+
+    downloaded = 0
+    skipped = 0
+    for plan in plans:
+        stats = download_file(plan.url, plan.output_path, resume=args.resume, retries=args.retries, require_md5=False)
+        downloaded += int(stats.downloaded)
+        skipped += int(stats.skipped)
+        ok(f"downloaded {plan.source}: {stats.output_path}") if stats.downloaded else warn(
+            f"skip {plan.source}: {stats.output_path}"
+        )
+    append_manifest(
+        manifest,
+        stage="download-external",
+        status="success",
+        output_path=Path("data/raw_data"),
+        records=downloaded,
+        started_at=started_at,
+        start_seconds=start_seconds,
+        metadata={"sources": [plan.source for plan in plans], "skipped": skipped},
+        checksum=False,
+    )
     return 0
 
 
@@ -1894,6 +1981,17 @@ def build_parser() -> argparse.ArgumentParser:
     add_dry_run_arg(download)
     add_common_stage_args(download)
     download.set_defaults(func=cmd_download)
+
+    download_external = subparsers.add_parser(
+        "download-external", help="download public external metadata sources into raw-data paths"
+    )
+    download_external.add_argument("--source", choices=["all", "doaj", "retraction-watch", "scimago"], default="all")
+    download_external.add_argument("--start-year", type=int, default=2015)
+    download_external.add_argument("--end-year", type=int, default=2024)
+    download_external.add_argument("--retries", type=int, default=5)
+    add_dry_run_arg(download_external)
+    add_common_stage_args(download_external)
+    download_external.set_defaults(func=cmd_download_external)
 
     external_all = subparsers.add_parser("external-all", help="preprocess all local external metadata inputs")
     external_all.add_argument("--input-dir", default=None)  # accepted for dispatch compatibility; ignored

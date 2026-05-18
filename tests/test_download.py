@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 from pathlib import Path
 from urllib.error import URLError
@@ -10,6 +11,8 @@ from pubdelays.cli import (
     complete_download,
     download_file,
     expected_md5_sidecar,
+    external_download_plans,
+    main,
     md5sum,
     parse_md5_sidecar,
     verify_download_pair,
@@ -107,3 +110,102 @@ def test_download_failure_leaves_previous_file_intact(monkeypatch: pytest.Monkey
     with pytest.raises(RuntimeError):
         download_file("https://example.test/pubmed.xml.gz", target, resume=False, retries=1)
     assert target.read_bytes() == b"previous"
+
+
+def test_external_download_plans_use_configured_public_urls(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[pipeline]
+manifest = "data/manifests/pipeline.sqlite"
+parse_inputs = "data/manifests/parse_inputs.txt"
+transform_inputs = "data/manifests/transform_inputs.txt"
+[pubmed]
+xml_dir = "data/raw_data/pubmed/xmls"
+jsonl_dir = "data/temp_data/pubmed/jsonl"
+[external.raw]
+scimago_dir = "data/raw_data/scimago"
+web_of_science_csv = "data/raw_data/web_of_science/wos.csv"
+doaj_csv = "data/raw_data/directory_of_open_access_journals/doaj.csv"
+norwegian_list_csv = "data/raw_data/norwegian_publication_indicator/npi.csv"
+retraction_watch_csv = "data/raw_data/retraction_watch/retraction_watch.csv"
+publisher_csv = "data/raw_data/publisher_metadata/publishers.csv"
+[external.download]
+doaj_url = "https://example.test/doaj.csv"
+retraction_watch_url = "https://example.test/rw.csv"
+scimago_url_template = "https://example.test/scimagojr-{year}.csv"
+[external.processed]
+scimago = "data/processed_data/scimago.csv"
+web_of_science = "data/processed_data/web_of_science.csv"
+doaj = "data/processed_data/doaj.csv"
+norwegian_list = "data/processed_data/norwegian_list.csv"
+retraction_watch = "data/processed_data/retraction_watch.csv"
+publisher = "data/processed_data/publisher_metadata.csv"
+pubmed_journals = "data/external/pubmed-journals.csv"
+[transform]
+article_shard_dir = "data/temp_data/article_parquet"
+article_shard_format = "parquet"
+min_received = "2013-01-01"
+default_shards = 64
+[aggregate]
+processed_parquet = "data/processed_data/processed.parquet"
+processed_csv = "data/processed_data/processed.csv"
+summary_dir = "data/processed_data/summaries"
+""".strip(),
+        encoding="utf-8",
+    )
+    args = argparse.Namespace(config=config_path, source="all", start_year=2023, end_year=2024)
+
+    plans = external_download_plans(args)
+
+    assert [plan.source for plan in plans] == ["doaj", "retraction-watch", "scimago", "scimago"]
+    assert plans[0].url == "https://example.test/doaj.csv"
+    assert plans[1].output_path == tmp_path / "data/raw_data/retraction_watch/retraction_watch.csv"
+    assert plans[2].url == "https://example.test/scimagojr-2023.csv"
+
+
+def test_download_external_dry_run_reports_configured_targets(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[pipeline]
+manifest = "data/manifests/pipeline.sqlite"
+parse_inputs = "data/manifests/parse_inputs.txt"
+transform_inputs = "data/manifests/transform_inputs.txt"
+[pubmed]
+xml_dir = "data/raw_data/pubmed/xmls"
+jsonl_dir = "data/temp_data/pubmed/jsonl"
+[external.raw]
+scimago_dir = "data/raw_data/scimago"
+web_of_science_csv = "data/raw_data/web_of_science/wos.csv"
+doaj_csv = "data/raw_data/directory_of_open_access_journals/doaj.csv"
+norwegian_list_csv = "data/raw_data/norwegian_publication_indicator/npi.csv"
+retraction_watch_csv = "data/raw_data/retraction_watch/retraction_watch.csv"
+publisher_csv = "data/raw_data/publisher_metadata/publishers.csv"
+[external.download]
+doaj_url = "https://example.test/doaj.csv"
+[external.processed]
+scimago = "data/processed_data/scimago.csv"
+web_of_science = "data/processed_data/web_of_science.csv"
+doaj = "data/processed_data/doaj.csv"
+norwegian_list = "data/processed_data/norwegian_list.csv"
+retraction_watch = "data/processed_data/retraction_watch.csv"
+publisher = "data/processed_data/publisher_metadata.csv"
+pubmed_journals = "data/external/pubmed-journals.csv"
+[transform]
+article_shard_dir = "data/temp_data/article_parquet"
+article_shard_format = "parquet"
+min_received = "2013-01-01"
+default_shards = 64
+[aggregate]
+processed_parquet = "data/processed_data/processed.parquet"
+processed_csv = "data/processed_data/processed.csv"
+summary_dir = "data/processed_data/summaries"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    assert main(["--config", str(config_path), "download-external", "--source", "doaj", "--dry-run"]) == 0
+    captured = capsys.readouterr()
+    assert "https://example.test/doaj.csv" in captured.out
+    assert "data/raw_data/directory_of_open_access_journals/doaj.csv" in captured.out
