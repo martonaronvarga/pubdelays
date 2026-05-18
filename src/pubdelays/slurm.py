@@ -29,6 +29,23 @@ class SlurmJob:
     setup: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class SlurmSubmission:
+    job_id: str
+    command: tuple[str, ...]
+    stdout: str
+    stderr: str
+    script: str
+
+
+@dataclass(frozen=True)
+class SlurmStatus:
+    job_id: str
+    state: str
+    name: str
+    reason: str
+
+
 class SlurmSubmissionError(RuntimeError):
     """Raised when sbatch rejects a generated job script."""
 
@@ -38,6 +55,16 @@ class SlurmSubmissionError(RuntimeError):
         self.stdout = stdout
         self.stderr = stderr
         self.script = script
+
+
+class SlurmQueryError(RuntimeError):
+    """Raised when SLURM job inspection fails."""
+
+    def __init__(self, *, message: str, returncode: int, stdout: str, stderr: str) -> None:
+        super().__init__(message)
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
 
 
 def shell_join(parts: list[str]) -> str:
@@ -91,19 +118,30 @@ def with_dependency(job: SlurmJob, dependency: str | None) -> SlurmJob:
 
 
 class SlurmSubmitter:
-    """Submit generated SLURM scripts through sbatch with explicit errors."""
+    """Submit and inspect SLURM jobs with explicit errors."""
 
-    def __init__(self, sbatch: str = "sbatch") -> None:
+    def __init__(self, sbatch: str = "sbatch", sacct: str = "sacct") -> None:
         self.sbatch = sbatch
+        self.sacct = sacct
 
-    def submit(self, script: str) -> str:
-        result = subprocess.run(
-            [self.sbatch, "--parsable"],
-            input=script,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+    def submit_details(self, script: str) -> SlurmSubmission:
+        command = (self.sbatch, "--parsable")
+        try:
+            result = subprocess.run(
+                list(command),
+                input=script,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        except OSError as exc:
+            raise SlurmSubmissionError(
+                message=f"failed to execute {self.sbatch}: {exc}",
+                returncode=127,
+                stdout="",
+                stderr=str(exc),
+                script=script,
+            ) from exc
         if result.returncode != 0:
             raise SlurmSubmissionError(
                 message=f"sbatch failed with exit code {result.returncode}: {result.stderr.strip()}",
@@ -121,7 +159,40 @@ class SlurmSubmitter:
                 stderr=result.stderr,
                 script=script,
             )
-        return job_id
+        return SlurmSubmission(job_id=job_id, command=command, stdout=result.stdout, stderr=result.stderr, script=script)
+
+    def submit(self, script: str) -> str:
+        return self.submit_details(script).job_id
+
+    def status(self, job_id: str) -> list[SlurmStatus]:
+        command = [self.sacct, "-j", job_id, "--format=JobID,State,JobName%80,Reason", "--noheader", "--parsable2"]
+        try:
+            result = subprocess.run(command, text=True, capture_output=True, check=False)
+        except OSError as exc:
+            raise SlurmQueryError(
+                message=f"failed to execute {self.sacct}: {exc}",
+                returncode=127,
+                stdout="",
+                stderr=str(exc),
+            ) from exc
+        if result.returncode != 0:
+            raise SlurmQueryError(
+                message=f"sacct failed with exit code {result.returncode}: {result.stderr.strip()}",
+                returncode=result.returncode,
+                stdout=result.stdout,
+                stderr=result.stderr,
+            )
+        return parse_sacct_status(result.stdout)
+
+
+def parse_sacct_status(output: str) -> list[SlurmStatus]:
+    statuses: list[SlurmStatus] = []
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        job_id, state, name, reason, *_rest = [*line.split("|"), "", "", "", ""]
+        statuses.append(SlurmStatus(job_id=job_id, state=state, name=name, reason=reason))
+    return statuses
 
 
 def submit_sbatch(script: str) -> str:

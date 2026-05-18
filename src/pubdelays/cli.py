@@ -57,7 +57,15 @@ from pubdelays.schema import (
     validate_analysis_dataset_schema,
 )
 from pubdelays.shards import expected_article_shard_path, validate_article_shards
-from pubdelays.slurm import SlurmJob, SlurmResources, SlurmSubmissionError, build_sbatch_script, submit_sbatch
+from pubdelays.slurm import (
+    SlurmJob,
+    SlurmQueryError,
+    SlurmResources,
+    SlurmSubmissionError,
+    SlurmSubmitter,
+    build_sbatch_script,
+    submit_sbatch,
+)
 from pubdelays.summaries import derive_summary_tables
 from pubdelays.transform import ExternalInputs, transform_files
 from pubdelays.ui import err, info, ok, print_kv_table, section, warn
@@ -1667,6 +1675,30 @@ def cmd_slurm_workflow(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_slurm_status(args: argparse.Namespace) -> int:
+    try:
+        statuses = SlurmSubmitter().status(args.job_id)
+    except SlurmQueryError as exc:
+        err(str(exc))
+        if exc.stdout.strip():
+            err(f"sacct stdout: {exc.stdout.strip()}")
+        return 1
+    if not statuses:
+        warn(f"no SLURM accounting rows found for {args.job_id}")
+        return 1
+    for status in statuses:
+        print_kv_table(
+            {
+                "job_id": status.job_id,
+                "state": status.state,
+                "name": status.name,
+                "reason": status.reason,
+            }
+        )
+        print("---")
+    return 0
+
+
 def add_common_stage_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--manifest",
@@ -1975,6 +2007,10 @@ def build_parser() -> argparse.ArgumentParser:
     slurm_workflow.add_argument("--start-year", type=int, default=2015)
     slurm_workflow.add_argument("--end-year", type=int, default=2024)
     slurm_workflow.set_defaults(func=cmd_slurm_workflow)
+
+    slurm_status = slurm_sub.add_parser("status", help="inspect SLURM accounting state for a job id")
+    slurm_status.add_argument("job_id")
+    slurm_status.set_defaults(func=cmd_slurm_status)
 
     manifest = subparsers.add_parser("manifest", help="inspect manifest rows")
     manifest.add_argument("--manifest", default=None)

@@ -12,6 +12,7 @@ from pubdelays.slurm import (
     SlurmSubmissionError,
     SlurmSubmitter,
     build_sbatch_script,
+    parse_sacct_status,
 )
 
 
@@ -60,3 +61,28 @@ def test_submitter_rejects_empty_parsable_job_id(monkeypatch: pytest.MonkeyPatch
 
     with pytest.raises(SlurmSubmissionError, match="no parsable job id"):
         SlurmSubmitter().submit("#!/usr/bin/env bash\ntrue\n")
+
+
+def test_submitter_returns_submission_trace(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=["sbatch", "--parsable"], returncode=0, stdout="12345;cluster\n", stderr="queued"
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    submission = SlurmSubmitter().submit_details("#!/usr/bin/env bash\ntrue\n")
+
+    assert submission.job_id == "12345;cluster"
+    assert submission.command == ("sbatch", "--parsable")
+    assert submission.stderr == "queued"
+    assert "true" in submission.script
+
+
+def test_parse_sacct_status_returns_typed_rows() -> None:
+    statuses = parse_sacct_status("12345|COMPLETED|pubdelays-parse|None\n12345_7|FAILED|pubdelays-parse|OutOfMemory\n")
+
+    assert statuses[0].job_id == "12345"
+    assert statuses[0].state == "COMPLETED"
+    assert statuses[1].job_id == "12345_7"
+    assert statuses[1].reason == "OutOfMemory"
