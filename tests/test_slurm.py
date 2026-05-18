@@ -1,8 +1,18 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
+from typing import Any
 
-from pubdelays.slurm import SlurmJob, SlurmResources, build_sbatch_script
+import pytest
+
+from pubdelays.slurm import (
+    SlurmJob,
+    SlurmResources,
+    SlurmSubmissionError,
+    SlurmSubmitter,
+    build_sbatch_script,
+)
 
 
 def test_sbatch_script_includes_array_resources_and_dependency(tmp_path: Path) -> None:
@@ -23,3 +33,30 @@ def test_sbatch_script_includes_array_resources_and_dependency(tmp_path: Path) -
     assert "#SBATCH --mem=24G" in script
     assert "#SBATCH --partition=cpu" in script
     assert 'transform-shard --shard-index "$SLURM_ARRAY_TASK_ID"' in script
+
+
+def test_submitter_raises_explicit_error_on_sbatch_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=["sbatch", "--parsable"], returncode=1, stdout="job hint", stderr="bad qos"
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    with pytest.raises(SlurmSubmissionError) as excinfo:
+        SlurmSubmitter().submit("#!/usr/bin/env bash\nfalse\n")
+
+    assert excinfo.value.returncode == 1
+    assert excinfo.value.stdout == "job hint"
+    assert excinfo.value.stderr == "bad qos"
+    assert "bad qos" in str(excinfo.value)
+
+
+def test_submitter_rejects_empty_parsable_job_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args=["sbatch", "--parsable"], returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    with pytest.raises(SlurmSubmissionError, match="no parsable job id"):
+        SlurmSubmitter().submit("#!/usr/bin/env bash\ntrue\n")

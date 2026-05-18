@@ -57,7 +57,7 @@ from pubdelays.schema import (
     validate_analysis_dataset_schema,
 )
 from pubdelays.shards import expected_article_shard_path, validate_article_shards
-from pubdelays.slurm import SlurmJob, SlurmResources, build_sbatch_script, submit_sbatch
+from pubdelays.slurm import SlurmJob, SlurmResources, SlurmSubmissionError, build_sbatch_script, submit_sbatch
 from pubdelays.summaries import derive_summary_tables
 from pubdelays.transform import ExternalInputs, transform_files
 from pubdelays.ui import err, info, ok, print_kv_table, section, warn
@@ -1613,7 +1613,13 @@ def emit_or_submit_slurm(args: argparse.Namespace, job: SlurmJob) -> str:
     if args.dry_run:
         print(script, end="")
         return ""
-    job_id = submit_sbatch(script)
+    try:
+        job_id = submit_sbatch(script)
+    except SlurmSubmissionError as exc:
+        err(str(exc))
+        if exc.stdout.strip():
+            err(f"sbatch stdout: {exc.stdout.strip()}")
+        raise
     ok(f"submitted {job.name} job_id={job_id}")
     return job_id
 
@@ -1626,7 +1632,10 @@ def cmd_slurm_submit(args: argparse.Namespace) -> int:
         return 1
     if args.dry_run:
         info(f"dry-run slurm submit: {metadata}")
-    emit_or_submit_slurm(args, job)
+    try:
+        emit_or_submit_slurm(args, job)
+    except SlurmSubmissionError:
+        return 1
     return 0
 
 
@@ -1646,7 +1655,10 @@ def cmd_slurm_workflow(args: argparse.Namespace) -> int:
             stage_args.input_dir = args.transform_input_dir
             stage_args.output_dir = args.transform_output_dir
         job, _metadata = build_slurm_job(stage_args, stage)
-        job_id = emit_or_submit_slurm(stage_args, job)
+        try:
+            job_id = emit_or_submit_slurm(stage_args, job)
+        except SlurmSubmissionError:
+            return 1
         if job_id:
             submitted[stage] = job_id
             dependency = f"afterok:{job_id}"

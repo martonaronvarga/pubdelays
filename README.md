@@ -188,7 +188,7 @@ For the common parse-to-aggregate chain, let the CLI submit dependent jobs:
 pubdelays-pipeline slurm workflow --shards 64
 ```
 
-The workflow submits parse, transform-input preparation, transform, and aggregate jobs with `afterok` dependencies. Submitted jobs print SLURM job IDs; logs go to `logs/slurm/` by default.
+The workflow submits parse, transform-input preparation, transform, and aggregate jobs with `afterok` dependencies. Submitted jobs print SLURM job IDs; `sbatch` failures return nonzero with captured scheduler output instead of silently continuing. Logs go to `logs/slurm/` by default.
 
 ## Manifest and resumability
 

@@ -29,6 +29,17 @@ class SlurmJob:
     setup: list[str] = field(default_factory=list)
 
 
+class SlurmSubmissionError(RuntimeError):
+    """Raised when sbatch rejects a generated job script."""
+
+    def __init__(self, *, message: str, returncode: int, stdout: str, stderr: str, script: str) -> None:
+        super().__init__(message)
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+        self.script = script
+
+
 def shell_join(parts: list[str]) -> str:
     return " ".join(shlex.quote(str(part)) for part in parts)
 
@@ -79,12 +90,39 @@ def with_dependency(job: SlurmJob, dependency: str | None) -> SlurmJob:
     return replace(job, dependency=dependency)
 
 
+class SlurmSubmitter:
+    """Submit generated SLURM scripts through sbatch with explicit errors."""
+
+    def __init__(self, sbatch: str = "sbatch") -> None:
+        self.sbatch = sbatch
+
+    def submit(self, script: str) -> str:
+        result = subprocess.run(
+            [self.sbatch, "--parsable"],
+            input=script,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise SlurmSubmissionError(
+                message=f"sbatch failed with exit code {result.returncode}: {result.stderr.strip()}",
+                returncode=result.returncode,
+                stdout=result.stdout,
+                stderr=result.stderr,
+                script=script,
+            )
+        job_id = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
+        if not job_id:
+            raise SlurmSubmissionError(
+                message="sbatch succeeded but returned no parsable job id",
+                returncode=result.returncode,
+                stdout=result.stdout,
+                stderr=result.stderr,
+                script=script,
+            )
+        return job_id
+
+
 def submit_sbatch(script: str) -> str:
-    result = subprocess.run(
-        ["sbatch", "--parsable"],
-        input=script,
-        text=True,
-        capture_output=True,
-        check=True,
-    )
-    return result.stdout.strip().splitlines()[-1]
+    return SlurmSubmitter().submit(script)
