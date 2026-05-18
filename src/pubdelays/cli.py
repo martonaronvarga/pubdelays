@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import time
 import urllib.error
 import urllib.request
@@ -56,6 +57,7 @@ from pubdelays.schema import (
     validate_analysis_dataset_schema,
 )
 from pubdelays.shards import expected_article_shard_path, validate_article_shards
+from pubdelays.slurm import SlurmJob, SlurmResources, build_sbatch_script, submit_sbatch
 from pubdelays.summaries import derive_summary_tables
 from pubdelays.transform import ExternalInputs, transform_files
 from pubdelays.ui import err, info, ok, print_kv_table, section, warn
@@ -90,9 +92,7 @@ def cfg(args: argparse.Namespace) -> PipelineConfig:
     return load_config(getattr(args, "config", DEFAULT_CONFIG))
 
 
-def cfg_path(
-    args: argparse.Namespace, attr: str, key: str, default: str | None = None
-) -> Path:
+def cfg_path(args: argparse.Namespace, attr: str, key: str, default: str | None = None) -> Path:
     value = getattr(args, attr, None)
     if value not in (None, ""):
         return Path(value).expanduser()
@@ -103,9 +103,7 @@ def manifest_from_args(args: argparse.Namespace) -> Manifest:
     value = getattr(args, "manifest", None)
     if value not in (None, ""):
         return Manifest(Path(value))
-    return Manifest(
-        cfg(args).path("pipeline.manifest", "data/manifests/pipeline.sqlite")
-    )
+    return Manifest(cfg(args).path("pipeline.manifest", "data/manifests/pipeline.sqlite"))
 
 
 def elapsed(start: float) -> float:
@@ -166,8 +164,7 @@ def list_xml_paths(path_dir: str | Path) -> list[Path]:
     return sorted(
         candidate
         for candidate in path.rglob("*")
-        if candidate.is_file()
-        and (candidate.suffix in suffixes or candidate.name.endswith(".xml.gz"))
+        if candidate.is_file() and (candidate.suffix in suffixes or candidate.name.endswith(".xml.gz"))
     )
 
 
@@ -183,9 +180,7 @@ def output_path_for(input_path: Path, output_dir: Path, fmt: str) -> Path:
     return output_dir / f"{input_path.name}.{extension}"
 
 
-def transform_output_path_for(
-    input_path: Path, output_dir: Path, fmt: str = "parquet"
-) -> Path:
+def transform_output_path_for(input_path: Path, output_dir: Path, fmt: str = "parquet") -> Path:
     suffix = "parquet" if fmt == "parquet" else fmt
     return output_dir / f"{input_path.name}.{suffix}"
 
@@ -260,11 +255,7 @@ def parse_one(
                         records += 1
                         if record.get("delete"):
                             deleted += 1
-                        handle.write(
-                            json.dumps(
-                                record, ensure_ascii=False, separators=(",", ":")
-                            )
-                        )
+                        handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")))
                         handle.write("\n")
             else:
                 data: list[dict[str, Any]] = []
@@ -374,18 +365,14 @@ def cmd_parse(args: argparse.Namespace) -> int:
     if jobs == 1:
         for path in xml_paths:
             try:
-                stats = parse_one(
-                    path, output_path_for(path, output_dir, args.format), **kwargs
-                )
+                stats = parse_one(path, output_path_for(path, output_dir, args.format), **kwargs)
             except Exception as exc:
                 err(f"parse failed for {path}: {exc}")
                 return 1
             total_records += stats.records
             total_deleted += stats.deleted
             skipped += int(stats.skipped)
-            ok(
-                f"{'skipped' if stats.skipped else 'parsed'} {Path(stats.input_path).name}"
-            )
+            ok(f"{'skipped' if stats.skipped else 'parsed'} {Path(stats.input_path).name}")
     else:
         with ProcessPoolExecutor(max_workers=jobs) as executor:
             futures = [
@@ -406,9 +393,7 @@ def cmd_parse(args: argparse.Namespace) -> int:
                 total_records += stats.records
                 total_deleted += stats.deleted
                 skipped += int(stats.skipped)
-                ok(
-                    f"{'skipped' if stats.skipped else 'parsed'} {Path(stats.input_path).name}"
-                )
+                ok(f"{'skipped' if stats.skipped else 'parsed'} {Path(stats.input_path).name}")
 
     print_kv_table(
         {
@@ -445,9 +430,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
     manifest = manifest_from_args(args)
     started_at = utc_now()
     start_seconds = time.time()
-    input_path = (
-        Path(args.input) if args.input else cfg_path(args, "input", "pubmed.jsonl_dir")
-    )
+    input_path = Path(args.input) if args.input else cfg_path(args, "input", "pubmed.jsonl_dir")
     paths = list_json_paths(input_path) if input_path.is_dir() else [input_path]
     failures = 0
     total_records = 0
@@ -470,9 +453,7 @@ def cmd_validate(args: argparse.Namespace) -> int:
         metadata={"files": len(paths), "failures": failures},
         checksum=not args.no_checksum,
     )
-    print_kv_table(
-        {"files": len(paths), "records": total_records, "failures": failures}
-    )
+    print_kv_table({"files": len(paths), "records": total_records, "failures": failures})
     return 1 if failures else 0
 
 
@@ -548,9 +529,7 @@ def index_links(url: str) -> list[str]:
     return sorted(set(re.findall(r'href="([^"]+\.(?:gz|md5))"', html)))
 
 
-def download_file(
-    url: str, output_path: Path, *, resume: bool, retries: int = 5
-) -> DownloadStats:
+def download_file(url: str, output_path: Path, *, resume: bool, retries: int = 5) -> DownloadStats:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if resume and complete_file(output_path):
         if output_path.suffix == ".md5" or complete_download(output_path):
@@ -584,9 +563,7 @@ def parse_md5_sidecar(content: str) -> tuple[str, str] | None:
     content = content.strip()
     if not content:
         return None
-    ncbi_match = re.match(
-        r"MD5 \((?P<filename>[^)]+)\) = (?P<md5>[0-9a-fA-F]{32})", content
-    )
+    ncbi_match = re.match(r"MD5 \((?P<filename>[^)]+)\) = (?P<md5>[0-9a-fA-F]{32})", content)
     if ncbi_match:
         return ncbi_match.group("md5").lower(), ncbi_match.group("filename")
     unix_match = re.match(r"(?P<md5>[0-9a-fA-F]{32})\s+\*?(?P<filename>.+)", content)
@@ -627,9 +604,7 @@ def cmd_download(args: argparse.Namespace) -> int:
     if args.limit is not None:
         links = links[: args.limit]
     jobs = max(args.jobs, 1)
-    info(
-        f"download source={args.source} files={len(links)} jobs={jobs} output={output_dir}"
-    )
+    info(f"download source={args.source} files={len(links)} jobs={jobs} output={output_dir}")
     if getattr(args, "dry_run", False):
         info("dry-run download: no files or manifest rows will be written")
         return 0
@@ -638,9 +613,7 @@ def cmd_download(args: argparse.Namespace) -> int:
     skipped = 0
     with ThreadPoolExecutor(max_workers=jobs) as executor:
         futures = [
-            executor.submit(
-                download_file, base_url + link, output_dir / link, resume=args.resume
-            )
+            executor.submit(download_file, base_url + link, output_dir / link, resume=args.resume)
             for link in links
         ]
         for future in as_completed(futures):
@@ -652,11 +625,7 @@ def cmd_download(args: argparse.Namespace) -> int:
             else:
                 ok(f"downloaded {stats.output_path}")
 
-    failures = [
-        str(path)
-        for path in sorted(output_dir.glob("*.md5"))
-        if not verify_md5_file(path)
-    ]
+    failures = [str(path) for path in sorted(output_dir.glob("*.md5")) if not verify_md5_file(path)]
     append_manifest(
         manifest,
         stage="download",
@@ -679,9 +648,7 @@ def cmd_download(args: argparse.Namespace) -> int:
         for failure in failures:
             err(f"  {failure}")
         return 1
-    ok(
-        f"downloaded={downloaded} skipped={skipped} into {output_dir}; MD5 checks passed"
-    )
+    ok(f"downloaded={downloaded} skipped={skipped} into {output_dir}; MD5 checks passed")
     return 0
 
 
@@ -692,12 +659,10 @@ def _optional_path(value: str | Path | None) -> Path | None:
 def external_inputs_from_args(args: argparse.Namespace) -> ExternalInputs:
     config = cfg(args)
     return ExternalInputs(
-        scimago=_optional_path(getattr(args, "scimago", None))
-        or config.path("external.processed.scimago"),
+        scimago=_optional_path(getattr(args, "scimago", None)) or config.path("external.processed.scimago"),
         web_of_science=_optional_path(getattr(args, "web_of_science", None))
         or config.path("external.processed.web_of_science"),
-        doaj=_optional_path(getattr(args, "doaj", None))
-        or config.path("external.processed.doaj"),
+        doaj=_optional_path(getattr(args, "doaj", None)) or config.path("external.processed.doaj"),
         norwegian_list=_optional_path(getattr(args, "norwegian_list", None))
         or config.path("external.processed.norwegian_list"),
         retraction_watch=_optional_path(getattr(args, "retraction_watch", None))
@@ -708,9 +673,7 @@ def external_inputs_from_args(args: argparse.Namespace) -> ExternalInputs:
 
 
 def min_received_from_args(args: argparse.Namespace) -> date:
-    value = getattr(args, "min_received", None) or cfg(args).get(
-        "transform.min_received", "2013-01-01"
-    )
+    value = getattr(args, "min_received", None) or cfg(args).get("transform.min_received", "2013-01-01")
     return date.fromisoformat(str(value))
 
 
@@ -793,18 +756,14 @@ def cmd_transform(args: argparse.Namespace) -> int:
         err(f"No JSON/JSONL files found in {input_path}")
         return 1
     jobs = args.jobs if args.jobs is not None else 1
-    warn(
-        "transform processes one output per input; use transform-shards for the full corpus"
-    )
+    warn("transform processes one output per input; use transform-shards for the full corpus")
     info(f"transform files={len(inputs)} jobs={jobs} output_dir={output_dir}")
 
     payloads: list[dict[str, Any]] = []
     for path in inputs:
         payload = {key: value for key, value in vars(args).items() if key != "func"}
         payload["input"] = str(path)
-        payload["output"] = str(
-            transform_output_path_for(path, output_dir, args.format)
-        )
+        payload["output"] = str(transform_output_path_for(path, output_dir, args.format))
         payload["filters_output"] = str(filters_output_path_for(path, output_dir))
         payloads.append(payload)
 
@@ -813,9 +772,7 @@ def cmd_transform(args: argparse.Namespace) -> int:
             transform_worker(payload)
     else:
         with ProcessPoolExecutor(max_workers=jobs) as executor:
-            for future in as_completed(
-                [executor.submit(transform_worker, payload) for payload in payloads]
-            ):
+            for future in as_completed([executor.submit(transform_worker, payload) for payload in payloads]):
                 future.result()
     return 0
 
@@ -1050,9 +1007,7 @@ def cmd_validate_shards(args: argparse.Namespace) -> int:
         expected_format=_expected_shard_format_from_args(args),
     )
     if result.ok:
-        ok(
-            f"validate-shards: {len(result.shards)} complete {result.expected_format} shards in {input_path}"
-        )
+        ok(f"validate-shards: {len(result.shards)} complete {result.expected_format} shards in {input_path}")
         return 0
     for message in result.errors:
         err(message)
@@ -1204,9 +1159,7 @@ def cmd_preflight(args: argparse.Namespace) -> int:
             f"will create {expected.label}: {path} -- {expected.description}"
         )
     xml_count = (
-        len(list_xml_paths(config.path("pubmed.xml_dir")))
-        if config.path("pubmed.xml_dir").exists()
-        else 0
+        len(list_xml_paths(config.path("pubmed.xml_dir"))) if config.path("pubmed.xml_dir").exists() else 0
     )
     print_kv_table(
         {
@@ -1219,11 +1172,7 @@ def cmd_preflight(args: argparse.Namespace) -> int:
 
 
 def read_input_list(path: Path) -> list[Path]:
-    return [
-        Path(line.strip())
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    return [Path(line.strip()) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def transform_shard_payload_to_namespace(payload: dict[str, Any]) -> argparse.Namespace:
@@ -1236,19 +1185,10 @@ def cmd_transform_shard(args: argparse.Namespace) -> int:
     start_seconds = time.time()
     input_list = Path(args.input_list)
     paths = read_input_list(input_list)
-    selected = [
-        path
-        for index, path in enumerate(paths)
-        if index % args.shards == args.shard_index
-    ]
+    selected = [path for index, path in enumerate(paths) if index % args.shards == args.shard_index]
     output_dir = cfg_path(args, "output_dir", "transform.article_shard_dir")
-    output_path = expected_article_shard_path(
-        output_dir, args.shard_index, args.shards, args.format
-    )
-    filters_path = (
-        output_dir
-        / f"articles-shard-{args.shard_index:05d}-of-{args.shards:05d}.filters.csv"
-    )
+    output_path = expected_article_shard_path(output_dir, args.shard_index, args.shards, args.format)
+    filters_path = output_dir / f"articles-shard-{args.shard_index:05d}-of-{args.shards:05d}.filters.csv"
 
     if not selected:
         if args.resume and complete_file(output_path):
@@ -1277,9 +1217,7 @@ def cmd_transform_shard(args: argparse.Namespace) -> int:
         )
         write_frame(
             filters_path,
-            pl.DataFrame(
-                {"stage": list(FILTER_STAGES), "count": [0 for _ in FILTER_STAGES]}
-            ),
+            pl.DataFrame({"stage": list(FILTER_STAGES), "count": [0 for _ in FILTER_STAGES]}),
         )
         append_manifest(
             manifest,
@@ -1362,35 +1300,21 @@ def cmd_transform_shards(args: argparse.Namespace) -> int:
         "data/manifests/transform_inputs.txt",
     ).parent
     manifest_dir.mkdir(parents=True, exist_ok=True)
-    input_list = (
-        Path(args.input_list)
-        if args.input_list
-        else manifest_dir / "transform_inputs.txt"
-    )
+    input_list = Path(args.input_list) if args.input_list else manifest_dir / "transform_inputs.txt"
     paths = list_json_paths(json_dir)
     if not paths:
         err(f"No JSON/JSONL files found in {json_dir}")
         return 1
     if getattr(args, "dry_run", False):
-        jobs = (
-            args.jobs
-            if args.jobs is not None
-            else min(args.shards, max((os.cpu_count() or 2) - 1, 1))
-        )
+        jobs = args.jobs if args.jobs is not None else min(args.shards, max((os.cpu_count() or 2) - 1, 1))
         info(
             f"dry-run transform-shards files={len(paths)} shards={args.shards} jobs={jobs} input_list={input_list}"
         )
         return 0
     with atomic_output_path(input_list) as tmp_path:
         tmp_path.write_text("".join(f"{path}\n" for path in paths), encoding="utf-8")
-    jobs = (
-        args.jobs
-        if args.jobs is not None
-        else min(args.shards, max((os.cpu_count() or 2) - 1, 1))
-    )
-    info(
-        f"transform-shards files={len(paths)} shards={args.shards} jobs={jobs} input_list={input_list}"
-    )
+    jobs = args.jobs if args.jobs is not None else min(args.shards, max((os.cpu_count() or 2) - 1, 1))
+    info(f"transform-shards files={len(paths)} shards={args.shards} jobs={jobs} input_list={input_list}")
     payloads = []
     for shard_index in range(args.shards):
         payload = {key: value for key, value in vars(args).items() if key != "func"}
@@ -1403,10 +1327,7 @@ def cmd_transform_shards(args: argparse.Namespace) -> int:
     else:
         with ProcessPoolExecutor(max_workers=jobs) as executor:
             for future in as_completed(
-                [
-                    executor.submit(transform_shard_worker, payload)
-                    for payload in payloads
-                ]
+                [executor.submit(transform_shard_worker, payload) for payload in payloads]
             ):
                 future.result()
     return 0
@@ -1516,18 +1437,232 @@ def cmd_summaries(args: argparse.Namespace) -> int:
         raise
 
 
+SLURM_STAGE_CONFIG = {
+    "download": "download",
+    "external-all": "external_all",
+    "parse": "parse",
+    "prepare-transform": "prepare_transform",
+    "transform-shards": "transform_shards",
+    "aggregate-all": "aggregate_all",
+}
+
+
+def slurm_resources(config: PipelineConfig, stage: str) -> SlurmResources:
+    key = SLURM_STAGE_CONFIG[stage]
+    prefix = f"slurm.resources.{key}"
+    return SlurmResources(
+        cpus_per_task=int(config.get(f"{prefix}.cpus_per_task", 1)),
+        mem=str(config.get(f"{prefix}.mem", "4G")),
+        time=str(config.get(f"{prefix}.time", "01:00:00")),
+        partition=str(config.get("slurm.partition", "") or ""),
+        account=str(config.get("slurm.account", "") or ""),
+        qos=str(config.get("slurm.qos", "") or ""),
+    )
+
+
+def slurm_runner(args: argparse.Namespace, config: PipelineConfig) -> list[str]:
+    return shlex.split(args.runner or str(config.get("slurm.runner", "uv run pubdelays-pipeline")))
+
+
+def slurm_log_dir(config: PipelineConfig, args: argparse.Namespace) -> Path:
+    value = args.log_dir or str(config.get("slurm.log_dir", "logs/slurm"))
+    return config.root / value if not Path(value).is_absolute() else Path(value)
+
+
+def slurm_config_arg(args: argparse.Namespace) -> str:
+    return str(Path(getattr(args, "config", DEFAULT_CONFIG)))
+
+
+def write_path_list(path: Path, paths: list[Path]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with atomic_output_path(path) as tmp_path:
+        tmp_path.write_text("".join(f"{item}\n" for item in paths), encoding="utf-8")
+
+
+def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dict[str, Any]]:
+    config = cfg(args)
+    runner = slurm_runner(args, config)
+    log_dir = slurm_log_dir(config, args)
+    resources = slurm_resources(config, stage)
+    base = [*runner, "--config", slurm_config_arg(args)]
+    metadata: dict[str, Any] = {"stage": stage}
+    repo_setup = [f"cd {shlex.quote(str(config.root))}"]
+
+    if stage == "download":
+        command = [*base, "download", "--source", args.source, "--jobs", str(args.jobs), "--resume"]
+        if args.limit is not None:
+            command.extend(["--limit", str(args.limit)])
+        if args.output_dir:
+            command.extend(["--output-dir", args.output_dir])
+        return SlurmJob(
+            "pubdelays-download", command, resources, log_dir, dependency=args.dependency, setup=repo_setup
+        ), metadata
+
+    if stage == "external-all":
+        command = [
+            *base,
+            "external-all",
+            "--start-year",
+            str(args.start_year),
+            "--end-year",
+            str(args.end_year),
+            "--resume",
+        ]
+        return SlurmJob(
+            "pubdelays-external", command, resources, log_dir, dependency=args.dependency, setup=repo_setup
+        ), metadata
+
+    if stage == "parse":
+        input_dir = cfg_path(args, "input_dir", "pubmed.xml_dir")
+        output_dir = cfg_path(args, "output_dir", "pubmed.jsonl_dir")
+        input_list = Path(args.input_list) if args.input_list else config.path("pipeline.parse_inputs")
+        paths = list_xml_paths(input_dir)
+        metadata.update({"inputs": len(paths), "input_list": str(input_list)})
+        if not paths and not args.dry_run:
+            raise RuntimeError(f"No XML/XML.GZ files found in {input_dir}")
+        if not args.dry_run:
+            write_path_list(input_list, paths)
+        setup = [
+            *repo_setup,
+            f"INPUT_LIST={shlex.quote(str(input_list))}",
+            'INPUT=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "$INPUT_LIST")',
+            '[[ -n "$INPUT" ]] || { echo "No input for SLURM_ARRAY_TASK_ID=$SLURM_ARRAY_TASK_ID" >&2; exit 2; }',
+        ]
+        command = (
+            f'{shlex.join(base)} parse-one --input "$INPUT" --output-dir {shlex.quote(str(output_dir))} '
+            "--format jsonl --parse-mesh-subterms --resume"
+        )
+        job = SlurmJob(
+            "pubdelays-parse",
+            command,
+            resources,
+            log_dir,
+            array=f"0-{max(len(paths), 1) - 1}",
+            dependency=args.dependency,
+            setup=setup,
+        )
+        return job, metadata
+
+    if stage == "prepare-transform":
+        input_dir = cfg_path(args, "input_dir", "pubmed.jsonl_dir")
+        input_list = Path(args.input_list) if args.input_list else config.path("pipeline.transform_inputs")
+        command = [
+            *base,
+            "list-inputs",
+            "--kind",
+            "json",
+            "--input-dir",
+            str(input_dir),
+            "--output",
+            str(input_list),
+        ]
+        metadata.update({"input_dir": str(input_dir), "input_list": str(input_list)})
+        return SlurmJob(
+            "pubdelays-prepare-transform",
+            command,
+            resources,
+            log_dir,
+            dependency=args.dependency,
+            setup=repo_setup,
+        ), metadata
+
+    if stage == "transform-shards":
+        input_dir = cfg_path(args, "input_dir", "pubmed.jsonl_dir")
+        output_dir = cfg_path(args, "output_dir", "transform.article_shard_dir")
+        input_list = Path(args.input_list) if args.input_list else config.path("pipeline.transform_inputs")
+        use_existing_list = bool(getattr(args, "use_existing_input_list", False))
+        metadata.update({"input_list": str(input_list), "shards": args.shards})
+        if not use_existing_list:
+            paths = list_json_paths(input_dir)
+            metadata.update({"inputs": len(paths)})
+            if not paths and not args.dry_run:
+                raise RuntimeError(f"No JSON/JSONL files found in {input_dir}")
+            if not args.dry_run:
+                write_path_list(input_list, paths)
+        command = (
+            f"{shlex.join(base)} transform-shard --input-list {shlex.quote(str(input_list))} "
+            f'--output-dir {shlex.quote(str(output_dir))} --shard-index "$SLURM_ARRAY_TASK_ID" '
+            f"--shards {args.shards} --format {shlex.quote(args.format)} --resume"
+        )
+        job = SlurmJob(
+            "pubdelays-transform",
+            command,
+            resources,
+            log_dir,
+            array=f"0-{args.shards - 1}",
+            dependency=args.dependency,
+            setup=repo_setup,
+        )
+        return job, metadata
+
+    if stage == "aggregate-all":
+        command = [*base, "aggregate-all", "--resume"]
+        if args.shards is not None:
+            command.extend(["--shards", str(args.shards)])
+        if args.format is not None:
+            command.extend(["--format", args.format])
+        return SlurmJob(
+            "pubdelays-aggregate", command, resources, log_dir, dependency=args.dependency, setup=repo_setup
+        ), metadata
+
+    raise ValueError(f"unsupported SLURM stage: {stage}")
+
+
+def emit_or_submit_slurm(args: argparse.Namespace, job: SlurmJob) -> str:
+    script = build_sbatch_script(job)
+    if args.dry_run:
+        print(script, end="")
+        return ""
+    job_id = submit_sbatch(script)
+    ok(f"submitted {job.name} job_id={job_id}")
+    return job_id
+
+
+def cmd_slurm_submit(args: argparse.Namespace) -> int:
+    try:
+        job, metadata = build_slurm_job(args, args.stage)
+    except RuntimeError as exc:
+        err(str(exc))
+        return 1
+    if args.dry_run:
+        info(f"dry-run slurm submit: {metadata}")
+    emit_or_submit_slurm(args, job)
+    return 0
+
+
+def cmd_slurm_workflow(args: argparse.Namespace) -> int:
+    stages = [stage.strip() for stage in args.stages.split(",") if stage.strip()]
+    dependency = args.dependency
+    submitted: dict[str, str] = {}
+    for stage in stages:
+        stage_args = argparse.Namespace(**vars(args))
+        stage_args.stage = stage
+        stage_args.dependency = dependency
+        stage_args.use_existing_input_list = stage == "transform-shards"
+        if stage == "parse":
+            stage_args.input_dir = args.parse_input_dir
+            stage_args.output_dir = args.parse_output_dir
+        elif stage in {"prepare-transform", "transform-shards"}:
+            stage_args.input_dir = args.transform_input_dir
+            stage_args.output_dir = args.transform_output_dir
+        job, _metadata = build_slurm_job(stage_args, stage)
+        job_id = emit_or_submit_slurm(stage_args, job)
+        if job_id:
+            submitted[stage] = job_id
+            dependency = f"afterok:{job_id}"
+    if submitted:
+        print_kv_table(submitted)
+    return 0
+
+
 def add_common_stage_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--manifest",
         default=None,
         help="SQLite manifest path; defaults to config pipeline.manifest",
     )
-    parser.add_argument(
-        "--no-checksum", action="store_true", help="skip SHA-256 manifest checksums"
-    )
-    parser.add_argument(
-        "--resume", action="store_true", help="skip existing non-empty outputs"
-    )
+    parser.add_argument("--no-checksum", action="store_true", help="skip SHA-256 manifest checksums")
+    parser.add_argument("--resume", action="store_true", help="skip existing non-empty outputs")
 
 
 def add_parse_options(parser: argparse.ArgumentParser) -> None:
@@ -1581,19 +1716,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    init_dirs = subparsers.add_parser(
-        "init-dirs", help="create canonical data directories"
-    )
+    init_dirs = subparsers.add_parser("init-dirs", help="create canonical data directories")
     init_dirs.set_defaults(func=cmd_init_dirs)
 
-    preflight = subparsers.add_parser(
-        "preflight", help="check expected raw-data locations before a run"
-    )
+    preflight = subparsers.add_parser("preflight", help="check expected raw-data locations before a run")
     preflight.set_defaults(func=cmd_preflight)
 
-    parse_one_p = subparsers.add_parser(
-        "parse-one", help="parse one MEDLINE XML/XML.GZ file"
-    )
+    parse_one_p = subparsers.add_parser("parse-one", help="parse one MEDLINE XML/XML.GZ file")
     parse_one_p.add_argument("--input", required=True)
     parse_one_p.add_argument("--output", default=None)
     parse_one_p.add_argument("--output-dir", default=None)
@@ -1615,19 +1744,13 @@ def build_parser() -> argparse.ArgumentParser:
     add_common_stage_args(validate)
     validate.set_defaults(func=cmd_validate)
 
-    journals = subparsers.add_parser(
-        "journals", help="download and parse NLM J_Medline.txt"
-    )
-    journals.add_argument(
-        "--url", default="https://ftp.ncbi.nlm.nih.gov/pubmed/J_Medline.txt"
-    )
+    journals = subparsers.add_parser("journals", help="download and parse NLM J_Medline.txt")
+    journals.add_argument("--url", default="https://ftp.ncbi.nlm.nih.gov/pubmed/J_Medline.txt")
     journals.add_argument("--output", default=None)
     add_common_stage_args(journals)
     journals.set_defaults(func=cmd_journals)
 
-    transform_one = subparsers.add_parser(
-        "transform-one", help="transform one parsed JSON/JSONL file"
-    )
+    transform_one = subparsers.add_parser("transform-one", help="transform one parsed JSON/JSONL file")
     transform_one.add_argument("--input", required=True)
     transform_one.add_argument("--output", required=True)
     transform_one.add_argument("--filters-output", default=None)
@@ -1640,9 +1763,7 @@ def build_parser() -> argparse.ArgumentParser:
     transform.add_argument("--input", default=None)
     transform.add_argument("--output-dir", default=None)
     transform.add_argument("--jobs", type=int, default=1)
-    transform.add_argument(
-        "--format", choices=["parquet", "tsv", "csv"], default="parquet"
-    )
+    transform.add_argument("--format", choices=["parquet", "tsv", "csv"], default="parquet")
     add_external_args(transform)
     transform.set_defaults(func=cmd_transform)
 
@@ -1653,9 +1774,7 @@ def build_parser() -> argparse.ArgumentParser:
     transform_shard.add_argument("--output-dir", default=None)
     transform_shard.add_argument("--shard-index", type=int, required=True)
     transform_shard.add_argument("--shards", type=int, required=True)
-    transform_shard.add_argument(
-        "--format", choices=["parquet", "tsv", "csv"], default="parquet"
-    )
+    transform_shard.add_argument("--format", choices=["parquet", "tsv", "csv"], default="parquet")
     add_external_args(transform_shard)
     transform_shard.set_defaults(func=cmd_transform_shard)
 
@@ -1667,9 +1786,7 @@ def build_parser() -> argparse.ArgumentParser:
     transform_shards.add_argument("--output-dir", default=None)
     transform_shards.add_argument("--shards", type=int, default=64)
     transform_shards.add_argument("--jobs", type=int, default=None)
-    transform_shards.add_argument(
-        "--format", choices=["parquet", "tsv", "csv"], default="parquet"
-    )
+    transform_shards.add_argument("--format", choices=["parquet", "tsv", "csv"], default="parquet")
     add_dry_run_arg(transform_shards)
     add_external_args(transform_shards)
     transform_shards.set_defaults(func=cmd_transform_shards)
@@ -1679,14 +1796,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     validate_shards.add_argument("--input", default=None)
     validate_shards.add_argument("--shards", type=int, default=None)
-    validate_shards.add_argument(
-        "--format", choices=["parquet", "tsv", "csv"], default=None
-    )
+    validate_shards.add_argument("--format", choices=["parquet", "tsv", "csv"], default=None)
     validate_shards.set_defaults(func=cmd_validate_shards)
 
-    aggregate = subparsers.add_parser(
-        "aggregate", help="aggregate article shards into one processed dataset"
-    )
+    aggregate = subparsers.add_parser("aggregate", help="aggregate article shards into one processed dataset")
     aggregate.add_argument("--input", default=None)
     aggregate.add_argument("--output", default=None)
     add_common_stage_args(aggregate)
@@ -1699,9 +1812,7 @@ def build_parser() -> argparse.ArgumentParser:
     aggregate_all.add_argument("--parquet", default=None)
     aggregate_all.add_argument("--csv", default=None)
     aggregate_all.add_argument("--shards", type=int, default=None)
-    aggregate_all.add_argument(
-        "--format", choices=["parquet", "tsv", "csv"], default=None
-    )
+    aggregate_all.add_argument("--format", choices=["parquet", "tsv", "csv"], default=None)
     aggregate_all.add_argument(
         "--allow-incomplete",
         action="store_true",
@@ -1711,19 +1822,13 @@ def build_parser() -> argparse.ArgumentParser:
     add_common_stage_args(aggregate_all)
     aggregate_all.set_defaults(func=cmd_aggregate_all)
 
-    compare_legacy = subparsers.add_parser(
-        "compare-legacy", help="compare legacy and new processed outputs"
-    )
+    compare_legacy = subparsers.add_parser("compare-legacy", help="compare legacy and new processed outputs")
     compare_legacy.add_argument("--legacy", required=True)
     compare_legacy.add_argument("--new", required=True)
-    compare_legacy.add_argument(
-        "--output", default="data/processed_data/validation/differential.csv"
-    )
+    compare_legacy.add_argument("--output", default="data/processed_data/validation/differential.csv")
     compare_legacy.set_defaults(func=cmd_compare_legacy)
 
-    schema_cmd = subparsers.add_parser(
-        "schema", help="print or validate the analysis_dataset_v1 schema"
-    )
+    schema_cmd = subparsers.add_parser("schema", help="print or validate the analysis_dataset_v1 schema")
     schema_cmd.add_argument("--input", default=None)
     schema_cmd.set_defaults(func=cmd_schema)
 
@@ -1738,30 +1843,18 @@ def build_parser() -> argparse.ArgumentParser:
     download = subparsers.add_parser(
         "download", help="download PubMed baseline/updatefiles with MD5 verification"
     )
-    download.add_argument(
-        "--source", choices=sorted(PUBMED_BASE_URLS), default="baseline"
-    )
+    download.add_argument("--source", choices=sorted(PUBMED_BASE_URLS), default="baseline")
     download.add_argument("--output-dir", default=None)
-    download.add_argument(
-        "--limit", type=int, default=None, help="debug only: first N links"
-    )
+    download.add_argument("--limit", type=int, default=None, help="debug only: first N links")
     download.add_argument("--jobs", type=int, default=4)
     add_dry_run_arg(download)
     add_common_stage_args(download)
     download.set_defaults(func=cmd_download)
 
-    external_all = subparsers.add_parser(
-        "external-all", help="preprocess all local external metadata inputs"
-    )
-    external_all.add_argument(
-        "--input-dir", default=None
-    )  # accepted for dispatch compatibility; ignored
-    external_all.add_argument(
-        "--input", default=None
-    )  # accepted for dispatch compatibility; ignored
-    external_all.add_argument(
-        "--output", default=None
-    )  # accepted for dispatch compatibility; ignored
+    external_all = subparsers.add_parser("external-all", help="preprocess all local external metadata inputs")
+    external_all.add_argument("--input-dir", default=None)  # accepted for dispatch compatibility; ignored
+    external_all.add_argument("--input", default=None)  # accepted for dispatch compatibility; ignored
+    external_all.add_argument("--output", default=None)  # accepted for dispatch compatibility; ignored
     external_all.add_argument("--publisher-input", default=None)
     external_all.add_argument("--publisher-output", default=None)
     external_all.add_argument("--start-year", type=int, default=2015)
@@ -1770,9 +1863,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_common_stage_args(external_all)
     external_all.set_defaults(func=cmd_external_all)
 
-    scimago = subparsers.add_parser(
-        "external-scimago", help="clean raw Scimago yearly CSVs"
-    )
+    scimago = subparsers.add_parser("external-scimago", help="clean raw Scimago yearly CSVs")
     scimago.add_argument("--input-dir", default=None)
     scimago.add_argument("--output", default=None)
     scimago.add_argument("--start-year", type=int, default=2015)
@@ -1792,38 +1883,86 @@ def build_parser() -> argparse.ArgumentParser:
     add_common_stage_args(doaj)
     doaj.set_defaults(func=cmd_external_doaj)
 
-    publisher = subparsers.add_parser(
-        "external-publisher", help="clean raw publisher metadata CSV"
-    )
+    publisher = subparsers.add_parser("external-publisher", help="clean raw publisher metadata CSV")
     publisher.add_argument("--publisher-input", default=None)
     publisher.add_argument("--publisher-output", default=None)
     add_common_stage_args(publisher)
     publisher.set_defaults(func=cmd_external_publisher)
 
-    npi = subparsers.add_parser(
-        "external-npi", help="clean raw Norwegian Publication Indicator CSV"
-    )
+    npi = subparsers.add_parser("external-npi", help="clean raw Norwegian Publication Indicator CSV")
     npi.add_argument("--input", default=None)
     npi.add_argument("--output", default=None)
     add_common_stage_args(npi)
     npi.set_defaults(func=cmd_external_npi)
 
-    rw = subparsers.add_parser(
-        "external-retraction-watch", help="clean raw Retraction Watch CSV"
-    )
+    rw = subparsers.add_parser("external-retraction-watch", help="clean raw Retraction Watch CSV")
     rw.add_argument("--input", default=None)
     rw.add_argument("--output", default=None)
     add_common_stage_args(rw)
     rw.set_defaults(func=cmd_external_retraction_watch)
 
-    list_inputs = subparsers.add_parser(
-        "list-inputs", help="write an input file list for SLURM arrays"
-    )
+    list_inputs = subparsers.add_parser("list-inputs", help="write an input file list for SLURM arrays")
     list_inputs.add_argument("--input-dir", required=True)
     list_inputs.add_argument("--output", required=True)
     list_inputs.add_argument("--kind", choices=["xml", "json", "glob"], default="xml")
     list_inputs.add_argument("--glob", default="*")
     list_inputs.set_defaults(func=cmd_list_inputs)
+
+    slurm = subparsers.add_parser("slurm", help="submit pipeline stages to SLURM")
+    slurm_sub = slurm.add_subparsers(dest="slurm_command", required=True)
+    slurm_submit = slurm_sub.add_parser("submit", help="submit one pipeline stage with sbatch")
+    slurm_submit.add_argument("stage", choices=sorted(SLURM_STAGE_CONFIG))
+    slurm_submit.add_argument(
+        "--runner", default=None, help="command used inside jobs; defaults to slurm.runner"
+    )
+    slurm_submit.add_argument(
+        "--log-dir", default=None, help="SLURM log directory; defaults to slurm.log_dir"
+    )
+    slurm_submit.add_argument("--dependency", default=None, help="sbatch dependency, e.g. afterok:12345")
+    slurm_submit.add_argument("--dry-run", action="store_true", help="print sbatch script without submitting")
+    slurm_submit.add_argument("--source", choices=sorted(PUBMED_BASE_URLS), default="baseline")
+    slurm_submit.add_argument("--jobs", type=int, default=4)
+    slurm_submit.add_argument("--limit", type=int, default=None)
+    slurm_submit.add_argument("--input-dir", default=None)
+    slurm_submit.add_argument("--output-dir", default=None)
+    slurm_submit.add_argument("--input-list", default=None)
+    slurm_submit.add_argument("--shards", type=int, default=64)
+    slurm_submit.add_argument("--format", choices=["parquet", "tsv", "csv"], default="parquet")
+    slurm_submit.add_argument("--start-year", type=int, default=2015)
+    slurm_submit.add_argument("--end-year", type=int, default=2024)
+    slurm_submit.set_defaults(func=cmd_slurm_submit)
+
+    slurm_workflow = slurm_sub.add_parser(
+        "workflow", help="submit parse, transform, and aggregate with dependencies"
+    )
+    slurm_workflow.add_argument(
+        "--stages",
+        default="parse,prepare-transform,transform-shards,aggregate-all",
+        help="comma-separated stages to chain with afterok dependencies",
+    )
+    slurm_workflow.add_argument("--runner", default=None)
+    slurm_workflow.add_argument("--log-dir", default=None)
+    slurm_workflow.add_argument("--dependency", default=None)
+    slurm_workflow.add_argument("--dry-run", action="store_true")
+    slurm_workflow.add_argument(
+        "--input-dir", default=None, help="deprecated workflow alias; use stage-specific dirs"
+    )
+    slurm_workflow.add_argument(
+        "--output-dir", default=None, help="deprecated workflow alias; use stage-specific dirs"
+    )
+    slurm_workflow.add_argument("--parse-input-dir", default=None)
+    slurm_workflow.add_argument("--parse-output-dir", default=None)
+    slurm_workflow.add_argument("--transform-input-dir", default=None)
+    slurm_workflow.add_argument("--transform-output-dir", default=None)
+    slurm_workflow.add_argument("--input-list", default=None)
+    slurm_workflow.add_argument("--shards", type=int, default=64)
+    slurm_workflow.add_argument("--format", choices=["parquet", "tsv", "csv"], default="parquet")
+    slurm_workflow.add_argument("--source", choices=sorted(PUBMED_BASE_URLS), default="baseline")
+    slurm_workflow.add_argument("--jobs", type=int, default=4)
+    slurm_workflow.add_argument("--limit", type=int, default=None)
+    slurm_workflow.add_argument("--start-year", type=int, default=2015)
+    slurm_workflow.add_argument("--end-year", type=int, default=2024)
+    slurm_workflow.set_defaults(func=cmd_slurm_workflow)
 
     manifest = subparsers.add_parser("manifest", help="inspect manifest rows")
     manifest.add_argument("--manifest", default=None)
@@ -1848,9 +1987,7 @@ def build_parser() -> argparse.ArgumentParser:
     manifest_show.add_argument("--json", action="store_true")
     manifest_show.set_defaults(func=cmd_manifest_show)
 
-    manifest_retry = manifest_sub.add_parser(
-        "retry-script", help="emit comments for failed work to retry"
-    )
+    manifest_retry = manifest_sub.add_parser("retry-script", help="emit comments for failed work to retry")
     manifest_retry.add_argument("--manifest", default=None)
     manifest_retry.add_argument("--limit", type=int, default=100)
     manifest_retry.set_defaults(func=cmd_manifest_retry_script)

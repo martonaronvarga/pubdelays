@@ -161,42 +161,34 @@ pubdelays-pipeline manifest --limit 20
 
 ## SLURM job arrays
 
-SLURM is opt-in. Run external metadata preprocessing once locally or as one small job, then use arrays for XML parsing and article transforms. Recommended defaults are one XML file per parse array task, modulo JSONL sharding for transform tasks (`SHARDS=64` by default), and one aggregate job with enough memory for the final collect. SLURM logs are written under `logs/` with job and array IDs so failed tasks can be identified and rerun.
+SLURM is opt-in and submitted by the CLI, not by maintained wrapper scripts. Defaults live in `[slurm]` in `config/default.toml`: runner command, log directory, optional account/partition/qos, and per-stage CPU, memory, and walltime.
+
+Inspect an `sbatch` script without writing input lists or submitting:
 
 ```bash
-pubdelays-pipeline external-all --resume
-scripts/slurm_prepare_arrays.sh
+pubdelays-pipeline slurm submit parse --dry-run
+pubdelays-pipeline slurm submit transform-shards --dry-run --shards 64
 ```
 
-Parse array:
+Submit individual stages:
 
 ```bash
-N=$(wc -l < data/manifests/parse_inputs.txt)
-sbatch --array=0-$((N - 1)) scripts/slurm_parse_array.sh
+pubdelays-pipeline slurm submit download --source baseline
+pubdelays-pipeline slurm submit external-all
+pubdelays-pipeline slurm submit parse
+pubdelays-pipeline slurm submit transform-shards --shards 64 --dependency afterok:<prepare-job-id>
+pubdelays-pipeline slurm submit aggregate-all --dependency afterok:<transform-job-id>
 ```
 
-The parse wrapper fails early when `data/manifests/parse_inputs.txt` is missing or empty. Rerun failed task IDs with the same array index after fixing inputs or resource limits.
+`parse` writes `data/manifests/parse_inputs.txt` and submits one XML file per array task. `transform-shards` writes or consumes `data/manifests/transform_inputs.txt` and submits one modulo shard per array task, so each worker loads external metadata once for many JSONL files.
 
-After parsing completes, refresh transform inputs and submit transform shards:
+For the common parse-to-aggregate chain, let the CLI submit dependent jobs:
 
 ```bash
-pubdelays-pipeline list-inputs \
-  --kind json \
-  --input-dir data/temp_data/pubmed/jsonl \
-  --output data/manifests/transform_inputs.txt
-
-SHARDS=64 sbatch --array=0-63 scripts/slurm_transform_array.sh
+pubdelays-pipeline slurm workflow --shards 64
 ```
 
-The transform wrapper fails early when `data/manifests/transform_inputs.txt` is missing or empty. Each task writes one deterministic modulo shard, so failed array indices can be rerun independently.
-
-Aggregate after all transform jobs complete:
-
-```bash
-sbatch scripts/slurm_aggregate.sh
-```
-
-The aggregation script uses `aggregate-all`, so the shard directory is scanned once and both Parquet and CSV outputs are written from the same collected frame.
+The workflow submits parse, transform-input preparation, transform, and aggregate jobs with `afterok` dependencies. Submitted jobs print SLURM job IDs; logs go to `logs/slurm/` by default.
 
 ## Manifest and resumability
 

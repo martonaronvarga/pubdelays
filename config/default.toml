@@ -34,3 +34,40 @@ default_shards = 64
 processed_parquet = "data/processed_data/processed.parquet"
 processed_csv = "data/processed_data/processed.csv"
 summary_dir = "data/processed_data/summaries"
+
+[slurm]
+runner = "uv run pubdelays-pipeline"
+log_dir = "logs/slurm"
+partition = ""
+account = ""
+qos = ""
+
+[slurm.resources.download]
+cpus_per_task = 4
+mem = "8G"
+time = "12:00:00"
+
+[slurm.resources.external_all]
+cpus_per_task = 2
+mem = "12G"
+time = "02:00:00"
+
+[slurm.resources.parse]
+cpus_per_task = 1
+mem = "6G"
+time = "04:00:00"
+
+[slurm.resources.prepare_transform]
+cpus_per_task = 1
+mem = "2G"
+time = "00:30:00"
+
+[slurm.resources.transform_shards]
+cpus_per_task = 4
+mem = "24G"
+time = "06:00:00"
+
+[slurm.resources.aggregate_all]
+cpus_per_task = 4
+mem = "32G"
+time = "04:00:00"
