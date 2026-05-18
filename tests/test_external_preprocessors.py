@@ -151,6 +151,22 @@ def test_scimago_preprocessor_preserves_multiple_categories(tmp_path: Path) -> N
     assert data[1]["scimago_categories"] == "Psychology|Medicine"
 
 
+def test_scimago_preprocessor_repairs_unescaped_publisher_quotes(tmp_path: Path) -> None:
+    raw = tmp_path / "scimagojr 2024.csv"
+    raw.write_text(
+        "Rank;Sourceid;Title;Type;Issn;SJR;SJR Best Quartile;H index;Publisher;Categories;Areas\n"
+        '1;123;Journal A;journal;"1234-567X";0,145;Q4;17;'
+        '"Wei sheng yan jiu" bian ji bu";"Medicine (miscellaneous) (Q4)";Medicine\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "scimago.csv"
+
+    assert preprocess_scimago(tmp_path, out, start_year=2024, end_year=2024) == 1
+    data = rows(out)
+    assert data[0]["issn_linking"] == "1234567X"
+    assert data[0]["scimago_categories"] == "Medicine (miscellaneous) (Q4)"
+
+
 def test_doaj_preprocessor_matches_legacy_selected_columns(tmp_path: Path) -> None:
     raw = tmp_path / "doaj.csv"
     raw.write_text(

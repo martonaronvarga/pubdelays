@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from io import StringIO
 from pathlib import Path
 
 import polars as pl
@@ -61,8 +62,65 @@ SCIMAGO_FIELDS = [
 ]
 
 
+def _escape_unescaped_scimago_quotes(text: str, *, separator: str = ";") -> str:
+    """Repair SCImago rows that contain bare quotes inside quoted fields."""
+
+    repaired: list[str] = []
+    in_quotes = False
+    at_field_start = True
+    i = 0
+    while i < len(text):
+        char = text[i]
+        if in_quotes and char == '"':
+            if i + 1 < len(text) and text[i + 1] == '"':
+                repaired.append('""')
+                i += 2
+                at_field_start = False
+                continue
+            next_index = i + 1
+            while next_index < len(text) and text[next_index] in " \t":
+                next_index += 1
+            if next_index == len(text) or text[next_index] in f"{separator}\r\n":
+                in_quotes = False
+                repaired.append(char)
+            else:
+                repaired.append('""')
+            at_field_start = False
+            i += 1
+            continue
+
+        if char == '"' and at_field_start:
+            in_quotes = True
+            at_field_start = False
+        elif not in_quotes and char == separator:
+            at_field_start = True
+        elif not in_quotes and char in "\r\n":
+            at_field_start = True
+        elif char not in " \t":
+            at_field_start = False
+        repaired.append(char)
+        i += 1
+    return "".join(repaired)
+
+
+def _read_scimago_csv(path: Path) -> pl.DataFrame:
+    try:
+        return read_csv_polars(path, separator=";")
+    except pl.exceptions.ComputeError:
+        repaired = _escape_unescaped_scimago_quotes(
+            Path(path).read_text(encoding="utf-8", errors="replace")
+        )
+        return pl.read_csv(
+            StringIO(repaired),
+            separator=";",
+            infer_schema=False,
+            ignore_errors=False,
+            try_parse_dates=False,
+        )
+
+
 def _read_scimago_file(path: Path, year: int) -> pl.DataFrame:
-    df = normalize_columns(read_csv_polars(path, separator=";"))
+    df = normalize_columns(_read_scimago_csv(path))
     required = ["title", "issn", "sjr_best_quartile", "h_index", "rank", "sjr", "categories"]
     for col in required:
         if col not in df.columns:
