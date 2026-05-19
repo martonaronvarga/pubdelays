@@ -6,7 +6,7 @@ The historical pipeline mixed shell scripts, patched `pubmed_parser`, Python JSO
 
 | Legacy file | Active implementation |
 | --- | --- |
-| `xmls2json.py` + patched `medline_parser.py` | `src/pubdelays/parser/medline.py` and `pubdelays-pipeline parse` |
+| `xmls2json.py` + patched `medline_parser.py` | `src/pubdelays/parser/medline.py` and `pubdelays parse` |
 | `scimago.R` | `src/pubdelays/external/scimago.py` |
 | `wos.R` | `src/pubdelays/external/wos.py` |
 | `doaj.R` | `src/pubdelays/external/doaj.py` |

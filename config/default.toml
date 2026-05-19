@@ -44,7 +44,7 @@ processed_csv = "data/processed_data/processed.csv"
 summary_dir = "data/processed_data/summaries"
 
 [slurm]
-runner = "uv run pubdelays-pipeline"
+runner = "uv run pubdelays"
 log_dir = "logs/slurm"
 partition = ""
 account = ""

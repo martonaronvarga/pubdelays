@@ -10,7 +10,7 @@ uv sync --extra dev
 cat <<'EOF'
 Environment ready.
 Run commands with:
-  uv run pubdelays-pipeline --help
+  uv run pubdelays --help
   uv run pytest -q
 EOF
 

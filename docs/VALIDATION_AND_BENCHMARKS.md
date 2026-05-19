@@ -26,7 +26,7 @@ With uv:
 ```bash
 uv sync --extra dev
 uv run pytest -q
-uv run pubdelays-pipeline --help
+uv run pubdelays --help
 ```
 
 ## CLI smoke checks
@@ -34,11 +34,11 @@ uv run pubdelays-pipeline --help
 These should work without raw data:
 
 ```bash
-pubdelays-pipeline --help
-pubdelays-pipeline init-dirs
-pubdelays-pipeline preflight
-pubdelays-pipeline manifest --limit 10
-pubdelays-pipeline schema
+pubdelays --help
+pubdelays init-dirs
+pubdelays preflight
+pubdelays manifest --limit 10
+pubdelays schema
 ```
 
 `preflight` may report missing raw inputs, but should exit with a clear, documented status.
@@ -77,7 +77,7 @@ pytest -q tests/test_external_preprocessors.py
 Smoke command on real data:
 
 ```bash
-pubdelays-pipeline external-all --resume
+pubdelays external-all --resume
 ```
 
 Expected processed outputs:
@@ -116,7 +116,7 @@ pytest -q tests/test_transform_articles.py
 After any smoke run:
 
 ```bash
-pubdelays-pipeline manifest --limit 20
+pubdelays manifest --limit 20
 ```
 
 Check:
@@ -151,7 +151,7 @@ Required comparisons:
 Run the lightweight differential harness:
 
 ```bash
-pubdelays-pipeline compare-legacy \
+pubdelays compare-legacy \
   --legacy path/to/legacy_processed.csv \
   --new data/processed_data/processed.parquet \
   --output data/processed_data/validation/differential.csv
@@ -180,7 +180,7 @@ REPORT="data/processed_data/benchmarks/benchmark-$(date -u +%Y%m%dT%H%M%SZ).txt"
   date -u
   uname -a
   python --version
-  pubdelays-pipeline --help | head -1
+  pubdelays --help | head -1
 } > "$REPORT"
 TIME="/usr/bin/time -v -a -o $REPORT"
 ```
@@ -192,13 +192,13 @@ TIME="/usr/bin/time -v -a -o $REPORT"
 Measure all external preprocessors together, or replace `external-all` with one `external-*` command for per-source timings:
 
 ```bash
-$TIME pubdelays-pipeline external-all --resume
+$TIME pubdelays external-all --resume
 ```
 
 Record output rows from the manifest and output sizes:
 
 ```bash
-pubdelays-pipeline manifest summary >> "$REPORT"
+pubdelays manifest summary >> "$REPORT"
 du -h data/processed_data/scimago.csv data/processed_data/web_of_science.csv data/processed_data/doaj.csv data/processed_data/norwegian_list.csv data/processed_data/retraction_watch.csv data/processed_data/publisher_metadata.csv >> "$REPORT" 2>/dev/null || true
 ```
 
@@ -208,10 +208,10 @@ Full-corpus parse benchmark:
 
 ```bash
 XML_MB_BEFORE=$(find data/raw_data/pubmed/xmls -type f \( -name '*.xml' -o -name '*.xml.gz' \) -print0 | du --files0-from=- -cb | tail -1 | cut -f1)
-$TIME pubdelays-pipeline parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
+$TIME pubdelays parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
 JSONL_MB_AFTER=$(find data/temp_data/pubmed/jsonl -type f -name '*.jsonl' -print0 | du --files0-from=- -cb | tail -1 | cut -f1)
 printf 'parse_input_bytes=%s\nparse_output_bytes=%s\n' "$XML_MB_BEFORE" "$JSONL_MB_AFTER" >> "$REPORT"
-pubdelays-pipeline manifest summary >> "$REPORT"
+pubdelays manifest summary >> "$REPORT"
 ```
 
 For a small reproducible smoke benchmark equivalent to `benchmark parse --limit 10`, copy or symlink ten XML/XML.GZ files into a temporary configured `pubmed.xml_dir`, then run the same parse command with that config.
@@ -231,8 +231,8 @@ peak RSS per worker
 Canonical local benchmark:
 
 ```bash
-$TIME pubdelays-pipeline transform-shards --shards 64 --jobs 16 --format parquet --resume
-pubdelays-pipeline manifest summary >> "$REPORT"
+$TIME pubdelays transform-shards --shards 64 --jobs 16 --format parquet --resume
+pubdelays manifest summary >> "$REPORT"
 ```
 
 Measure shard skew from filter sidecars:
@@ -266,14 +266,14 @@ shard skew
 For a small reproducible smoke benchmark equivalent to `benchmark transform --shards 8`, run:
 
 ```bash
-$TIME pubdelays-pipeline transform-shards --shards 8 --jobs 8 --format parquet --resume
+$TIME pubdelays transform-shards --shards 8 --jobs 8 --format parquet --resume
 ```
 
 ### Aggregation throughput
 
 ```bash
-$TIME pubdelays-pipeline aggregate-all --resume
-pubdelays-pipeline manifest summary >> "$REPORT"
+$TIME pubdelays aggregate-all --resume
+pubdelays manifest summary >> "$REPORT"
 du -h data/temp_data/article_parquet data/processed_data/processed.parquet data/processed_data/processed.csv >> "$REPORT" 2>/dev/null || true
 ```
 

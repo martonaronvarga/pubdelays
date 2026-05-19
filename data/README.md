@@ -3,7 +3,7 @@
 Run:
 
 ```bash
-pubdelays-pipeline init-dirs
+pubdelays init-dirs
 ```
 
 Then follow `DATA_LAYOUT.md`.

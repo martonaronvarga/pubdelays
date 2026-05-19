@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="${ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 CONFIG="${CONFIG:-$ROOT/config/default.toml}"
-RUN="${RUN:-pubdelays-pipeline}"
+RUN="${RUN:-pubdelays}"
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
 SHARDS="${SHARDS:-64}"
 

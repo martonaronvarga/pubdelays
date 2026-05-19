@@ -12,7 +12,7 @@ src/pubdelays/external/              # Polars preprocessors for Scimago, WoS, DO
 src/pubdelays/transform/articles.py  # Polars article filtering and enrichment
 src/pubdelays/aggregate.py           # Polars aggregation into processed outputs
 src/pubdelays/manifest.py            # SQLite manifest, WAL mode, process-safe append writes
-src/pubdelays/cli.py                 # pubdelays-pipeline CLI
+src/pubdelays/cli.py                 # pubdelays CLI (`pubdelays-pipeline` remains a compatibility alias)
 config/default.toml                  # canonical paths and defaults
 DATA_LAYOUT.md                       # exact raw/generated data placement
 docs/STAGE_CONTRACTS.md              # stage inputs, outputs, manifests, and failure behavior
@@ -28,7 +28,7 @@ Python 3.12 is the supported runtime. Nix is the reference environment:
 
 ```bash
 nix develop
-pubdelays-pipeline --help
+pubdelays --help
 pytest -q
 ```
 
@@ -36,7 +36,7 @@ Fallback for collaborators without Nix:
 
 ```bash
 scripts/bootstrap_uv.sh
-uv run pubdelays-pipeline --help
+uv run pubdelays --help
 uv run pytest -q
 ```
 
@@ -45,7 +45,7 @@ uv run pytest -q
 Create directories:
 
 ```bash
-pubdelays-pipeline init-dirs
+pubdelays init-dirs
 ```
 
 Place existing raw files as documented in `DATA_LAYOUT.md`:
@@ -62,7 +62,7 @@ data/raw_data/retraction_watch/retraction_watch.csv
 Check readiness:
 
 ```bash
-pubdelays-pipeline preflight
+pubdelays preflight
 ```
 
 ## Local full pipeline
@@ -88,19 +88,19 @@ data/manifests/pipeline.sqlite       # audit manifest
 Full baseline:
 
 ```bash
-pubdelays-pipeline download --source baseline --jobs 4 --resume
+pubdelays download --source baseline --jobs 4 --resume
 ```
 
 Smoke test:
 
 ```bash
-pubdelays-pipeline download --source baseline --limit 2 --jobs 2 --resume
+pubdelays download --source baseline --limit 2 --jobs 2 --resume
 ```
 
 Update files:
 
 ```bash
-pubdelays-pipeline download --source updatefiles --jobs 4 --resume
+pubdelays download --source updatefiles --jobs 4 --resume
 ```
 
 Downloads keep `.md5` sidecars and verify them after transfer. Baseline and updatefiles use the same NCBI layout: each `.xml.gz` file is paired with a same-directory `.xml.gz.md5` sidecar. With `--resume`, existing data files are skipped only when the data file is non-empty and its sidecar verifies; existing sidecars are reused as complete metadata files.
@@ -110,14 +110,14 @@ Downloads keep `.md5` sidecars and verify them after transfer. Baseline and upda
 All commands use `config/default.toml` by default and validate required sections, path keys, dates, and supported shard formats before running a stage. Stage inputs, outputs, manifest rows, resume behavior, and failure behavior are documented in `docs/STAGE_CONTRACTS.md`. The top-level `--help` output lists the canonical workflow order; expensive workflow commands such as `download`, `parse`, `external-all`, `transform-shards`, and `aggregate-all` support `--dry-run` for planning without writing outputs or manifest rows. Override config paths with:
 
 ```bash
-pubdelays-pipeline --config path/to/config.toml <command>
+pubdelays --config path/to/config.toml <command>
 ```
 
 External metadata:
 
 ```bash
-pubdelays-pipeline download-external --source all --resume
-pubdelays-pipeline external-all --resume
+pubdelays download-external --source all --resume
+pubdelays external-all --resume
 ```
 
 `download-external --source all --dry-run` lists configured public metadata downloads. DOAJ uses the public journal CSV at `https://doaj.org/csv`; Retraction Watch uses Crossref's public GitLab mirror. SCImago and publisher metadata are included automatically when `external.download.scimago_url_template` and `external.download.publisher_url` are set in the config. Web of Science and Norwegian Publication Indicator snapshots still require licensed/manual source selection, so their raw paths remain documented in `DATA_LAYOUT.md`.
@@ -125,7 +125,7 @@ pubdelays-pipeline external-all --resume
 Parse XML:
 
 ```bash
-pubdelays-pipeline parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
+pubdelays parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
 ```
 
 Parsing fails on malformed XML by default. Use `--recover-malformed-xml` only for explicit best-effort salvage runs. `jsonl` is the preferred full-scale output because it streams records; `json` writes one array and accumulates records in memory.
@@ -133,19 +133,19 @@ Parsing fails on malformed XML by default. Use `--recover-malformed-xml` only fo
 Validate parsed JSONL:
 
 ```bash
-pubdelays-pipeline validate
+pubdelays validate
 ```
 
 Sharded transform:
 
 ```bash
-pubdelays-pipeline transform-shards --shards 64 --jobs 16 --format parquet --resume
+pubdelays transform-shards --shards 64 --jobs 16 --format parquet --resume
 ```
 
 Aggregate:
 
 ```bash
-pubdelays-pipeline aggregate-all --resume
+pubdelays aggregate-all --resume
 ```
 
 For a single custom output format, use `aggregate --output path/to/output.parquet`.
@@ -153,13 +153,13 @@ For a single custom output format, use `aggregate --output path/to/output.parque
 Derive analysis summaries:
 
 ```bash
-pubdelays-pipeline summaries --resume
+pubdelays summaries --resume
 ```
 
 Inspect manifest:
 
 ```bash
-pubdelays-pipeline manifest --limit 20
+pubdelays manifest --limit 20
 ```
 
 ## SLURM job arrays
@@ -169,19 +169,19 @@ SLURM is opt-in and submitted by the CLI, not by maintained wrapper scripts. Def
 Inspect an `sbatch` script without writing input lists or submitting:
 
 ```bash
-pubdelays-pipeline slurm submit parse --dry-run
-pubdelays-pipeline slurm submit transform-shards --dry-run --shards 64
+pubdelays slurm submit parse --dry-run
+pubdelays slurm submit transform-shards --dry-run --shards 64
 ```
 
 Submit individual stages:
 
 ```bash
-pubdelays-pipeline slurm submit download --source baseline
-pubdelays-pipeline slurm submit download-external --external-source all
-pubdelays-pipeline slurm submit external-all
-pubdelays-pipeline slurm submit parse
-pubdelays-pipeline slurm submit transform-shards --shards 64 --dependency afterok:<prepare-job-id>
-pubdelays-pipeline slurm submit aggregate-all --dependency afterok:<transform-job-id>
+pubdelays slurm submit download --source baseline
+pubdelays slurm submit download-external --external-source all
+pubdelays slurm submit external-all
+pubdelays slurm submit parse
+pubdelays slurm submit transform-shards --shards 64 --dependency afterok:<prepare-job-id>
+pubdelays slurm submit aggregate-all --dependency afterok:<transform-job-id>
 ```
 
 `parse` writes `data/manifests/parse_inputs.txt` and submits one XML file per array task. `transform-shards` writes or consumes `data/manifests/transform_inputs.txt` and submits one modulo shard per array task, so each worker loads external metadata once for many JSONL files.
@@ -189,10 +189,10 @@ pubdelays-pipeline slurm submit aggregate-all --dependency afterok:<transform-jo
 For the common parse-to-aggregate chain, let the CLI submit dependent jobs:
 
 ```bash
-pubdelays-pipeline slurm workflow --shards 64
+pubdelays slurm workflow --shards 64
 ```
 
-The workflow submits parse, transform-input preparation, transform, and aggregate jobs with `afterok` dependencies. Submitted jobs print SLURM job IDs; `sbatch` failures return nonzero with captured scheduler output instead of silently continuing. Inspect scheduler state with `pubdelays-pipeline slurm status <job-id>`. Logs go to `logs/slurm/` by default.
+The workflow submits parse, transform-input preparation, transform, and aggregate jobs with `afterok` dependencies. Submitted jobs print SLURM job IDs; `sbatch` failures return nonzero with captured scheduler output instead of silently continuing. Inspect scheduler state with `pubdelays slurm status <job-id>`. Logs go to `logs/slurm/` by default.
 
 ## Manifest and resumability
 

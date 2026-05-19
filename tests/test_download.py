@@ -1,25 +1,27 @@
 from __future__ import annotations
 
-import argparse
 import hashlib
 from pathlib import Path
 from urllib.error import URLError
+from urllib.request import Request
 
 import pytest
 
-from pubdelays.cli import (
+from pubdelays.cli import main
+from pubdelays.config import load_config
+from pubdelays.download import (
     complete_download,
     contained_download_path,
     download_file,
     expected_md5_sidecar,
     external_download_plans,
     index_links,
-    main,
     md5sum,
     parse_md5_sidecar,
     verify_download_pair,
     verify_md5_file,
 )
+from pubdelays.manifest import Manifest
 
 
 def sidecar_text(path: Path, data: bytes) -> str:
@@ -98,6 +100,38 @@ def test_download_resume_skips_existing_md5_sidecar(tmp_path: Path) -> None:
 
     assert stats.skipped
     assert not stats.downloaded
+
+
+def test_download_sends_project_headers(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    target = tmp_path / "doaj.csv"
+    seen: dict[str, str] = {}
+    calls = 0
+
+    class Response:
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def read(self, _size: int) -> bytes:
+            nonlocal calls
+            calls += 1
+            return b"csv" if calls == 1 else b""
+
+    def open_request(request: Request, **_kwargs: object) -> Response:
+        assert isinstance(request, Request)
+        seen["user_agent"] = request.headers["User-agent"]
+        seen["accept"] = request.headers["Accept"]
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", open_request)
+
+    download_file("https://doaj.org/csv", target, resume=False, retries=1, require_md5=False)
+
+    assert seen["user_agent"].startswith("pubdelays/")
+    assert "text/csv" in seen["accept"]
+    assert target.read_bytes() == b"csv"
 
 
 def test_download_failure_leaves_previous_file_intact(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -188,9 +222,9 @@ summary_dir = "data/processed_data/summaries"
 """.strip(),
         encoding="utf-8",
     )
-    args = argparse.Namespace(config=config_path, source="all", start_year=2023, end_year=2024)
+    config = load_config(config_path)
 
-    plans = external_download_plans(args)
+    plans = external_download_plans(config, source="all", start_year=2023, end_year=2024)
 
     assert [plan.source for plan in plans] == ["doaj", "retraction-watch", "scimago", "scimago", "publisher"]
     assert plans[0].url == "https://example.test/doaj.csv"
@@ -240,9 +274,9 @@ summary_dir = "data/processed_data/summaries"
 """.strip(),
         encoding="utf-8",
     )
-    args = argparse.Namespace(config=config_path, source="all", start_year=2023, end_year=2024)
+    config = load_config(config_path)
 
-    plans = external_download_plans(args)
+    plans = external_download_plans(config, source="all", start_year=2023, end_year=2024)
 
     assert [plan.source for plan in plans] == ["doaj", "retraction-watch"]
 
@@ -292,3 +326,58 @@ summary_dir = "data/processed_data/summaries"
     captured = capsys.readouterr()
     assert "https://example.test/doaj.csv" in captured.out
     assert "data/raw_data/directory_of_open_access_journals/doaj.csv" in captured.out
+
+
+def test_download_external_failure_records_manifest(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    manifest_path = tmp_path / "manifest.sqlite"
+    config_path.write_text(
+        f"""
+[pipeline]
+manifest = "{manifest_path}"
+parse_inputs = "data/manifests/parse_inputs.txt"
+transform_inputs = "data/manifests/transform_inputs.txt"
+[pubmed]
+xml_dir = "data/raw_data/pubmed/xmls"
+jsonl_dir = "data/temp_data/pubmed/jsonl"
+[external.raw]
+scimago_dir = "data/raw_data/scimago"
+web_of_science_csv = "data/raw_data/web_of_science/wos.csv"
+doaj_csv = "data/raw_data/directory_of_open_access_journals/doaj.csv"
+norwegian_list_csv = "data/raw_data/norwegian_publication_indicator/npi.csv"
+retraction_watch_csv = "data/raw_data/retraction_watch/retraction_watch.csv"
+publisher_csv = "data/raw_data/publisher_metadata/publishers.csv"
+[external.download]
+doaj_url = "https://example.test/doaj.csv"
+[external.processed]
+scimago = "data/processed_data/scimago.csv"
+web_of_science = "data/processed_data/web_of_science.csv"
+doaj = "data/processed_data/doaj.csv"
+norwegian_list = "data/processed_data/norwegian_list.csv"
+retraction_watch = "data/processed_data/retraction_watch.csv"
+publisher = "data/processed_data/publisher_metadata.csv"
+pubmed_journals = "data/external/pubmed-journals.csv"
+[transform]
+article_shard_dir = "data/temp_data/article_parquet"
+article_shard_format = "parquet"
+min_received = "2013-01-01"
+default_shards = 64
+[aggregate]
+processed_parquet = "data/processed_data/processed.parquet"
+processed_csv = "data/processed_data/processed.csv"
+summary_dir = "data/processed_data/summaries"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    def fail(*_args: object, **_kwargs: object) -> object:
+        raise URLError("forbidden")
+
+    monkeypatch.setattr("urllib.request.urlopen", fail)
+
+    code = main(["--config", str(config_path), "download-external", "--source", "doaj", "--retries", "1"])
+
+    rows = Manifest(manifest_path).rows(status="failed")
+    assert code == 1
+    assert rows[0]["stage"] == "download-external"
+    assert "failed to download https://example.test/doaj.csv" in rows[0]["error"]

@@ -182,13 +182,13 @@ Use Parquet as the canonical analysis format. CSV exists for portability.
 ## Minimal smoke sequence
 
 ```bash
-pubdelays-pipeline init-dirs
-pubdelays-pipeline preflight
-pubdelays-pipeline external-all --resume
-pubdelays-pipeline parse --limit 2 --jobs 2 --format jsonl --parse-mesh-subterms --resume
-pubdelays-pipeline transform-shards --shards 2 --jobs 2 --format parquet --resume
-pubdelays-pipeline aggregate-all --resume
-pubdelays-pipeline manifest --limit 20
+pubdelays init-dirs
+pubdelays preflight
+pubdelays external-all --resume
+pubdelays parse --limit 2 --jobs 2 --format jsonl --parse-mesh-subterms --resume
+pubdelays transform-shards --shards 2 --jobs 2 --format parquet --resume
+pubdelays aggregate-all --resume
+pubdelays manifest --limit 20
 ```
 
 Adjust commands depending on available raw data.

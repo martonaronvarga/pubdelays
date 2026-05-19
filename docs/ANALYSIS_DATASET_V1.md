@@ -52,5 +52,5 @@ Schema changes require a version bump or an explicit migration note in `docs/SEM
 Validate a produced dataset with:
 
 ```bash
-pubdelays-pipeline schema --input data/processed_data/processed.parquet
+pubdelays schema --input data/processed_data/processed.parquet
 ```

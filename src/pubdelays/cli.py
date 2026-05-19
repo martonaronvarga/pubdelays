@@ -11,13 +11,10 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
 import os
-import re
 import shlex
 import time
-import urllib.error
 import urllib.request
 from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
@@ -30,6 +27,15 @@ import polars as pl
 
 from pubdelays.aggregate import aggregate_articles, aggregate_outputs
 from pubdelays.config import ConfigError, PipelineConfig, load_config
+from pubdelays.download import (
+    DownloadError,
+    contained_download_path,
+    download_file,
+    download_request,
+    external_download_plans,
+    index_links,
+    verify_md5_file,
+)
 from pubdelays.external import (
     preprocess_doaj,
     preprocess_npi,
@@ -86,21 +92,6 @@ class ParseStats:
     records: int
     deleted: int
     skipped: bool = False
-
-
-@dataclass(frozen=True)
-class DownloadStats:
-    link: str
-    output_path: str
-    downloaded: bool
-    skipped: bool = False
-
-
-@dataclass(frozen=True)
-class ExternalDownloadPlan:
-    source: str
-    url: str
-    output_path: Path
 
 
 def cfg(args: argparse.Namespace) -> PipelineConfig:
@@ -504,7 +495,8 @@ def cmd_journals(args: argparse.Namespace) -> int:
     started_at = utc_now()
     start_seconds = time.time()
     output = cfg_path(args, "output", "external.processed.pubmed_journals")
-    with urllib.request.urlopen(args.url) as response:
+    request = download_request(args.url, accept="text/plain,text/csv,*/*")
+    with urllib.request.urlopen(request) as response:
         text = response.read().decode("utf-8")
     rows = parse_j_medline(text)
     with atomic_output_path(output) as tmp_path:
@@ -538,120 +530,53 @@ def cmd_journals(args: argparse.Namespace) -> int:
     return 0
 
 
-def index_links(url: str) -> list[str]:
-    with urllib.request.urlopen(url) as response:
-        html = response.read().decode("utf-8", errors="replace")
-    return sorted(set(re.findall(r'href="([^"/]+\.(?:gz|md5))"', html)))
-
-
-def contained_download_path(output_dir: Path, link: str) -> Path:
-    if Path(link).is_absolute():
-        raise ValueError(f"unsafe absolute download link: {link}")
-    output_root = output_dir.resolve()
-    output_path = output_dir / link
-    try:
-        output_path.resolve().relative_to(output_root)
-    except ValueError as exc:
-        raise ValueError(f"unsafe download link outside output directory: {link}") from exc
-    return output_path
-
-
-def download_file(
-    url: str, output_path: Path, *, resume: bool, retries: int = 5, require_md5: bool = True
-) -> DownloadStats:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    if resume and complete_file(output_path):
-        if not require_md5 or output_path.suffix == ".md5" or complete_download(output_path):
-            return DownloadStats(url, str(output_path), downloaded=False, skipped=True)
-    last: BaseException | None = None
-    for attempt in range(retries):
-        try:
-            with atomic_output_path(output_path) as tmp_path:
-                with (
-                    urllib.request.urlopen(url, timeout=120) as response,
-                    tmp_path.open("wb") as handle,
-                ):
-                    while chunk := response.read(8 * 1024 * 1024):
-                        handle.write(chunk)
-            return DownloadStats(url, str(output_path), downloaded=True, skipped=False)
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            last = exc
-            time.sleep(min(2**attempt, 30))
-    raise RuntimeError(f"failed to download {url}: {last!r}")
-
-
-def md5sum(path: Path) -> str:
-    digest = hashlib.md5(usedforsecurity=False)
-    with Path(path).open("rb") as handle:
-        while chunk := handle.read(8 * 1024 * 1024):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def parse_md5_sidecar(content: str) -> tuple[str, str] | None:
-    content = content.strip()
-    if not content:
-        return None
-    ncbi_match = re.match(r"MD5 \((?P<filename>[^)]+)\) = (?P<md5>[0-9a-fA-F]{32})", content)
-    if ncbi_match:
-        return ncbi_match.group("md5").lower(), ncbi_match.group("filename")
-    unix_match = re.match(r"(?P<md5>[0-9a-fA-F]{32})\s+\*?(?P<filename>.+)", content)
-    if unix_match:
-        return unix_match.group("md5").lower(), Path(unix_match.group("filename")).name
-    return None
-
-
-def verify_md5_file(md5_path: Path) -> bool:
-    parsed = parse_md5_sidecar(md5_path.read_text(encoding="utf-8"))
-    if parsed is None:
-        return False
-    expected, filename = parsed
-    data_path = md5_path.parent / Path(filename).name
-    return data_path.exists() and md5sum(data_path) == expected
-
-
-def expected_md5_sidecar(data_path: Path) -> Path:
-    return Path(f"{data_path}.md5")
-
-
-def verify_download_pair(data_path: Path) -> bool:
-    sidecar = expected_md5_sidecar(data_path)
-    return sidecar.exists() and verify_md5_file(sidecar)
-
-
-def complete_download(data_path: Path) -> bool:
-    return complete_file(data_path) and verify_download_pair(data_path)
-
-
 def cmd_download(args: argparse.Namespace) -> int:
     manifest = manifest_from_args(args)
     started_at = utc_now()
     start_seconds = time.time()
     base_url = PUBMED_BASE_URLS[args.source]
     output_dir = cfg_path(args, "output_dir", "pubmed.xml_dir")
-    links = index_links(base_url)
-    if args.limit is not None:
-        links = links[: args.limit]
-    jobs = max(args.jobs, 1)
-    info(f"download source={args.source} files={len(links)} jobs={jobs} output={output_dir}")
     try:
+        links = index_links(base_url)
+        if args.limit is not None:
+            links = links[: args.limit]
         download_paths = [(link, contained_download_path(output_dir, link)) for link in links]
-    except ValueError as exc:
+    except (DownloadError, OSError, ValueError) as exc:
+        append_manifest(
+            manifest,
+            stage="download",
+            status="failed",
+            output_path=output_dir,
+            started_at=started_at,
+            start_seconds=start_seconds,
+            metadata={"source": args.source},
+            error_message=str(exc),
+            checksum=False,
+        )
         err(str(exc))
         return 1
+
+    jobs = max(args.jobs, 1)
+    info(f"download source={args.source} files={len(links)} jobs={jobs} output={output_dir}")
     if getattr(args, "dry_run", False):
         info("dry-run download: no files or manifest rows will be written")
         return 0
 
     downloaded = 0
     skipped = 0
+    download_errors: list[str] = []
     with ThreadPoolExecutor(max_workers=jobs) as executor:
         futures = [
             executor.submit(download_file, base_url + link, output_path, resume=args.resume)
             for link, output_path in download_paths
         ]
         for future in as_completed(futures):
-            stats = future.result()
+            try:
+                stats = future.result()
+            except DownloadError as exc:
+                download_errors.append(str(exc))
+                err(str(exc))
+                continue
             downloaded += int(stats.downloaded)
             skipped += int(stats.skipped)
             if stats.skipped:
@@ -659,7 +584,8 @@ def cmd_download(args: argparse.Namespace) -> int:
             else:
                 ok(f"downloaded {stats.output_path}")
 
-    failures = [str(path) for path in sorted(output_dir.glob("*.md5")) if not verify_md5_file(path)]
+    md5_failures = [str(path) for path in sorted(output_dir.glob("*.md5")) if not verify_md5_file(path)]
+    failures = [*download_errors, *md5_failures]
     append_manifest(
         manifest,
         stage="download",
@@ -675,81 +601,25 @@ def cmd_download(args: argparse.Namespace) -> int:
             "skipped": skipped,
             "failures": failures,
         },
+        error_message="; ".join(failures),
         checksum=False,
     )
     if failures:
-        err("MD5 failures")
+        err("download failures")
         for failure in failures:
             err(f"  {failure}")
         return 1
     ok(f"downloaded={downloaded} skipped={skipped} into {output_dir}; MD5 checks passed")
     return 0
 
-
-def external_download_plans(args: argparse.Namespace) -> list[ExternalDownloadPlan]:
-    config = cfg(args)
-    scimago_template = str(config.get("external.download.scimago_url_template", ""))
-    publisher_url = str(config.get("external.download.publisher_url", ""))
-    if args.source == "all":
-        requested = ["doaj", "retraction-watch"]
-        if scimago_template:
-            requested.append("scimago")
-        if publisher_url:
-            requested.append("publisher")
-    else:
-        requested = [args.source]
-    plans: list[ExternalDownloadPlan] = []
-    if "doaj" in requested:
-        plans.append(
-            ExternalDownloadPlan(
-                "doaj",
-                str(config.get("external.download.doaj_url", "https://doaj.org/csv")),
-                config.path("external.raw.doaj_csv"),
-            )
-        )
-    if "retraction-watch" in requested:
-        plans.append(
-            ExternalDownloadPlan(
-                "retraction-watch",
-                str(
-                    config.get(
-                        "external.download.retraction_watch_url",
-                        "https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv",
-                    )
-                ),
-                config.path("external.raw.retraction_watch_csv"),
-            )
-        )
-    if "scimago" in requested:
-        if not scimago_template:
-            raise RuntimeError(
-                "external.download.scimago_url_template is empty; configure a working SCImago yearly URL template"
-            )
-        for year in range(args.start_year, args.end_year + 1):
-            plans.append(
-                ExternalDownloadPlan(
-                    "scimago",
-                    scimago_template.format(year=year),
-                    config.path("external.raw.scimago_dir") / f"scimagojr {year}.csv",
-                )
-            )
-    if "publisher" in requested:
-        if not publisher_url:
-            raise RuntimeError(
-                "external.download.publisher_url is empty; configure a publisher metadata CSV URL"
-            )
-        plans.append(
-            ExternalDownloadPlan("publisher", publisher_url, config.path("external.raw.publisher_csv"))
-        )
-    return plans
-
-
 def cmd_download_external(args: argparse.Namespace) -> int:
     manifest = manifest_from_args(args)
     started_at = utc_now()
     start_seconds = time.time()
     try:
-        plans = external_download_plans(args)
+        plans = external_download_plans(
+            cfg(args), source=args.source, start_year=args.start_year, end_year=args.end_year
+        )
     except RuntimeError as exc:
         err(str(exc))
         return 2
@@ -761,8 +631,14 @@ def cmd_download_external(args: argparse.Namespace) -> int:
 
     downloaded = 0
     skipped = 0
+    failure = ""
     for plan in plans:
-        stats = download_file(plan.url, plan.output_path, resume=args.resume, retries=args.retries, require_md5=False)
+        try:
+            stats = download_file(plan.url, plan.output_path, resume=args.resume, retries=args.retries, require_md5=False)
+        except DownloadError as exc:
+            failure = str(exc)
+            err(failure)
+            break
         downloaded += int(stats.downloaded)
         skipped += int(stats.skipped)
         ok(f"downloaded {plan.source}: {stats.output_path}") if stats.downloaded else warn(
@@ -771,15 +647,16 @@ def cmd_download_external(args: argparse.Namespace) -> int:
     append_manifest(
         manifest,
         stage="download-external",
-        status="success",
+        status="failed" if failure else "success",
         output_path=Path("data/raw_data"),
         records=downloaded,
         started_at=started_at,
         start_seconds=start_seconds,
         metadata={"sources": [plan.source for plan in plans], "skipped": skipped},
+        error_message=failure,
         checksum=False,
     )
-    return 0
+    return 1 if failure else 0
 
 
 def _optional_path(value: str | Path | None) -> Path | None:
@@ -1592,7 +1469,7 @@ def slurm_resources(config: PipelineConfig, stage: str) -> SlurmResources:
 
 
 def slurm_runner(args: argparse.Namespace, config: PipelineConfig) -> list[str]:
-    return shlex.split(args.runner or str(config.get("slurm.runner", "uv run pubdelays-pipeline")))
+    return shlex.split(args.runner or str(config.get("slurm.runner", "uv run pubdelays")))
 
 
 def slurm_log_dir(config: PipelineConfig, args: argparse.Namespace) -> Path:
@@ -1890,7 +1767,7 @@ def add_external_args(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="pubdelays-pipeline",
+        prog="pubdelays",
         description="Run the PubMed publication-delay pipeline.",
         epilog=(
             "Main workflow: init-dirs -> preflight -> download -> external-all -> "

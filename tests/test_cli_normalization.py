@@ -51,8 +51,10 @@ summary_dir = "data/processed_data/summaries"
 
 
 def test_top_level_help_describes_main_workflow() -> None:
-    help_text = build_parser().format_help()
+    parser = build_parser()
+    help_text = parser.format_help()
 
+    assert parser.prog == "pubdelays"
     assert "Main workflow" in help_text
     assert "external-all" in help_text
     assert "transform-shards" in help_text

@@ -20,7 +20,7 @@ from pubdelays.slurm import (
 def test_sbatch_script_includes_array_resources_and_dependency(tmp_path: Path) -> None:
     job = SlurmJob(
         name="pubdelays-transform",
-        command='uv run pubdelays-pipeline transform-shard --shard-index "$SLURM_ARRAY_TASK_ID"',
+        command='uv run pubdelays transform-shard --shard-index "$SLURM_ARRAY_TASK_ID"',
         resources=SlurmResources(cpus_per_task=4, mem="24G", time="06:00:00", partition="cpu"),
         log_dir=tmp_path / "logs",
         array="0-63",
