@@ -201,3 +201,29 @@ def parse_sacct_status(output: str) -> list[SlurmStatus]:
 
 def submit_sbatch(script: str) -> str:
     return SlurmSubmitter().submit(script)
+
+
+def query_max_array_size(scontrol: str = "scontrol") -> int | None:
+    """Query SLURM MaxArraySize from ``scontrol show config``.
+
+    Returns ``None`` when the value cannot be determined.
+    """
+    try:
+        result = subprocess.run(
+            [scontrol, "show", "config"],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    for line in result.stdout.splitlines():
+        if "MaxArraySize" in line:
+            parts = line.split("=")
+            if len(parts) >= 2:
+                try:
+                    return int(parts[-1].strip())
+                except ValueError:
+                    return None
+    return None

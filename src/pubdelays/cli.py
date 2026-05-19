@@ -70,6 +70,7 @@ from pubdelays.slurm import (
     SlurmSubmissionError,
     SlurmSubmitter,
     build_sbatch_script,
+    query_max_array_size,
     submit_sbatch,
 )
 from pubdelays.summaries import derive_summary_tables
@@ -1490,13 +1491,15 @@ def write_path_list(path: Path, paths: list[Path]) -> None:
 def _resolve_array_throttle(
     args: argparse.Namespace, config: PipelineConfig, array_spec: str
 ) -> int | None:
-    """Return an array throttle value (%N) from CLI args, config, or None."""
+    """Return an array throttle value (%N) from CLI args, config, or SLURM query."""
     # CLI override takes precedence.
     throttle = getattr(args, "array_throttle", None)
     if throttle is not None:
         return throttle
-    # Fall back to config-driven max_array_size.
+    # Determine max_array_size: config -> SLURM query.
     max_array_size = int(config.get("slurm.max_array_size", 0) or 0)
+    if max_array_size <= 0:
+        max_array_size = query_max_array_size() or 0
     if max_array_size <= 0:
         return None
     # Parse the upper bound from specs like "0-63" or "0-100".
@@ -1666,11 +1669,37 @@ def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dic
     raise ValueError(f"unsupported SLURM stage: {stage}")
 
 
+def _validate_array_size(job: SlurmJob, max_array_size: int | None) -> None:
+    """Raise RuntimeError if the array spec exceeds max_array_size."""
+    if not job.array or max_array_size is None or max_array_size <= 0:
+        return
+    # Parse upper bound from specs like "0-63" or "1-100:2".
+    range_part = job.array.split("%")[0]
+    upper_str = range_part.split("-")[-1].split(":")[0].strip()
+    try:
+        upper = int(upper_str)
+    except ValueError:
+        return
+    total = upper + 1  # array is 0-based inclusive
+    if total > max_array_size:
+        raise RuntimeError(
+            f"array spec {job.array} has {total} tasks which exceeds "
+            f"SLURM MaxArraySize={max_array_size}. "
+            f"Either split the work into multiple smaller job arrays, "
+            f"or ask the cluster admin to increase MaxArraySize."
+        )
+
+
 def emit_or_submit_slurm(args: argparse.Namespace, job: SlurmJob) -> str:
     script = build_sbatch_script(job)
     if args.dry_run:
         print(script, end="")
         return ""
+    # Validate array size against SLURM limit before submitting.
+    if job.array:
+        cfg_max = int(args.config_max_array_size) if hasattr(args, "config_max_array_size") else None
+        max_size = cfg_max if cfg_max and cfg_max > 0 else query_max_array_size()
+        _validate_array_size(job, max_size)
     try:
         job_id = submit_sbatch(script)
     except SlurmSubmissionError as exc:
@@ -2055,6 +2084,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="max concurrent array tasks (%%N in #SBATCH --array); 0 disables",
     )
+    slurm_submit.add_argument(
+        "--max-array-size",
+        type=int,
+        default=None,
+        dest="config_max_array_size",
+        help="override SLURM MaxArraySize for validation; default: auto-detect via scontrol",
+    )
     slurm_submit.set_defaults(func=cmd_slurm_submit)
 
     slurm_workflow = slurm_sub.add_parser(
@@ -2092,6 +2128,13 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="max concurrent array tasks (%%N in #SBATCH --array); 0 disables",
+    )
+    slurm_workflow.add_argument(
+        "--max-array-size",
+        type=int,
+        default=None,
+        dest="config_max_array_size",
+        help="override SLURM MaxArraySize for validation; default: auto-detect via scontrol",
     )
     slurm_workflow.set_defaults(func=cmd_slurm_workflow)
 
