@@ -14,6 +14,8 @@ import csv
 import json
 import os
 import shlex
+import sqlite3
+import subprocess
 import time
 import urllib.request
 from collections.abc import Callable
@@ -106,11 +108,15 @@ def cfg_path(args: argparse.Namespace, attr: str, key: str, default: str | None 
     return cfg(args).path(key, default)
 
 
-def manifest_from_args(args: argparse.Namespace) -> Manifest:
+def manifest_path_from_args(args: argparse.Namespace) -> Path:
     value = getattr(args, "manifest", None)
     if value not in (None, ""):
-        return Manifest(Path(value))
-    return Manifest(cfg(args).path("pipeline.manifest", "data/manifests/pipeline.sqlite"))
+        return Path(value)
+    return cfg(args).path("pipeline.manifest", "data/manifests/pipeline.sqlite")
+
+
+def manifest_from_args(args: argparse.Namespace) -> Manifest:
+    return Manifest(manifest_path_from_args(args))
 
 
 def elapsed(start: float) -> float:
@@ -1384,6 +1390,112 @@ def cmd_manifest_retry_script(args: argparse.Namespace) -> int:
     return 0
 
 
+def _manifest_integrity(path: Path) -> tuple[bool, str]:
+    if not path.exists():
+        return False, "missing"
+    try:
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            row = conn.execute("PRAGMA integrity_check").fetchone()
+        finally:
+            conn.close()
+    except sqlite3.DatabaseError as exc:
+        return False, str(exc)
+    except OSError as exc:
+        return False, str(exc)
+    result = str(row[0]) if row else "empty integrity_check result"
+    return result.lower() == "ok", result
+
+
+def _archive_manifest_files(path: Path, archive_dir: Path | None = None) -> list[Path]:
+    stamp = utc_now().replace(":", "").replace("+", "Z")
+    target_dir = archive_dir or path.parent
+    target_dir.mkdir(parents=True, exist_ok=True)
+    moved: list[Path] = []
+    for candidate in (path, Path(f"{path}-wal"), Path(f"{path}-shm")):
+        if not candidate.exists():
+            continue
+        archived = target_dir / f"{candidate.name}.corrupt.{stamp}"
+        candidate.replace(archived)
+        moved.append(archived)
+    return moved
+
+
+def cmd_manifest_check(args: argparse.Namespace) -> int:
+    path = manifest_path_from_args(args)
+    ok_integrity, detail = _manifest_integrity(path)
+    if ok_integrity:
+        print_kv_table({"manifest": str(path), "integrity": detail})
+        return 0
+    result: dict[str, Any] = {"manifest": str(path), "integrity": detail}
+    if args.cleanup:
+        archived = _archive_manifest_files(path, Path(args.archive_dir) if args.archive_dir else None)
+        result["archived"] = [str(item) for item in archived]
+    print_kv_table(result)
+    return 1
+
+
+def _read_manifest_rows(path: Path) -> list[ManifestRow]:
+    with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
+        cur = conn.execute(
+            """
+            SELECT stage, status, input_path, output_path, input_sha256,
+                   output_sha256, input_bytes, output_bytes, records, deleted,
+                   started_at, finished_at, elapsed_seconds, worker,
+                   metadata_json, error
+            FROM runs
+            ORDER BY id
+            """
+        )
+        rows: list[ManifestRow] = []
+        for row in cur.fetchall():
+            rows.append(
+                ManifestRow(
+                    stage=row[0],
+                    status=row[1],
+                    input_path=row[2],
+                    output_path=row[3],
+                    input_sha256=row[4],
+                    output_sha256=row[5],
+                    input_bytes=row[6],
+                    output_bytes=row[7],
+                    records=row[8],
+                    deleted=row[9],
+                    started_at=row[10],
+                    finished_at=row[11],
+                    elapsed_seconds=row[12],
+                    worker=row[13],
+                    metadata=json.loads(str(row[14] or "{}")),
+                    error=row[15],
+                )
+            )
+        return rows
+
+
+def cmd_manifest_collect(args: argparse.Namespace) -> int:
+    target = manifest_from_args(args)
+    input_dir = Path(args.input_dir) if args.input_dir else manifest_path_from_args(args).parent / "slurm"
+    files = sorted(input_dir.rglob(args.glob)) if input_dir.exists() else []
+    merged = 0
+    corrupt: list[str] = []
+    for path in files:
+        if path == target.path:
+            continue
+        ok_integrity, detail = _manifest_integrity(path)
+        if not ok_integrity:
+            corrupt.append(f"{path}: {detail}")
+            if args.cleanup_corrupt:
+                _archive_manifest_files(path, Path(args.archive_dir) if args.archive_dir else None)
+            continue
+        for row in _read_manifest_rows(path):
+            target.append(row)
+            merged += 1
+    print_kv_table({"input_dir": str(input_dir), "files": len(files), "rows": merged, "corrupt": len(corrupt)})
+    for item in corrupt:
+        warn(item)
+    return 1 if corrupt else 0
+
+
 def cmd_compare_legacy(args: argparse.Namespace) -> int:
     output = Path(args.output)
     result = compare_legacy_outputs(Path(args.legacy), Path(args.new), output)
@@ -1577,17 +1689,21 @@ def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dic
             raise RuntimeError(f"No XML/XML.GZ files found in {input_dir}")
         if not args.dry_run:
             write_path_list(input_list, paths)
+        manifest_dir = config.path("pipeline.manifest").parent / "slurm" / "parse"
         setup = [
             *repo_setup,
             'PUBDELAYS_ARRAY_TASK_OFFSET="${PUBDELAYS_ARRAY_TASK_OFFSET:-0}"',
             'PUBDELAYS_ARRAY_TASK_ID="$((SLURM_ARRAY_TASK_ID + PUBDELAYS_ARRAY_TASK_OFFSET))"',
+            f"PUBDELAYS_STAGE_MANIFEST_DIR={shlex.quote(str(manifest_dir))}",
+            'mkdir -p "$PUBDELAYS_STAGE_MANIFEST_DIR"',
+            'PUBDELAYS_STAGE_MANIFEST="$PUBDELAYS_STAGE_MANIFEST_DIR/${SLURM_ARRAY_JOB_ID:-local}-${PUBDELAYS_ARRAY_TASK_ID}.sqlite"',
             f"INPUT_LIST={shlex.quote(str(input_list))}",
             'INPUT=$(sed -n "$((PUBDELAYS_ARRAY_TASK_ID + 1))p" "$INPUT_LIST")',
             '[[ -n "$INPUT" ]] || { echo "No input for PUBDELAYS_ARRAY_TASK_ID=$PUBDELAYS_ARRAY_TASK_ID" >&2; exit 2; }',
         ]
         command = (
             f'{shlex.join(base)} parse-one --input "$INPUT" --output-dir {shlex.quote(str(output_dir))} '
-            "--format jsonl --parse-mesh-subterms --resume"
+            '--format jsonl --parse-mesh-subterms --manifest "$PUBDELAYS_STAGE_MANIFEST" --resume'
         )
         array_spec = f"0-{max(len(paths), 1) - 1}"
         array_throttle = _resolve_array_throttle(args, config, array_spec)
@@ -1864,6 +1980,44 @@ def cmd_slurm_status(args: argparse.Namespace) -> int:
             }
         )
         print("---")
+    return 0
+
+
+def _dependency_blocked_statuses(statuses: list[Any]) -> list[Any]:
+    return [
+        status
+        for status in statuses
+        if status.state in {"PENDING", "PD"} and "dependency" in status.reason.lower()
+    ]
+
+
+def cmd_slurm_cleanup(args: argparse.Namespace) -> int:
+    try:
+        statuses = SlurmSubmitter().status(args.job_id)
+    except SlurmQueryError as exc:
+        err(str(exc))
+        if exc.stdout.strip():
+            err(f"sacct stdout: {exc.stdout.strip()}")
+        return 1
+    targets = _dependency_blocked_statuses(statuses)
+    for status in targets:
+        print_kv_table(
+            {"job_id": status.job_id, "state": status.state, "name": status.name, "reason": status.reason}
+        )
+        print("---")
+    if not targets:
+        warn(f"no dependency-blocked pending jobs found for {args.job_id}")
+        return 0
+    if not args.cancel:
+        warn("dry run; add --cancel to scancel these jobs")
+        return 0
+    command = ["scancel", *[status.job_id for status in targets]]
+    try:
+        subprocess.run(command, check=True)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        err(f"scancel failed: {exc}")
+        return 1
+    ok(f"cancelled {len(targets)} dependency-blocked jobs")
     return 0
 
 
@@ -2227,6 +2381,11 @@ def build_parser() -> argparse.ArgumentParser:
     slurm_status.add_argument("job_id")
     slurm_status.set_defaults(func=cmd_slurm_status)
 
+    slurm_cleanup = slurm_sub.add_parser("cleanup", help="find or cancel dependency-blocked SLURM jobs")
+    slurm_cleanup.add_argument("job_id")
+    slurm_cleanup.add_argument("--cancel", action="store_true", help="run scancel on dependency-blocked jobs")
+    slurm_cleanup.set_defaults(func=cmd_slurm_cleanup)
+
     manifest = subparsers.add_parser("manifest", help="inspect manifest rows")
     manifest.add_argument("--manifest", default=None)
     manifest.add_argument("--limit", type=int, default=20)
@@ -2254,6 +2413,20 @@ def build_parser() -> argparse.ArgumentParser:
     manifest_retry.add_argument("--manifest", default=None)
     manifest_retry.add_argument("--limit", type=int, default=100)
     manifest_retry.set_defaults(func=cmd_manifest_retry_script)
+
+    manifest_check = manifest_sub.add_parser("check", help="run SQLite integrity_check without sqlite3 CLI")
+    manifest_check.add_argument("--manifest", default=None)
+    manifest_check.add_argument("--cleanup", action="store_true", help="archive corrupt manifest files")
+    manifest_check.add_argument("--archive-dir", default=None)
+    manifest_check.set_defaults(func=cmd_manifest_check)
+
+    manifest_collect = manifest_sub.add_parser("collect", help="merge per-task manifest SQLite files")
+    manifest_collect.add_argument("--manifest", default=None)
+    manifest_collect.add_argument("--input-dir", default=None)
+    manifest_collect.add_argument("--glob", default="*.sqlite")
+    manifest_collect.add_argument("--cleanup-corrupt", action="store_true")
+    manifest_collect.add_argument("--archive-dir", default=None)
+    manifest_collect.set_defaults(func=cmd_manifest_collect)
 
     return parser
 

@@ -6,10 +6,18 @@ from typing import Any
 
 import pytest
 
-from pubdelays.cli import _split_array_chunks, _split_job_array, build_parser, build_slurm_job, emit_or_submit_slurm
+from pubdelays.cli import (
+    _split_array_chunks,
+    _split_job_array,
+    build_parser,
+    build_slurm_job,
+    cmd_slurm_cleanup,
+    emit_or_submit_slurm,
+)
 from pubdelays.slurm import (
     SlurmJob,
     SlurmResources,
+    SlurmStatus,
     SlurmSubmissionError,
     SlurmSubmitter,
     build_sbatch_script,
@@ -105,6 +113,35 @@ def test_emit_or_submit_slurm_creates_log_dir_before_sbatch(
 
     assert job_ids == ["12345"]
     assert submitted_scripts
+
+
+def test_slurm_cleanup_cancels_dependency_blocked_jobs(monkeypatch: pytest.MonkeyPatch) -> None:
+    statuses = [
+        SlurmStatus("123", "FAILED", "pubdelays-parse", "None"),
+        SlurmStatus("124", "PD", "pubdelays-transform", "DependencyNeverSatisfied"),
+        SlurmStatus("125", "PENDING", "pubdelays-aggregate", "Dependency"),
+    ]
+    cancelled: list[list[str]] = []
+
+    monkeypatch.setattr("pubdelays.cli.SlurmSubmitter.status", lambda _self, _job_id: statuses)
+    monkeypatch.setattr("pubdelays.cli.subprocess.run", lambda command, check: cancelled.append(command))
+    args = build_parser().parse_args(["slurm", "cleanup", "123", "--cancel"])
+
+    code = cmd_slurm_cleanup(args)
+
+    assert code == 0
+    assert cancelled == [["scancel", "124", "125"]]
+
+
+def test_parse_slurm_job_uses_per_task_manifest() -> None:
+    args = build_parser().parse_args(["slurm", "submit", "parse", "--dry-run"])
+
+    job, _metadata = build_slurm_job(args, "parse")
+
+    assert isinstance(job.command, str)
+    assert '--manifest "$PUBDELAYS_STAGE_MANIFEST"' in job.command
+    assert any("PUBDELAYS_STAGE_MANIFEST_DIR" in line for line in job.setup)
+    assert any("${SLURM_ARRAY_JOB_ID:-local}-${PUBDELAYS_ARRAY_TASK_ID}.sqlite" in line for line in job.setup)
 
 
 def test_split_job_array_restarts_task_ids_and_sets_input_offset(tmp_path: Path) -> None:

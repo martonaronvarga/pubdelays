@@ -91,3 +91,47 @@ def test_aggregate_failure_records_manifest_error(tmp_path: Path) -> None:
     rows = Manifest(manifest_path).rows(status="failed")
     assert rows[0]["stage"] == "aggregate"
     assert rows[0]["error"]
+
+
+def test_manifest_check_archives_corrupt_sqlite_without_sqlite_cli(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "pipeline.sqlite"
+    archive_dir = tmp_path / "archive"
+    manifest_path.write_text("not sqlite", encoding="utf-8")
+    Path(f"{manifest_path}-wal").write_text("wal", encoding="utf-8")
+
+    code = main([
+        "manifest",
+        "check",
+        "--manifest",
+        str(manifest_path),
+        "--cleanup",
+        "--archive-dir",
+        str(archive_dir),
+    ])
+
+    assert code == 1
+    assert not manifest_path.exists()
+    assert not Path(f"{manifest_path}-wal").exists()
+    assert list(archive_dir.glob("pipeline.sqlite.corrupt.*"))
+    assert list(archive_dir.glob("pipeline.sqlite-wal.corrupt.*"))
+
+
+def test_manifest_collect_merges_per_task_manifests(tmp_path: Path) -> None:
+    input_dir = tmp_path / "slurm" / "parse"
+    append_rows(input_dir / "1-0.sqlite")
+    append_rows(input_dir / "1-1.sqlite")
+    target = tmp_path / "pipeline.sqlite"
+
+    code = main([
+        "manifest",
+        "collect",
+        "--manifest",
+        str(target),
+        "--input-dir",
+        str(input_dir),
+    ])
+
+    rows = Manifest(target).rows(limit=10)
+    assert code == 0
+    assert len(rows) == 6
+    assert sum(1 for row in rows if row["status"] == "failed") == 2
