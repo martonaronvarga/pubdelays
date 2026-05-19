@@ -1579,9 +1579,11 @@ def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dic
             write_path_list(input_list, paths)
         setup = [
             *repo_setup,
+            'PUBDELAYS_ARRAY_TASK_OFFSET="${PUBDELAYS_ARRAY_TASK_OFFSET:-0}"',
+            'PUBDELAYS_ARRAY_TASK_ID="$((SLURM_ARRAY_TASK_ID + PUBDELAYS_ARRAY_TASK_OFFSET))"',
             f"INPUT_LIST={shlex.quote(str(input_list))}",
-            'INPUT=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "$INPUT_LIST")',
-            '[[ -n "$INPUT" ]] || { echo "No input for SLURM_ARRAY_TASK_ID=$SLURM_ARRAY_TASK_ID" >&2; exit 2; }',
+            'INPUT=$(sed -n "$((PUBDELAYS_ARRAY_TASK_ID + 1))p" "$INPUT_LIST")',
+            '[[ -n "$INPUT" ]] || { echo "No input for PUBDELAYS_ARRAY_TASK_ID=$PUBDELAYS_ARRAY_TASK_ID" >&2; exit 2; }',
         ]
         command = (
             f'{shlex.join(base)} parse-one --input "$INPUT" --output-dir {shlex.quote(str(output_dir))} '
@@ -1696,16 +1698,16 @@ def _split_array_chunks(upper: int, max_size: int) -> list[tuple[int, int]]:
 def _split_job_array(job: SlurmJob, chunks: list[tuple[int, int]]) -> list[SlurmJob]:
     """Create one SlurmJob per array chunk with a suffixed name.
 
-    Only the first chunk inherits the original dependency so chunks of the
-    same stage run in parallel.  The caller is responsible for collecting all
-    chunk job IDs and setting up the dependency for the next stage.
+    Each emitted array starts at zero because some clusters reject task IDs
+    greater than MaxArraySize - 1 even when the number of tasks is valid.
     """
     jobs: list[SlurmJob] = []
     total = len(chunks)
     width = len(str(total))
     for idx, (start, end) in enumerate(chunks, start=1):
         chunk_label = f"-chunk{idx:0{width}d}" if total > 1 else ""
-        array_spec = f"{start}-{end}"
+        array_spec = f"0-{end - start}"
+        setup = [f"PUBDELAYS_ARRAY_TASK_OFFSET={start}", *job.setup] if start else job.setup
         # Only the first chunk gets the incoming dependency; subsequent chunks
         # run in parallel with it.
         dep = job.dependency if idx == 1 else None
@@ -1718,7 +1720,7 @@ def _split_job_array(job: SlurmJob, chunks: list[tuple[int, int]]) -> list[Slurm
                 array=array_spec,
                 array_throttle=job.array_throttle,
                 dependency=dep,
-                setup=job.setup,
+                setup=setup,
             )
         )
     return jobs
@@ -1750,6 +1752,7 @@ def emit_or_submit_slurm(args: argparse.Namespace, job: SlurmJob) -> list[str]:
             if args.dry_run:
                 print(script, end="")
                 continue
+            chunk_job.log_dir.mkdir(parents=True, exist_ok=True)
             try:
                 job_id = submit_sbatch(script)
             except SlurmSubmissionError as exc:
@@ -1772,6 +1775,7 @@ def emit_or_submit_slurm(args: argparse.Namespace, job: SlurmJob) -> list[str]:
     if args.dry_run:
         print(script, end="")
         return []
+    job.log_dir.mkdir(parents=True, exist_ok=True)
     try:
         job_id = submit_sbatch(script)
     except SlurmSubmissionError as exc:

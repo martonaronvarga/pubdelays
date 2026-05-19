@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from pubdelays.cli import build_parser, build_slurm_job
+from pubdelays.cli import _split_array_chunks, _split_job_array, build_parser, build_slurm_job, emit_or_submit_slurm
 from pubdelays.slurm import (
     SlurmJob,
     SlurmResources,
@@ -78,6 +78,58 @@ def test_submitter_returns_submission_trace(monkeypatch: pytest.MonkeyPatch) -> 
     assert submission.command == ("sbatch", "--parsable")
     assert submission.stderr == "queued"
     assert "true" in submission.script
+
+
+def test_emit_or_submit_slurm_creates_log_dir_before_sbatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log_dir = tmp_path / "missing" / "logs"
+    submitted_scripts: list[str] = []
+
+    def fake_submit(script: str) -> str:
+        assert log_dir.is_dir()
+        submitted_scripts.append(script)
+        return "12345"
+
+    monkeypatch.setattr("pubdelays.cli.query_max_array_size", lambda: None)
+    monkeypatch.setattr("pubdelays.cli.submit_sbatch", fake_submit)
+    args = build_parser().parse_args(["slurm", "submit", "external-all"])
+    job = SlurmJob(
+        name="pubdelays-external",
+        command=["pubdelays", "external-all"],
+        resources=SlurmResources(cpus_per_task=1, mem="2G", time="00:10:00"),
+        log_dir=log_dir,
+    )
+
+    job_ids = emit_or_submit_slurm(args, job)
+
+    assert job_ids == ["12345"]
+    assert submitted_scripts
+
+
+def test_split_job_array_restarts_task_ids_and_sets_input_offset(tmp_path: Path) -> None:
+    job = SlurmJob(
+        name="pubdelays-parse",
+        command='uv run pubdelays parse-one --input "$INPUT"',
+        resources=SlurmResources(cpus_per_task=1, mem="6G", time="04:00:00"),
+        log_dir=tmp_path / "logs",
+        array="0-1333",
+        array_throttle=100,
+        setup=[
+            'PUBDELAYS_ARRAY_TASK_OFFSET="${PUBDELAYS_ARRAY_TASK_OFFSET:-0}"',
+            'PUBDELAYS_ARRAY_TASK_ID="$((SLURM_ARRAY_TASK_ID + PUBDELAYS_ARRAY_TASK_OFFSET))"',
+            'INPUT=$(sed -n "$((PUBDELAYS_ARRAY_TASK_ID + 1))p" "$INPUT_LIST")',
+        ],
+    )
+
+    chunks = _split_array_chunks(1333, 1001)
+    split_jobs = _split_job_array(job, chunks)
+
+    assert [split_job.array for split_job in split_jobs] == ["0-1000", "0-332"]
+    assert "PUBDELAYS_ARRAY_TASK_OFFSET=1001" in split_jobs[1].setup[0]
+    script = build_sbatch_script(split_jobs[1])
+    assert "#SBATCH --array=0-332%100" in script
+    assert 'INPUT=$(sed -n "$((PUBDELAYS_ARRAY_TASK_ID + 1))p" "$INPUT_LIST")' in script
 
 
 def test_build_slurm_download_external_job_uses_configured_source() -> None:
