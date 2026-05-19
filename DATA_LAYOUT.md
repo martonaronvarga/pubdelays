@@ -34,7 +34,7 @@ data/raw_data/publisher_metadata/
   publishers.csv  # optional ISSN-keyed publisher enrichment
 ```
 
-The PubMed parser reads `.xml.gz` directly. Do not gunzip the PubMed baseline unless you have a specific storage reason. Public external metadata can be planned or downloaded with `pubdelays-pipeline download-external`; sources that require licensed or manual access still need to be placed in the documented raw paths.
+The PubMed parser reads `.xml.gz` directly. Do not gunzip the PubMed baseline unless you have a specific storage reason. Public external metadata can be planned or downloaded with `pubdelays-pipeline download-external`; configured SCImago and publisher URLs are included by `--source all`. Sources that require licensed or manual access still need to be placed in the documented raw paths.
 
 ## Generated intermediates
 

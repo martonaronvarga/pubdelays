@@ -3,10 +3,14 @@ import urllib.request
 
 # FTP URL
 ftp_url = 'ftp://ftp.ncbi.nih.gov/pubmed/J_Medline.txt'
+MAX_FTP_RESPONSE_BYTES = 10 * 1024 * 1024
 
 # Fetch data from FTP
 with urllib.request.urlopen(ftp_url) as response:
-    data = response.read().decode('utf-8')
+    raw_data = response.read(MAX_FTP_RESPONSE_BYTES + 1)
+    if len(raw_data) > MAX_FTP_RESPONSE_BYTES:
+        raise ValueError('FTP response exceeds maximum allowed size')
+    data = raw_data.decode('utf-8')
 
 # Initialize CSV writer
 keys = ['JrId', 'JournalTitle', 'MedAbbr', 'ISSN (Print)', 'ISSN (Online)', 'IsoAbbr', 'NlmId']

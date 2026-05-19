@@ -1,0 +1,19 @@
+diff --git a/src/pubdelays/parser/medline.py b/src/pubdelays/parser/medline.py
+index d1f4326..a69c2cc 100644
+--- a/src/pubdelays/parser/medline.py
++++ b/src/pubdelays/parser/medline.py
+@@ -495,7 +495,13 @@ def parse_medline_xml(
+     pipeline-level filter. Leave it as `None` for lossless parsing.
+     """
+     with _open_xml(path) as handle:
+-        context = etree.iterparse(handle, events=("end",), recover=recover)
++        context = etree.iterparse(
++            handle,
++            events=("end",),
++            recover=recover,
++            load_dtd=False,
++            resolve_entities=False,
++        )
+         for _, element in context:
+             if element.tag == "DeleteCitation":
+                 for child in element.iterchildren():

@@ -20,7 +20,8 @@ doaj_url = "https://doaj.org/csv"
 retraction_watch_url = "https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv"
 # SCImago blocks unauthenticated scripted export in some environments; set this to a working yearly URL template if your access permits it.
 scimago_url_template = ""
-# Web of Science, Norwegian Publication Indicator snapshots, and publisher metadata require licensed/manual source selection for now.
+publisher_url = ""
+# Web of Science and Norwegian Publication Indicator snapshots require licensed/manual source selection for now.
 
 [external.processed]
 scimago = "data/processed_data/scimago.csv"
@@ -53,6 +54,11 @@ qos = ""
 cpus_per_task = 4
 mem = "8G"
 time = "12:00:00"
+
+[slurm.resources.download_external]
+cpus_per_task = 2
+mem = "4G"
+time = "02:00:00"
 
 [slurm.resources.external_all]
 cpus_per_task = 2

@@ -541,7 +541,19 @@ def cmd_journals(args: argparse.Namespace) -> int:
 def index_links(url: str) -> list[str]:
     with urllib.request.urlopen(url) as response:
         html = response.read().decode("utf-8", errors="replace")
-    return sorted(set(re.findall(r'href="([^"]+\.(?:gz|md5))"', html)))
+    return sorted(set(re.findall(r'href="([^"/]+\.(?:gz|md5))"', html)))
+
+
+def contained_download_path(output_dir: Path, link: str) -> Path:
+    if Path(link).is_absolute():
+        raise ValueError(f"unsafe absolute download link: {link}")
+    output_root = output_dir.resolve()
+    output_path = output_dir / link
+    try:
+        output_path.resolve().relative_to(output_root)
+    except ValueError as exc:
+        raise ValueError(f"unsafe download link outside output directory: {link}") from exc
+    return output_path
 
 
 def download_file(
@@ -622,6 +634,11 @@ def cmd_download(args: argparse.Namespace) -> int:
         links = links[: args.limit]
     jobs = max(args.jobs, 1)
     info(f"download source={args.source} files={len(links)} jobs={jobs} output={output_dir}")
+    try:
+        download_paths = [(link, contained_download_path(output_dir, link)) for link in links]
+    except ValueError as exc:
+        err(str(exc))
+        return 1
     if getattr(args, "dry_run", False):
         info("dry-run download: no files or manifest rows will be written")
         return 0
@@ -630,8 +647,8 @@ def cmd_download(args: argparse.Namespace) -> int:
     skipped = 0
     with ThreadPoolExecutor(max_workers=jobs) as executor:
         futures = [
-            executor.submit(download_file, base_url + link, output_dir / link, resume=args.resume)
-            for link in links
+            executor.submit(download_file, base_url + link, output_path, resume=args.resume)
+            for link, output_path in download_paths
         ]
         for future in as_completed(futures):
             stats = future.result()
@@ -671,7 +688,16 @@ def cmd_download(args: argparse.Namespace) -> int:
 
 def external_download_plans(args: argparse.Namespace) -> list[ExternalDownloadPlan]:
     config = cfg(args)
-    requested = {args.source} if args.source != "all" else {"doaj", "retraction-watch", "scimago"}
+    scimago_template = str(config.get("external.download.scimago_url_template", ""))
+    publisher_url = str(config.get("external.download.publisher_url", ""))
+    if args.source == "all":
+        requested = ["doaj", "retraction-watch"]
+        if scimago_template:
+            requested.append("scimago")
+        if publisher_url:
+            requested.append("publisher")
+    else:
+        requested = [args.source]
     plans: list[ExternalDownloadPlan] = []
     if "doaj" in requested:
         plans.append(
@@ -695,17 +721,26 @@ def external_download_plans(args: argparse.Namespace) -> list[ExternalDownloadPl
             )
         )
     if "scimago" in requested:
-        template = str(config.get("external.download.scimago_url_template", ""))
-        if not template:
-            raise RuntimeError("external.download.scimago_url_template is empty; SCImago automated URL is unavailable")
+        if not scimago_template:
+            raise RuntimeError(
+                "external.download.scimago_url_template is empty; configure a working SCImago yearly URL template"
+            )
         for year in range(args.start_year, args.end_year + 1):
             plans.append(
                 ExternalDownloadPlan(
                     "scimago",
-                    template.format(year=year),
+                    scimago_template.format(year=year),
                     config.path("external.raw.scimago_dir") / f"scimagojr {year}.csv",
                 )
             )
+    if "publisher" in requested:
+        if not publisher_url:
+            raise RuntimeError(
+                "external.download.publisher_url is empty; configure a publisher metadata CSV URL"
+            )
+        plans.append(
+            ExternalDownloadPlan("publisher", publisher_url, config.path("external.raw.publisher_csv"))
+        )
     return plans
 
 
@@ -1534,6 +1569,7 @@ def cmd_summaries(args: argparse.Namespace) -> int:
 
 SLURM_STAGE_CONFIG = {
     "download": "download",
+    "download-external": "download_external",
     "external-all": "external_all",
     "parse": "parse",
     "prepare-transform": "prepare_transform",
@@ -1591,6 +1627,27 @@ def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dic
             command.extend(["--output-dir", args.output_dir])
         return SlurmJob(
             "pubdelays-download", command, resources, log_dir, dependency=args.dependency, setup=repo_setup
+        ), metadata
+
+    if stage == "download-external":
+        command = [
+            *base,
+            "download-external",
+            "--source",
+            args.external_source,
+            "--start-year",
+            str(args.start_year),
+            "--end-year",
+            str(args.end_year),
+            "--resume",
+        ]
+        return SlurmJob(
+            "pubdelays-download-external",
+            command,
+            resources,
+            log_dir,
+            dependency=args.dependency,
+            setup=repo_setup,
         ), metadata
 
     if stage == "external-all":
@@ -1985,7 +2042,11 @@ def build_parser() -> argparse.ArgumentParser:
     download_external = subparsers.add_parser(
         "download-external", help="download public external metadata sources into raw-data paths"
     )
-    download_external.add_argument("--source", choices=["all", "doaj", "retraction-watch", "scimago"], default="all")
+    download_external.add_argument(
+        "--source",
+        choices=["all", "doaj", "retraction-watch", "scimago", "publisher"],
+        default="all",
+    )
     download_external.add_argument("--start-year", type=int, default=2015)
     download_external.add_argument("--end-year", type=int, default=2024)
     download_external.add_argument("--retries", type=int, default=5)
@@ -2063,6 +2124,12 @@ def build_parser() -> argparse.ArgumentParser:
     slurm_submit.add_argument("--dependency", default=None, help="sbatch dependency, e.g. afterok:12345")
     slurm_submit.add_argument("--dry-run", action="store_true", help="print sbatch script without submitting")
     slurm_submit.add_argument("--source", choices=sorted(PUBMED_BASE_URLS), default="baseline")
+    slurm_submit.add_argument(
+        "--external-source",
+        choices=["all", "doaj", "retraction-watch", "scimago", "publisher"],
+        default="all",
+        help="source for the download-external SLURM stage",
+    )
     slurm_submit.add_argument("--jobs", type=int, default=4)
     slurm_submit.add_argument("--limit", type=int, default=None)
     slurm_submit.add_argument("--input-dir", default=None)

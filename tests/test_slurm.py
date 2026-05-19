@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from pubdelays.cli import build_parser, build_slurm_job
 from pubdelays.slurm import (
     SlurmJob,
     SlurmResources,
@@ -77,6 +78,33 @@ def test_submitter_returns_submission_trace(monkeypatch: pytest.MonkeyPatch) -> 
     assert submission.command == ("sbatch", "--parsable")
     assert submission.stderr == "queued"
     assert "true" in submission.script
+
+
+def test_build_slurm_download_external_job_uses_configured_source() -> None:
+    args = build_parser().parse_args(
+        [
+            "slurm",
+            "submit",
+            "download-external",
+            "--external-source",
+            "publisher",
+            "--start-year",
+            "2023",
+            "--end-year",
+            "2024",
+            "--dry-run",
+        ]
+    )
+
+    job, metadata = build_slurm_job(args, "download-external")
+
+    assert metadata == {"stage": "download-external"}
+    assert job.name == "pubdelays-download-external"
+    assert "download-external" in job.command
+    assert "--source" in job.command
+    assert "publisher" in job.command
+    assert "--start-year" in job.command
+    assert "2023" in job.command
 
 
 def test_parse_sacct_status_returns_typed_rows() -> None:

@@ -495,7 +495,13 @@ def parse_medline_xml(
     pipeline-level filter. Leave it as `None` for lossless parsing.
     """
     with _open_xml(path) as handle:
-        context = etree.iterparse(handle, events=("end",), recover=recover)
+        context = etree.iterparse(
+            handle,
+            events=("end",),
+            recover=recover,
+            load_dtd=False,
+            resolve_entities=False,
+        )
         for _, element in context:
             if element.tag == "DeleteCitation":
                 for child in element.iterchildren():

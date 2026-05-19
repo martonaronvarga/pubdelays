@@ -146,6 +146,31 @@ def test_malformed_xml_fails_fast_unless_recovery_is_enabled(tmp_path: Path) -> 
     assert [record["pmid"] for record in recovered] == ["1", "2", "3"]
 
 
+def test_untrusted_xml_does_not_expand_external_entities(tmp_path: Path) -> None:
+    secret_path = tmp_path / "secret.txt"
+    secret_path.write_text("LEAKED_FROM_HOST", encoding="utf-8")
+    xml_path = write_xml(
+        tmp_path / "xxe.xml",
+        f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE PubmedArticleSet [<!ENTITY xxe SYSTEM "{secret_path.as_uri()}">]>
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation>
+      <PMID>1</PMID>
+      <Article>
+        <Journal><JournalIssue><PubDate><Year>2024</Year></PubDate></JournalIssue></Journal>
+        <ArticleTitle>prefix-&xxe;-suffix</ArticleTitle>
+      </Article>
+    </MedlineCitation>
+  </PubmedArticle>
+</PubmedArticleSet>
+''',
+    )
+
+    record = list(parse_medline_xml(xml_path, recover=True))[0]
+
+    assert "LEAKED_FROM_HOST" not in record["title"]
+
 
 def test_cli_parse_jsonl(tmp_path: Path) -> None:
     input_dir = tmp_path / "xml"

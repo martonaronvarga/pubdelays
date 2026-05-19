@@ -116,12 +116,11 @@ pubdelays-pipeline --config path/to/config.toml <command>
 External metadata:
 
 ```bash
-pubdelays-pipeline download-external --source doaj --resume
-pubdelays-pipeline download-external --source retraction-watch --resume
+pubdelays-pipeline download-external --source all --resume
 pubdelays-pipeline external-all --resume
 ```
 
-`download-external --source all --dry-run` lists configured public metadata downloads. DOAJ uses the public journal CSV at `https://doaj.org/csv`; Retraction Watch uses Crossref's public GitLab mirror. SCImago, Web of Science, Norwegian Publication Indicator snapshots, and publisher metadata may require manual/licensed source selection, so their raw paths remain documented in `DATA_LAYOUT.md`.
+`download-external --source all --dry-run` lists configured public metadata downloads. DOAJ uses the public journal CSV at `https://doaj.org/csv`; Retraction Watch uses Crossref's public GitLab mirror. SCImago and publisher metadata are included automatically when `external.download.scimago_url_template` and `external.download.publisher_url` are set in the config. Web of Science and Norwegian Publication Indicator snapshots still require licensed/manual source selection, so their raw paths remain documented in `DATA_LAYOUT.md`.
 
 Parse XML:
 
@@ -178,6 +177,7 @@ Submit individual stages:
 
 ```bash
 pubdelays-pipeline slurm submit download --source baseline
+pubdelays-pipeline slurm submit download-external --external-source all
 pubdelays-pipeline slurm submit external-all
 pubdelays-pipeline slurm submit parse
 pubdelays-pipeline slurm submit transform-shards --shards 64 --dependency afterok:<prepare-job-id>

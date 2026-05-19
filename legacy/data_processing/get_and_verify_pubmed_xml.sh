@@ -18,7 +18,7 @@ mkdir -p $DOWNLOAD_DIR
 START_TIME=$(date +%s)
 
 # Use wget with FTP options to download all files and log any errors
-curl -s https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/ | grep -oP '(?<=href=")[^"]*\.(gz|md5)' | xargs -n 1 -P 4 -I {} curl -o "$DOWNLOAD_DIR/{}" https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/{}
+curl -s https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/ | grep -oP '(?<=href=")[^"/]*\.(gz|md5)' | xargs -n 1 -P 4 -I {} curl -o "$DOWNLOAD_DIR/{}" https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/{}
 
 # curl -s https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/ | grep -oP '(?<=href=")[^"]*\.(gz|md5)' | xargs -n 1 -P 4 -I {} curl -o "$DOWNLOAD_DIR/{}" https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/{}
 
