@@ -2,8 +2,6 @@
 
 `pubdelays` is a reproducible PubMed/MEDLINE publication-delay pipeline. It downloads and verifies PubMed XML, preprocesses external metadata, parses XML into JSONL shards, transforms articles with Polars, and aggregates final Parquet/CSV analysis outputs.
 
-The legacy console script name `pubdelays-pipeline` is still installed as a compatibility alias, but new documentation uses `pubdelays`.
-
 ## Standard Workflow
 
 ```bash

@@ -9,7 +9,6 @@ nav:
   - Stage Contracts: STAGE_CONTRACTS.md
   - Analysis Dataset: ANALYSIS_DATASET_V1.md
   - Validation and Benchmarks: VALIDATION_AND_BENCHMARKS.md
-  - Legacy Semantics: legacy.md
 theme:
   name: readthedocs
 markdown_extensions:

@@ -181,6 +181,10 @@ def external_download_plans(
             raise RuntimeError(
                 "external.download.scimago_url_template is empty; configure a working SCImago yearly URL template"
             )
+        if "{year}" not in scimago_template:
+            raise RuntimeError(
+                "external.download.scimago_url_template must contain {year}; use a yearly mirror or file URL"
+            )
         for year in range(start_year, end_year + 1):
             plans.append(
                 ExternalDownloadPlan(

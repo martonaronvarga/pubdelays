@@ -1,13 +1,11 @@
 # Semantic Decisions
 
-This document records intentional differences between the active Python pipeline and legacy outputs.
+This document records active pipeline semantics that must remain stable across parser, transform, aggregate, and documentation changes.
 
 ## Expected Corrections
 
-- Missing `article_date` with a usable `pubdate` is retained for `publication_delay`; differential validation classifies new-only rows with `publication_date_source=pubdate` as `expected_correction`.
-- Journals ceased before the article publication year are dropped; differential validation classifies legacy-only rows marked `ceased_before_publication=true` as `expected_correction`.
-
-All other new-only or legacy-only rows are classified as `potential_migration_bug` until a narrower predicate is added and tested.
+- Missing `article_date` with a usable `pubdate` is retained for `publication_delay`.
+- Journals ceased before the article publication year are dropped.
 
 ## Article Filtering Contract
 
@@ -15,11 +13,11 @@ Transform filter counts expose every row-dropping gate in order: raw records, no
 
 Missing external metadata is not a row-dropping condition. Missing Scimago/WoS/DOAJ/NPI/Retraction Watch values remain explicit empty strings or `False` categorical flags in canonical output columns.
 
-The legacy spelling `Unpaywall Open Acess` is retained only as an accepted raw WoS category while deriving the canonical boolean `open_access`; final outputs do not expose that misspelling as a schema value.
+The raw WoS spelling `Unpaywall Open Acess` is accepted while deriving the canonical boolean `open_access`; final outputs do not expose that misspelling as a schema value.
 
 ## Subject Classification Contract
 
-The legacy scalar `asjc` and `discipline` columns remain first-category compatibility fields. The pipeline also preserves ordered, pipe-delimited `asjc_all`, `discipline_all`, and `scimago_categories` columns so multi-category journals remain analyzable from Parquet, CSV, R, and Python without row explosion.
+The scalar `asjc` and `discipline` columns remain first-category fields. The pipeline also preserves ordered, pipe-delimited `asjc_all`, `discipline_all`, and `scimago_categories` columns so multi-category journals remain analyzable from Parquet, CSV, R, and Python without row explosion.
 
 ## Intermediate Format Contract
 

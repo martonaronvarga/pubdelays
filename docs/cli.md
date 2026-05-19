@@ -1,6 +1,6 @@
 # CLI Reference
 
-The canonical command is `pubdelays`. The older `pubdelays-pipeline` entry point remains available for existing scripts.
+The canonical command is `pubdelays`.
 
 All commands accept `--config config/default.toml` before the subcommand. Relative paths in the config resolve from the repository root.
 
@@ -42,9 +42,11 @@ pubdelays external-publisher --resume
 
 ```toml
 [external.download]
-scimago_url_template = "https://example.org/scimagojr-{year}.csv"
-publisher_url = "https://example.org/publishers.csv"
+scimago_url_template = "https://metadata.example.org/scimagojr-{year}.csv"
+publisher_url = "https://metadata.example.org/publishers.csv"
 ```
+
+SCImago's interactive export URL, `https://www.scimagojr.com/journalrank.php?out=xls`, can return HTTP 403 to scripted clients and does not encode the required year. Resolve this by downloading each yearly SCImago CSV through an approved browser/session workflow into `data/raw_data/scimago/`, or mirror those yearly files on an internal HTTPS/file store and set `scimago_url_template` to that `{year}` template.
 
 ## Parse, Transform, Aggregate
 

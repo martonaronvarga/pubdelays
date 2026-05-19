@@ -233,7 +233,52 @@ summary_dir = "data/processed_data/summaries"
     assert plans[4].output_path == tmp_path / "data/raw_data/publisher_metadata/publishers.csv"
 
 
-def test_external_download_all_skips_optional_unconfigured_sources(tmp_path: Path) -> None:
+def test_scimago_download_template_must_be_yearly(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[pipeline]
+manifest = "data/manifests/pipeline.sqlite"
+parse_inputs = "data/manifests/parse_inputs.txt"
+transform_inputs = "data/manifests/transform_inputs.txt"
+[pubmed]
+xml_dir = "data/raw_data/pubmed/xmls"
+jsonl_dir = "data/temp_data/pubmed/jsonl"
+[external.raw]
+scimago_dir = "data/raw_data/scimago"
+web_of_science_csv = "data/raw_data/web_of_science/wos.csv"
+doaj_csv = "data/raw_data/directory_of_open_access_journals/doaj.csv"
+norwegian_list_csv = "data/raw_data/norwegian_publication_indicator/npi.csv"
+retraction_watch_csv = "data/raw_data/retraction_watch/retraction_watch.csv"
+publisher_csv = "data/raw_data/publisher_metadata/publishers.csv"
+[external.download]
+scimago_url_template = "https://www.scimagojr.com/journalrank.php?out=xls"
+[external.processed]
+scimago = "data/processed_data/scimago.csv"
+web_of_science = "data/processed_data/web_of_science.csv"
+doaj = "data/processed_data/doaj.csv"
+norwegian_list = "data/processed_data/norwegian_list.csv"
+retraction_watch = "data/processed_data/retraction_watch.csv"
+publisher = "data/processed_data/publisher_metadata.csv"
+pubmed_journals = "data/external/pubmed-journals.csv"
+[transform]
+article_shard_dir = "data/temp_data/article_parquet"
+article_shard_format = "parquet"
+min_received = "2013-01-01"
+default_shards = 64
+[aggregate]
+processed_parquet = "data/processed_data/processed.parquet"
+processed_csv = "data/processed_data/processed.csv"
+summary_dir = "data/processed_data/summaries"
+""".strip(),
+        encoding="utf-8",
+    )
+    config = load_config(config_path)
+
+    with pytest.raises(RuntimeError, match="must contain .*year"):
+        external_download_plans(config, source="scimago", start_year=2023, end_year=2024)
+
+
     config_path = tmp_path / "config.toml"
     config_path.write_text(
         """

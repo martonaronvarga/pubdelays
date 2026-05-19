@@ -25,6 +25,19 @@ publisher_url = ""
 
 Set `scimago_url_template` and `publisher_url` only when you have working automated URLs. Web of Science and Norwegian Publication Indicator inputs normally remain manual/licensed files in the raw-data paths documented in `DATA_LAYOUT.md`.
 
+## SCImago on HPC
+
+Do not use `https://www.scimagojr.com/journalrank.php?out=xls` as `scimago_url_template`: that interactive export can return HTTP 403 to scripted clients and it does not identify a year. Use one of these reproducible options instead:
+
+1. Download each yearly SCImago CSV through an approved browser/session workflow and place files named `scimagojr 2015.csv` through `scimagojr 2024.csv` in `data/raw_data/scimago/`.
+2. Mirror those yearly CSVs to an internal HTTPS or shared filesystem location, then set a template such as `https://metadata.example.org/scimagojr-{year}.csv` or `file:///shared/pubdelays/scimagojr-{year}.csv`.
+
+Verify the plan before submitting jobs:
+
+```bash
+uv run pubdelays --config config/hpc.toml download-external --source scimago --dry-run
+```
+
 ## Dry Runs
 
 ```bash

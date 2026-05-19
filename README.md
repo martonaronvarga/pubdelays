@@ -12,15 +12,12 @@ src/pubdelays/external/              # Polars preprocessors for Scimago, WoS, DO
 src/pubdelays/transform/articles.py  # Polars article filtering and enrichment
 src/pubdelays/aggregate.py           # Polars aggregation into processed outputs
 src/pubdelays/manifest.py            # SQLite manifest, WAL mode, process-safe append writes
-src/pubdelays/cli.py                 # pubdelays CLI (`pubdelays-pipeline` remains a compatibility alias)
+src/pubdelays/cli.py                 # pubdelays CLI
 config/default.toml                  # canonical paths and defaults
 DATA_LAYOUT.md                       # exact raw/generated data placement
 docs/STAGE_CONTRACTS.md              # stage inputs, outputs, manifests, and failure behavior
 docs/ANALYSIS_DATASET_V1.md          # final analysis schema and data dictionary
-LEGACY.md                            # semantics ported from legacy R/shell/Python
 ```
-
-Legacy execution scripts have been replaced by the CLI and documented in `LEGACY.md`.
 
 ## Install
 
@@ -120,7 +117,7 @@ pubdelays download-external --source all --resume
 pubdelays external-all --resume
 ```
 
-`download-external --source all --dry-run` lists configured public metadata downloads. DOAJ uses the public journal CSV at `https://doaj.org/csv`; Retraction Watch uses Crossref's public GitLab mirror. SCImago and publisher metadata are included automatically when `external.download.scimago_url_template` and `external.download.publisher_url` are set in the config. Web of Science and Norwegian Publication Indicator snapshots still require licensed/manual source selection, so their raw paths remain documented in `DATA_LAYOUT.md`.
+`download-external --source all --dry-run` lists configured public metadata downloads. DOAJ uses the public journal CSV at `https://doaj.org/csv`; Retraction Watch uses Crossref's public GitLab mirror. SCImago and publisher metadata are included automatically when `external.download.scimago_url_template` and `external.download.publisher_url` are set in the config. SCImago's interactive export URL can return HTTP 403 to scripted clients; use yearly local files or an internal `{year}` mirror instead. Web of Science and Norwegian Publication Indicator snapshots still require licensed/manual source selection, so their raw paths remain documented in `DATA_LAYOUT.md`.
 
 Parse XML:
 
@@ -219,9 +216,7 @@ Performance choices:
 
 ## Correctness notes
 
-The migration preserves the legacy R data-logic sequence unless documented otherwise. Two legacy defects are intentionally corrected:
+Two semantic safeguards are covered by tests:
 
 1. Missing `article_date` falls back to `pubdate` for `publication_delay`.
 2. Ceased journals are filtered against the article publication year.
-
-See `LEGACY.md` for details.

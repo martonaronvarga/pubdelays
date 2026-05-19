@@ -129,9 +129,9 @@ worker identity is present
 elapsed_seconds is nonnegative
 ```
 
-## Differential validation against legacy
+## Cross-run validation
 
-When full raw data and legacy outputs are available, compare old and new results. Exact equality is not expected because known legacy bugs are corrected.
+When full raw data are available, compare a new run against the previous accepted processed dataset and manifest summary.
 
 Required comparisons:
 
@@ -144,20 +144,9 @@ Required comparisons:
 6. join cardinalities by external source
 7. missingness by key fields
 8. distribution summaries for acceptance_delay and publication_delay
-9. rows retained only by pubdate fallback
+9. rows retained by pubdate fallback
 10. rows removed by ceased-year correction
 ```
-
-Run the lightweight differential harness:
-
-```bash
-pubdelays compare-legacy \
-  --legacy path/to/legacy_processed.csv \
-  --new data/processed_data/processed.parquet \
-  --output data/processed_data/validation/differential.csv
-```
-
-The report classifies differences as `expected_correction`, `format_or_type_difference`, or `potential_migration_bug`. See `docs/SEMANTIC_DECISIONS.md` for the narrow expected-correction predicates.
 
 Suggested row-hash check:
 

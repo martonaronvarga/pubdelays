@@ -18,7 +18,8 @@ publisher_csv = "data/raw_data/publisher_metadata/publishers.csv"
 [external.download]
 doaj_url = "https://doaj.org/csv"
 retraction_watch_url = "https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv"
-# SCImago blocks unauthenticated scripted export in some environments; set this to a working yearly URL template if your access permits it.
+# SCImago's public export endpoint can return HTTP 403 to scripted clients.
+# Use an institutional/internal mirror or file:// URL template that contains {year}.
 scimago_url_template = ""
 publisher_url = ""
 # Web of Science and Norwegian Publication Indicator snapshots require licensed/manual source selection for now.
