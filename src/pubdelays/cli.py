@@ -1756,6 +1756,8 @@ def emit_or_submit_slurm(args: argparse.Namespace, job: SlurmJob) -> list[str]:
                 err(str(exc))
                 if exc.stdout.strip():
                     err(f"sbatch stdout: {exc.stdout.strip()}")
+                err(f"failed script for {chunk_job.name}:")
+                err(script)
                 if chunk_job.array and "array" in str(exc).lower():
                     err("hint: check SLURM MaxArraySize with: scontrol show config | grep MaxArraySize")
                     err("hint: use --array-throttle N to limit concurrent array tasks")
