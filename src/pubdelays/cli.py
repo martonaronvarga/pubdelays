@@ -1694,13 +1694,21 @@ def _split_array_chunks(upper: int, max_size: int) -> list[tuple[int, int]]:
 
 
 def _split_job_array(job: SlurmJob, chunks: list[tuple[int, int]]) -> list[SlurmJob]:
-    """Create one SlurmJob per array chunk with a suffixed name."""
+    """Create one SlurmJob per array chunk with a suffixed name.
+
+    Only the first chunk inherits the original dependency so chunks of the
+    same stage run in parallel.  The caller is responsible for collecting all
+    chunk job IDs and setting up the dependency for the next stage.
+    """
     jobs: list[SlurmJob] = []
     total = len(chunks)
     width = len(str(total))
     for idx, (start, end) in enumerate(chunks, start=1):
         chunk_label = f"-chunk{idx:0{width}d}" if total > 1 else ""
         array_spec = f"{start}-{end}"
+        # Only the first chunk gets the incoming dependency; subsequent chunks
+        # run in parallel with it.
+        dep = job.dependency if idx == 1 else None
         jobs.append(
             SlurmJob(
                 name=f"{job.name}{chunk_label}",
@@ -1709,7 +1717,7 @@ def _split_job_array(job: SlurmJob, chunks: list[tuple[int, int]]) -> list[Slurm
                 log_dir=job.log_dir,
                 array=array_spec,
                 array_throttle=job.array_throttle,
-                dependency=job.dependency,
+                dependency=dep,
                 setup=job.setup,
             )
         )
