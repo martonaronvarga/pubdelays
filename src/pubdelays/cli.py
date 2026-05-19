@@ -1487,6 +1487,29 @@ def write_path_list(path: Path, paths: list[Path]) -> None:
         tmp_path.write_text("".join(f"{item}\n" for item in paths), encoding="utf-8")
 
 
+def _resolve_array_throttle(
+    args: argparse.Namespace, config: PipelineConfig, array_spec: str
+) -> int | None:
+    """Return an array throttle value (%N) from CLI args, config, or None."""
+    # CLI override takes precedence.
+    throttle = getattr(args, "array_throttle", None)
+    if throttle is not None:
+        return throttle
+    # Fall back to config-driven max_array_size.
+    max_array_size = int(config.get("slurm.max_array_size", 0) or 0)
+    if max_array_size <= 0:
+        return None
+    # Parse the upper bound from specs like "0-63" or "0-100".
+    upper = array_spec.split("-")[-1].strip()
+    try:
+        total = int(upper) + 1
+    except ValueError:
+        return None
+    if total <= max_array_size:
+        return None
+    return max_array_size
+
+
 def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dict[str, Any]]:
     config = cfg(args)
     runner = slurm_runner(args, config)
@@ -1561,12 +1584,15 @@ def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dic
             f'{shlex.join(base)} parse-one --input "$INPUT" --output-dir {shlex.quote(str(output_dir))} '
             "--format jsonl --parse-mesh-subterms --resume"
         )
+        array_spec = f"0-{max(len(paths), 1) - 1}"
+        array_throttle = _resolve_array_throttle(args, config, array_spec)
         job = SlurmJob(
             "pubdelays-parse",
             command,
             resources,
             log_dir,
-            array=f"0-{max(len(paths), 1) - 1}",
+            array=array_spec,
+            array_throttle=array_throttle,
             dependency=args.dependency,
             setup=setup,
         )
@@ -1613,12 +1639,15 @@ def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dic
             f'--output-dir {shlex.quote(str(output_dir))} --shard-index "$SLURM_ARRAY_TASK_ID" '
             f"--shards {args.shards} --format {shlex.quote(args.format)} --resume"
         )
+        array_spec = f"0-{args.shards - 1}"
+        array_throttle = _resolve_array_throttle(args, config, array_spec)
         job = SlurmJob(
             "pubdelays-transform",
             command,
             resources,
             log_dir,
-            array=f"0-{args.shards - 1}",
+            array=array_spec,
+            array_throttle=array_throttle,
             dependency=args.dependency,
             setup=repo_setup,
         )
@@ -1648,6 +1677,10 @@ def emit_or_submit_slurm(args: argparse.Namespace, job: SlurmJob) -> str:
         err(str(exc))
         if exc.stdout.strip():
             err(f"sbatch stdout: {exc.stdout.strip()}")
+        if job.array and "array" in str(exc).lower():
+            err("hint: check SLURM MaxArraySize with: scontrol show config | grep MaxArraySize")
+            err("hint: use --array-throttle N to limit concurrent array tasks")
+            err("hint: set slurm.max_array_size in config to auto-throttle")
         raise
     ok(f"submitted {job.name} job_id={job_id}")
     return job_id
@@ -2016,6 +2049,12 @@ def build_parser() -> argparse.ArgumentParser:
     slurm_submit.add_argument("--format", choices=["parquet", "tsv", "csv"], default="parquet")
     slurm_submit.add_argument("--start-year", type=int, default=2015)
     slurm_submit.add_argument("--end-year", type=int, default=2024)
+    slurm_submit.add_argument(
+        "--array-throttle",
+        type=int,
+        default=None,
+        help="max concurrent array tasks (%%N in #SBATCH --array); 0 disables",
+    )
     slurm_submit.set_defaults(func=cmd_slurm_submit)
 
     slurm_workflow = slurm_sub.add_parser(
@@ -2048,6 +2087,12 @@ def build_parser() -> argparse.ArgumentParser:
     slurm_workflow.add_argument("--limit", type=int, default=None)
     slurm_workflow.add_argument("--start-year", type=int, default=2015)
     slurm_workflow.add_argument("--end-year", type=int, default=2024)
+    slurm_workflow.add_argument(
+        "--array-throttle",
+        type=int,
+        default=None,
+        help="max concurrent array tasks (%%N in #SBATCH --array); 0 disables",
+    )
     slurm_workflow.set_defaults(func=cmd_slurm_workflow)
 
     slurm_status = slurm_sub.add_parser("status", help="inspect SLURM accounting state for a job id")

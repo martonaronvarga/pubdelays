@@ -50,6 +50,7 @@ log_dir = "logs/slurm"
 partition = ""
 account = ""
 qos = ""
+max_array_size = 100
 
 [slurm.resources.download]
 cpus_per_task = 4

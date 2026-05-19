@@ -25,6 +25,7 @@ class SlurmJob:
     resources: SlurmResources
     log_dir: Path
     array: str | None = None
+    array_throttle: int | None = None
     dependency: str | None = None
     setup: list[str] = field(default_factory=list)
 
@@ -92,7 +93,10 @@ def sbatch_directives(job: SlurmJob) -> list[str]:
     if resources.qos:
         lines.append(f"#SBATCH --qos={resources.qos}")
     if job.array:
-        lines.append(f"#SBATCH --array={job.array}")
+        array_spec = job.array
+        if job.array_throttle and job.array_throttle > 0:
+            array_spec = f"{array_spec}%{job.array_throttle}"
+        lines.append(f"#SBATCH --array={array_spec}")
     if job.dependency:
         lines.append(f"#SBATCH --dependency={job.dependency}")
     return lines
