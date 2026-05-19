@@ -1755,10 +1755,20 @@ def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dic
                 raise RuntimeError(f"No JSON/JSONL files found in {input_dir}")
             if not args.dry_run:
                 write_path_list(input_list, paths)
+        manifest_dir = config.path("pipeline.manifest").parent / "slurm" / "transform-shards"
+        setup = [
+            *repo_setup,
+            'PUBDELAYS_ARRAY_TASK_OFFSET="${PUBDELAYS_ARRAY_TASK_OFFSET:-0}"',
+            'PUBDELAYS_ARRAY_TASK_ID="$((SLURM_ARRAY_TASK_ID + PUBDELAYS_ARRAY_TASK_OFFSET))"',
+            f"PUBDELAYS_STAGE_MANIFEST_DIR={shlex.quote(str(manifest_dir))}",
+            'mkdir -p "$PUBDELAYS_STAGE_MANIFEST_DIR"',
+            'PUBDELAYS_STAGE_MANIFEST="$PUBDELAYS_STAGE_MANIFEST_DIR/${SLURM_ARRAY_JOB_ID:-local}-${PUBDELAYS_ARRAY_TASK_ID}.sqlite"',
+        ]
         command = (
             f"{shlex.join(base)} transform-shard --input-list {shlex.quote(str(input_list))} "
-            f'--output-dir {shlex.quote(str(output_dir))} --shard-index "$SLURM_ARRAY_TASK_ID" '
-            f"--shards {args.shards} --format {shlex.quote(args.format)} --resume"
+            f'--output-dir {shlex.quote(str(output_dir))} --shard-index "$PUBDELAYS_ARRAY_TASK_ID" '
+            f'--shards {args.shards} --format {shlex.quote(args.format)} '
+            '--manifest "$PUBDELAYS_STAGE_MANIFEST" --resume'
         )
         array_spec = f"0-{args.shards - 1}"
         array_throttle = _resolve_array_throttle(args, config, array_spec)
@@ -1770,7 +1780,7 @@ def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dic
             array=array_spec,
             array_throttle=array_throttle,
             dependency=args.dependency,
-            setup=repo_setup,
+            setup=setup,
         )
         return job, metadata
 
