@@ -1669,37 +1669,99 @@ def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dic
     raise ValueError(f"unsupported SLURM stage: {stage}")
 
 
-def _validate_array_size(job: SlurmJob, max_array_size: int | None) -> None:
-    """Raise RuntimeError if the array spec exceeds max_array_size."""
-    if not job.array or max_array_size is None or max_array_size <= 0:
-        return
-    # Parse upper bound from specs like "0-63" or "1-100:2".
-    range_part = job.array.split("%")[0]
+def _parse_array_upper(array_spec: str) -> int | None:
+    """Parse the upper bound from an array spec like '0-63' or '0-100:2'."""
+    range_part = array_spec.split("%")[0]
     upper_str = range_part.split("-")[-1].split(":")[0].strip()
     try:
-        upper = int(upper_str)
+        return int(upper_str)
     except ValueError:
-        return
-    total = upper + 1  # array is 0-based inclusive
-    if total > max_array_size:
-        raise RuntimeError(
-            f"array spec {job.array} has {total} tasks which exceeds "
-            f"SLURM MaxArraySize={max_array_size}. "
-            f"Either split the work into multiple smaller job arrays, "
-            f"or ask the cluster admin to increase MaxArraySize."
+        return None
+
+
+def _split_array_chunks(upper: int, max_size: int) -> list[tuple[int, int]]:
+    """Split array range 0..upper into chunks of at most max_size tasks.
+
+    Returns a list of (start, end) tuples.
+    """
+    chunks: list[tuple[int, int]] = []
+    start = 0
+    while start <= upper:
+        end = min(start + max_size - 1, upper)
+        chunks.append((start, end))
+        start = end + 1
+    return chunks
+
+
+def _split_job_array(job: SlurmJob, chunks: list[tuple[int, int]]) -> list[SlurmJob]:
+    """Create one SlurmJob per array chunk with a suffixed name."""
+    jobs: list[SlurmJob] = []
+    total = len(chunks)
+    width = len(str(total))
+    for idx, (start, end) in enumerate(chunks, start=1):
+        chunk_label = f"-chunk{idx:0{width}d}" if total > 1 else ""
+        array_spec = f"{start}-{end}"
+        jobs.append(
+            SlurmJob(
+                name=f"{job.name}{chunk_label}",
+                command=job.command,
+                resources=job.resources,
+                log_dir=job.log_dir,
+                array=array_spec,
+                array_throttle=job.array_throttle,
+                dependency=job.dependency,
+                setup=job.setup,
+            )
         )
+    return jobs
 
 
-def emit_or_submit_slurm(args: argparse.Namespace, job: SlurmJob) -> str:
+def emit_or_submit_slurm(args: argparse.Namespace, job: SlurmJob) -> list[str]:
+    """Submit a SlurmJob, splitting the array if it exceeds MaxArraySize.
+
+    Returns a list of submitted job IDs (empty list for dry-run).
+    """
+    # Determine the effective MaxArraySize.
+    raw_max = getattr(args, "config_max_array_size", None)
+    cfg_max = int(raw_max) if raw_max is not None else None
+    max_size = cfg_max if cfg_max and cfg_max > 0 else query_max_array_size()
+
+    # Check whether the array needs splitting.
+    chunks: list[tuple[int, int]] | None = None
+    if job.array and max_size and max_size > 0:
+        upper = _parse_array_upper(job.array)
+        if upper is not None and upper + 1 > max_size:
+            chunks = _split_array_chunks(upper, max_size)
+
+    if chunks is not None and len(chunks) > 1:
+        # Split into multiple job arrays.
+        split_jobs = _split_job_array(job, chunks)
+        job_ids: list[str] = []
+        for chunk_job in split_jobs:
+            script = build_sbatch_script(chunk_job)
+            if args.dry_run:
+                print(script, end="")
+                continue
+            try:
+                job_id = submit_sbatch(script)
+            except SlurmSubmissionError as exc:
+                err(str(exc))
+                if exc.stdout.strip():
+                    err(f"sbatch stdout: {exc.stdout.strip()}")
+                if chunk_job.array and "array" in str(exc).lower():
+                    err("hint: check SLURM MaxArraySize with: scontrol show config | grep MaxArraySize")
+                    err("hint: use --array-throttle N to limit concurrent array tasks")
+                    err("hint: set slurm.max_array_size in config to auto-throttle")
+                raise
+            ok(f"submitted {chunk_job.name} job_id={job_id}")
+            job_ids.append(job_id)
+        return job_ids
+
+    # Single job (no splitting needed).
     script = build_sbatch_script(job)
     if args.dry_run:
         print(script, end="")
-        return ""
-    # Validate array size against SLURM limit before submitting.
-    if job.array:
-        cfg_max = int(args.config_max_array_size) if hasattr(args, "config_max_array_size") else None
-        max_size = cfg_max if cfg_max and cfg_max > 0 else query_max_array_size()
-        _validate_array_size(job, max_size)
+        return []
     try:
         job_id = submit_sbatch(script)
     except SlurmSubmissionError as exc:
@@ -1712,7 +1774,7 @@ def emit_or_submit_slurm(args: argparse.Namespace, job: SlurmJob) -> str:
             err("hint: set slurm.max_array_size in config to auto-throttle")
         raise
     ok(f"submitted {job.name} job_id={job_id}")
-    return job_id
+    return [job_id]
 
 
 def cmd_slurm_submit(args: argparse.Namespace) -> int:
@@ -1724,10 +1786,19 @@ def cmd_slurm_submit(args: argparse.Namespace) -> int:
     if args.dry_run:
         info(f"dry-run slurm submit: {metadata}")
     try:
-        emit_or_submit_slurm(args, job)
+        job_ids = emit_or_submit_slurm(args, job)
     except SlurmSubmissionError:
         return 1
+    if job_ids:
+        info(f"submitted job ids: {', '.join(job_ids)}")
     return 0
+
+
+def _build_dependency(job_ids: list[str]) -> str | None:
+    """Build an afterok dependency string from one or more job IDs."""
+    if not job_ids:
+        return None
+    return "afterok:" + ":".join(job_ids)
 
 
 def cmd_slurm_workflow(args: argparse.Namespace) -> int:
@@ -1747,12 +1818,12 @@ def cmd_slurm_workflow(args: argparse.Namespace) -> int:
             stage_args.output_dir = args.transform_output_dir
         job, _metadata = build_slurm_job(stage_args, stage)
         try:
-            job_id = emit_or_submit_slurm(stage_args, job)
+            job_ids = emit_or_submit_slurm(stage_args, job)
         except SlurmSubmissionError:
             return 1
-        if job_id:
-            submitted[stage] = job_id
-            dependency = f"afterok:{job_id}"
+        if job_ids:
+            submitted[stage] = ", ".join(job_ids)
+            dependency = _build_dependency(job_ids)
     if submitted:
         print_kv_table(submitted)
     return 0
