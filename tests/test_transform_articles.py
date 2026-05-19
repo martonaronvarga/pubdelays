@@ -259,6 +259,45 @@ def test_ceased_journal_filter_uses_publication_year() -> None:
 
 
 
+def test_transform_reads_jsonl_with_late_non_null_nested_fields(tmp_path: Path) -> None:
+    parsed = tmp_path / "parsed.jsonl"
+    records = [
+        {
+            "title": f"No dates {index}",
+            "journal": "Example Journal",
+            "pubdate": "2020-03-01",
+            "article_date": None,
+            "history": None,
+            "publication_types": "",
+            "issn_linking": "",
+            "keywords": "",
+            "doi": "",
+            "delete": False,
+        }
+        for index in range(3)
+    ]
+    records.append(
+        {
+            "title": "Late valid record",
+            "journal": "Example Journal",
+            "pubdate": "2020-03-01",
+            "article_date": "2020-02-15",
+            "history": {"received": "2020-01-01", "accepted": "2020-02-01"},
+            "publication_types": "D016428:Journal Article",
+            "issn_linking": "0000-0001",
+            "keywords": "",
+            "doi": "10.555/LATE",
+            "delete": False,
+        }
+    )
+    parsed.write_text("\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8")
+
+    result = transform_files(parsed, tmp_path / "articles.parquet", external=ExternalInputs())
+
+    assert result.counts["raw_records"] == 4
+    assert result.counts["final_rows"] == 1
+
+
 def test_transform_retains_rows_with_missing_external_metadata(tmp_path: Path) -> None:
     parsed = tmp_path / "parsed.jsonl"
     parsed.write_text(

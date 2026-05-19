@@ -238,7 +238,7 @@ def _read_json_frames(paths: list[Path]) -> pl.DataFrame:
     frames: list[pl.DataFrame] = []
     for path in paths:
         if path.suffix == ".jsonl":
-            frames.append(pl.read_ndjson(path, infer_schema_length=10000))
+            frames.append(pl.read_ndjson(path, infer_schema_length=None))
         else:
             # Parsed legacy JSON arrays are accepted for migration, but JSONL is
             # the canonical fast/resumable format.
