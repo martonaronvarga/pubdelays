@@ -57,10 +57,6 @@ nav = [
     {"Development" = "contributing/development.md"},
     {"Testing" = "contributing/testing.md"},
     {"Documentation" = "contributing/documentation.md"}
-  ]},
-  {"Maintenance" = [
-    {"Documentation inventory" = "maintenance/documentation-inventory.md"},
-    {"Documentation plan" = "maintenance/documentation-plan.md"}
   ]}
 ]
 
