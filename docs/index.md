@@ -2,9 +2,11 @@
 
 `pubdelays` is a reproducible research pipeline for estimating publication and editorial delays from PubMed/MEDLINE records. It converts PubMed XML and journal metadata into article-level Parquet and CSV outputs with explicit schemas, stage contracts, and manifest records.
 
-The project is intended for transparent analysis rather than long-running service operation. The documentation therefore emphasizes where files live, what each stage reads and writes, and which assumptions affect the final dataset.
+The documentation emphasizes concrete files and functions: where inputs live, which functions read them, what each stage writes, and which checks protect the final dataset.
 
-![Data flow diagram](assets/data-flow.svg)
+![Detailed data flow](assets/data-flow.svg)
+
+For a more detailed source map, see [Function Flow](function-flow.md).
 
 ## Design Priorities
 
@@ -16,9 +18,9 @@ The project is intended for transparent analysis rather than long-running servic
 
 ## Control Flow
 
-The CLI resolves configuration and paths, calls a single stage function, and records the result. The stage functions perform the data work and write complete outputs atomically.
+The execution path is deliberately shallow. The parser chooses a handler, the handler resolves configuration, and the stage writes outputs and manifest records.
 
-![Control flow diagram](assets/control-flow.svg)
+![Command execution sequence](assets/control-flow.svg)
 
 ## Recommended Reading Order
 

@@ -34,9 +34,7 @@ pubdelays preflight
 
 ## 3. Review The Function Map
 
-The main command handlers resolve configuration and paths, then call parser, transformation, aggregation, validation, and manifest helpers.
-
-![Function passing map](assets/function-map.svg)
+For a source-oriented trace of the pipeline, use [Function Flow](function-flow.md). It lists the concrete functions that read inputs, transform records, and write outputs.
 
 ## 4. Run Locally
 

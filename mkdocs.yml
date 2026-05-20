@@ -9,6 +9,7 @@ nav:
   - Overview: index.md
   - Getting Started: getting-started.md
   - Workflow:
+      - Function Flow: function-flow.md
       - Data Layout: data-layout.md
       - CLI Reference: cli.md
       - Stage Contracts: STAGE_CONTRACTS.md
@@ -24,14 +25,23 @@ theme:
   logo: assets/logo.svg
   favicon: assets/favicon.svg
   icon:
-    repo: fontawesome/brands/github
+    repo: fontawesome/brands/git-alt
   palette:
-    scheme: slate
-    primary: black
-    accent: amber
+    - scheme: slate
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - scheme: default
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
   font:
     text: IBM Plex Sans
-    code: IBM Plex Mono
+    code: JetBrains Mono
   features:
     - navigation.instant
     - navigation.instant.progress
