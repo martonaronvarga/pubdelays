@@ -1422,6 +1422,7 @@ def _archive_manifest_files(path: Path, archive_dir: Path | None = None) -> list
 
 
 def cmd_manifest_check(args: argparse.Namespace) -> int:
+    """Run SQLite integrity checks and optionally archive corrupt manifest files."""
     path = manifest_path_from_args(args)
     ok_integrity, detail = _manifest_integrity(path)
     if ok_integrity:
@@ -1473,6 +1474,7 @@ def _read_manifest_rows(path: Path) -> list[ManifestRow]:
 
 
 def cmd_manifest_collect(args: argparse.Namespace) -> int:
+    """Append rows from per-task SLURM manifests into a consolidated manifest."""
     target = manifest_from_args(args)
     input_dir = Path(args.input_dir) if args.input_dir else manifest_path_from_args(args).parent / "slurm"
     files = sorted(input_dir.rglob(args.glob)) if input_dir.exists() else []
@@ -2002,6 +2004,7 @@ def _dependency_blocked_statuses(statuses: list[Any]) -> list[Any]:
 
 
 def cmd_slurm_cleanup(args: argparse.Namespace) -> int:
+    """Preview or cancel jobs blocked by failed SLURM dependencies."""
     try:
         statuses = SlurmSubmitter().status(args.job_id)
     except SlurmQueryError as exc:

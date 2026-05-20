@@ -26,6 +26,8 @@ HASH_COLUMNS = (
 
 @dataclass(frozen=True)
 class DifferentialValidationResult:
+    """Summary of a legacy-vs-current dataset comparison report."""
+
     report_path: Path
     rows: int
     categories: dict[str, int]
@@ -71,6 +73,7 @@ def _ceased_correction(row: dict[str, object]) -> bool:
 
 
 def compare_legacy_outputs(legacy_path: Path, new_path: Path, output_path: Path) -> DifferentialValidationResult:
+    """Write a row-level comparison report between legacy and active outputs."""
     legacy = _ensure_text(_read_table(legacy_path))
     new = _ensure_text(_read_table(new_path))
     legacy_rows = {_key(row): row for row in legacy.to_dicts()}

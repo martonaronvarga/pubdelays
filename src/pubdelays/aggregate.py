@@ -62,4 +62,5 @@ def aggregate_outputs(input_path: Path, output_paths: list[Path]) -> int:
 
 # Backwards-compatible name for older CLI/tests.
 def aggregate_tsvs(input_path: Path, output_csv: Path) -> int:
+    """Compatibility wrapper for older TSV-to-CSV aggregation callers."""
     return aggregate_articles(input_path, output_csv)

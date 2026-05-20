@@ -18,6 +18,8 @@ ARTICLE_SHARD_RE = re.compile(
 
 @dataclass(frozen=True)
 class ArticleShard:
+    """Parsed identity encoded in a canonical article shard filename."""
+
     path: Path
     index: int
     total: int
@@ -26,6 +28,8 @@ class ArticleShard:
 
 @dataclass(frozen=True)
 class ShardValidationResult:
+    """Completeness and schema validation result for a shard directory."""
+
     input_path: Path
     expected_shards: int
     expected_format: str | None
@@ -49,10 +53,12 @@ class ShardValidationResult:
 def expected_article_shard_path(
     output_dir: Path, shard_index: int, shards: int, fmt: str
 ) -> Path:
+    """Return the canonical output path for one transform shard."""
     return Path(output_dir) / f"articles-shard-{shard_index:05d}-of-{shards:05d}.{fmt}"
 
 
 def parse_article_shard_name(path: Path) -> ArticleShard | None:
+    """Parse a canonical article shard filename, returning ``None`` for sidecars."""
     match = ARTICLE_SHARD_RE.fullmatch(Path(path).name)
     if match is None:
         return None

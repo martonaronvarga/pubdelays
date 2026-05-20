@@ -62,6 +62,7 @@ def _summary(df: pl.DataFrame, keys: list[str]) -> pl.DataFrame:
 
 
 def derive_summary_tables(processed_path: Path, output_dir: Path) -> dict[str, Path]:
+    """Create lightweight CSV summary tables from the final processed dataset."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     df = _base_frame(processed_path)

@@ -42,6 +42,8 @@ Row = dict[str, Any]
 
 @dataclass(frozen=True)
 class ExternalInputs:
+    """Optional processed metadata inputs joined during article transformation."""
+
     scimago: Path | None = None
     web_of_science: Path | None = None
     doaj: Path | None = None
@@ -52,6 +54,8 @@ class ExternalInputs:
 
 @dataclass(frozen=True)
 class TransformResult:
+    """Paths and filter counts emitted by one transform call."""
+
     output_path: Path
     filters_path: Path | None
     counts: Mapping[str, int]
@@ -235,6 +239,7 @@ def _iter_input_paths(input_path: Path | list[Path] | tuple[Path, ...]) -> list[
 
 
 def _read_json_frames(paths: list[Path]) -> pl.DataFrame:
+    """Read parsed JSON/JSONL files while preserving late non-null field types."""
     frames: list[pl.DataFrame] = []
     for path in paths:
         if path.suffix == ".jsonl":
@@ -399,6 +404,7 @@ def transform_files(
     external: ExternalInputs | None = None,
     min_received: date = date(2013, 1, 1),
 ) -> TransformResult:
+    """Filter, enrich, and write parsed PubMed records as one article shard."""
     external = external or ExternalInputs()
     counts: Counter[str] = Counter({stage: 0 for stage in FILTER_STAGES})
     paths = _iter_input_paths(input_path)

@@ -22,6 +22,8 @@ DEFAULT_DOWNLOAD_ACCEPT = "application/gzip,application/octet-stream,text/csv,te
 
 @dataclass(frozen=True)
 class DownloadStats:
+    """Outcome for one downloaded or resumed remote file."""
+
     link: str
     output_path: str
     downloaded: bool
@@ -30,6 +32,8 @@ class DownloadStats:
 
 @dataclass(frozen=True)
 class ExternalDownloadPlan:
+    """Resolved public/configured metadata download target."""
+
     source: str
     url: str
     output_path: Path
@@ -40,11 +44,13 @@ class DownloadError(RuntimeError):
 
 
 def download_request(url: str, *, accept: str = "*/*") -> urllib.request.Request:
+    """Build a request with a project user agent and broad Accept header."""
     headers = {**DEFAULT_DOWNLOAD_HEADERS, "Accept": accept}
     return urllib.request.Request(url, headers=headers)
 
 
 def index_links(url: str) -> list[str]:
+    """Return safe PubMed archive links from an NCBI directory listing."""
     request = download_request(url, accept="text/html,*/*")
     with urllib.request.urlopen(request) as response:
         html = response.read().decode("utf-8", errors="replace")
@@ -52,6 +58,7 @@ def index_links(url: str) -> list[str]:
 
 
 def contained_download_path(output_dir: Path, link: str) -> Path:
+    """Resolve a remote href while rejecting absolute or escaping paths."""
     if Path(link).is_absolute():
         raise ValueError(f"unsafe absolute download link: {link}")
     output_root = output_dir.resolve()
@@ -72,6 +79,7 @@ def download_file(
     require_md5: bool = True,
     timeout: int = 120,
 ) -> DownloadStats:
+    """Download one file atomically, optionally resuming complete existing outputs."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if resume and complete_file(output_path):
         if not require_md5 or output_path.suffix == ".md5" or complete_download(output_path):
@@ -143,6 +151,7 @@ def complete_download(data_path: Path) -> bool:
 def external_download_plans(
     config: PipelineConfig, *, source: str, start_year: int, end_year: int
 ) -> list[ExternalDownloadPlan]:
+    """Resolve configured external metadata download URLs into concrete file targets."""
     scimago_template = str(config.get("external.download.scimago_url_template", ""))
     publisher_url = str(config.get("external.download.publisher_url", ""))
     if source == "all":

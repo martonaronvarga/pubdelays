@@ -10,6 +10,8 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class SlurmResources:
+    """Resource request fields rendered into ``#SBATCH`` directives."""
+
     cpus_per_task: int
     mem: str
     time: str
@@ -20,6 +22,8 @@ class SlurmResources:
 
 @dataclass(frozen=True)
 class SlurmJob:
+    """Scheduler script model used before dry-run printing or sbatch submission."""
+
     name: str
     command: list[str] | str
     resources: SlurmResources
@@ -73,6 +77,7 @@ def shell_join(parts: list[str]) -> str:
 
 
 def sbatch_directives(job: SlurmJob) -> list[str]:
+    """Render the scheduler header for a job without shell body commands."""
     resources = job.resources
     lines = [
         f"#SBATCH --job-name={job.name}",
@@ -103,6 +108,7 @@ def sbatch_directives(job: SlurmJob) -> list[str]:
 
 
 def build_sbatch_script(job: SlurmJob) -> str:
+    """Build the complete bash script sent to ``sbatch`` or printed in dry-runs."""
     body = [
         "#!/usr/bin/env bash",
         *sbatch_directives(job),
@@ -190,6 +196,7 @@ class SlurmSubmitter:
 
 
 def parse_sacct_status(output: str) -> list[SlurmStatus]:
+    """Parse ``sacct --parsable2`` output into typed scheduler rows."""
     statuses: list[SlurmStatus] = []
     for line in output.splitlines():
         if not line.strip():
@@ -204,7 +211,7 @@ def submit_sbatch(script: str) -> str:
 
 
 def query_max_array_size(scontrol: str = "scontrol") -> int | None:
-    """Query SLURM MaxArraySize from ``scontrol show config``.
+    """Query SLURM ``MaxArraySize`` from ``scontrol show config``.
 
     Returns ``None`` when the value cannot be determined.
     """

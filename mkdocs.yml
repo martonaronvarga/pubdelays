@@ -1,17 +1,31 @@
 site_name: pubdelays
 site_description: Reproducible PubMed/MEDLINE publication-delay pipeline
 repo_url: https://github.com/martonaronvarga/pubdelays
+repo_name: martonaronvarga/pubdelays
+strict: true
+
 nav:
   - Home: index.md
-  - CLI: cli.md
-  - HPC and SLURM: hpc-slurm.md
-  - Data Layout: data-layout.md
-  - Stage Contracts: STAGE_CONTRACTS.md
-  - Analysis Dataset: ANALYSIS_DATASET_V1.md
-  - Validation and Benchmarks: VALIDATION_AND_BENCHMARKS.md
+  - Getting Started: getting-started.md
+  - Workflow:
+      - Data Layout: data-layout.md
+      - CLI Reference: cli.md
+      - Stage Contracts: STAGE_CONTRACTS.md
+      - HPC and SLURM: hpc-slurm.md
+  - Reference:
+      - Analysis Dataset V1: ANALYSIS_DATASET_V1.md
+      - Semantic Decisions: SEMANTIC_DECISIONS.md
+      - Validation and Benchmarks: VALIDATION_AND_BENCHMARKS.md
+      - Pipeline Context: PIPELINE_CONTEXT.md
+
 theme:
   name: readthedocs
+  highlightjs: true
+
 markdown_extensions:
+  - admonition
   - toc:
       permalink: true
-  - admonition
+  - tables
+  - fenced_code
+  - def_list

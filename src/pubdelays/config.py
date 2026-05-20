@@ -17,10 +17,13 @@ class ConfigError(ValueError):
 
 @dataclass(frozen=True)
 class PipelineConfig:
+    """Loaded TOML configuration with repository-relative path resolution."""
+
     root: Path
     values: Mapping[str, Any]
 
     def get(self, dotted: str, default: Any = None) -> Any:
+        """Return a dotted config value, or ``default`` when any part is missing."""
         current: Any = self.values
         for part in dotted.split("."):
             if not isinstance(current, Mapping) or part not in current:
@@ -29,6 +32,7 @@ class PipelineConfig:
         return current
 
     def path(self, dotted: str, default: str | None = None) -> Path:
+        """Resolve a dotted config path relative to the repository root."""
         value = self.get(dotted, default)
         if value is None:
             raise KeyError(f"missing config path: {dotted}")
@@ -37,6 +41,7 @@ class PipelineConfig:
 
 
 def discover_repo_root(start: Path | None = None) -> Path:
+    """Find the nearest repository root marker above ``start`` or cwd."""
     current = (start or Path.cwd()).resolve()
     for candidate in (current, *current.parents):
         if (candidate / "pyproject.toml").exists() or (candidate / ".git").exists():
@@ -131,6 +136,7 @@ def validate_config_values(config_path: Path, values: Mapping[str, Any]) -> None
 
 
 def load_config(path: Path | str = "config/default.toml") -> PipelineConfig:
+    """Load, validate, and root-anchor a pipeline TOML config."""
     config_path = Path(path).expanduser()
     if not config_path.is_absolute():
         config_path = discover_repo_root() / config_path

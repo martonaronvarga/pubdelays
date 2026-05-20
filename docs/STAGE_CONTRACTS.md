@@ -6,7 +6,8 @@ This document is the source-of-truth contract for the active Python pipeline sta
 
 - Mutating data stages write through same-directory temporary files and atomically rename on success.
 - `--resume` skips only when the expected output exists and is non-empty.
-- Manifested stages append to `data/manifests/pipeline.sqlite` unless `--manifest` overrides it.
+- Local manifested stages append to `data/manifests/pipeline.sqlite` unless `--manifest` overrides it.
+- SLURM parse and transform array tasks use per-task manifests under `data/manifests/slurm/`; collect them after a run with `manifest collect` when a consolidated audit table is needed.
 - Manifest rows use `status` values `success`, `skipped`, or `failed` where the command currently records failures.
 - `records` means rows or records emitted by that stage; `deleted` is stage-specific and documented below.
 - `init-dirs`, `preflight`, `list-inputs`, and `manifest` are inspection or helper commands and do not append manifest rows.
@@ -80,3 +81,5 @@ stage, status, input_path, output_path, input/output bytes, input/output SHA-256
 Skipped rows include metadata explaining the skip reason. Failure rows include `error` text where the command catches the exception.
 
 `pubdelays manifest` prints recent rows. `manifest summary`, `manifest failed`, `manifest show --json`, and `manifest retry-script` provide lightweight audit and retry inspection without opening SQLite directly.
+
+`manifest check` runs SQLite integrity checks through Python, which is useful on HPC systems without the `sqlite3` command. `manifest collect` appends rows from per-task manifests into the target manifest; it is intended as a one-time post-run audit collection, not a repeatedly idempotent synchronization step.

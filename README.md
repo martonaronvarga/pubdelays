@@ -2,7 +2,14 @@
 
 Authors: Dominik Dianovics, Marton A. Varga, Miklos Bognar, Balazs Aczel
 
-This repository contains a reproducible pipeline for studying publication and editorial delays in PubMed/MEDLINE records. The active implementation is Python-first and Polars-backed for tabular work. It supports local bare-metal runs, Nix, uv, resumable atomic outputs, SQLite manifests, and opt-in SLURM job arrays.
+This repository contains a reproducible research pipeline for studying publication and editorial delays in PubMed/MEDLINE records. The active implementation is Python-first and Polars-backed for tabular work. It supports local bare-metal runs, Nix, uv, resumable atomic outputs, SQLite manifests, and opt-in SLURM job arrays.
+
+The full documentation lives in `docs/` and is built with MkDocs:
+
+```bash
+uv sync --extra docs
+uv run mkdocs serve
+```
 
 ## Active layout
 
@@ -193,7 +200,9 @@ The workflow submits parse, transform-input preparation, transform, and aggregat
 
 ## Manifest and resumability
 
-Every mutating stage writes a row to `data/manifests/pipeline.sqlite` with stage name, status, input/output paths, byte sizes, checksums when enabled, row counts, worker identity, timestamps, and error text.
+Every mutating local stage writes a row to `data/manifests/pipeline.sqlite` with stage name, status, input/output paths, byte sizes, checksums when enabled, row counts, worker identity, timestamps, and error text.
+
+SLURM parse and transform array tasks write per-task manifests under `data/manifests/slurm/` to avoid concurrent SQLite writes on shared filesystems. Use `pubdelays manifest collect --input-dir data/manifests/slurm` once after a run to build a consolidated audit manifest.
 
 Outputs are written through same-directory temporary files and atomically renamed on success. A failed task leaves the previous completed output intact.
 

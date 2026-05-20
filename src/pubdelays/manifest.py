@@ -18,6 +18,8 @@ SCHEMA_VERSION = 1
 
 @dataclass(frozen=True)
 class ManifestRow:
+    """Single audit row describing one stage attempt, output, or failure."""
+
     stage: str
     status: str
     input_path: str = ""
@@ -120,6 +122,7 @@ class Manifest:
             )
 
     def append(self, row: ManifestRow) -> None:
+        """Append one immutable manifest row to the SQLite audit table."""
         payload = asdict(row)
         metadata = payload.pop("metadata") or {}
         payload["metadata_json"] = json.dumps(
@@ -153,6 +156,7 @@ class Manifest:
             conn.execute("COMMIT")
 
     def rows(self, *, limit: int = 20, status: str | None = None) -> list[dict[str, Any]]:
+        """Return recent manifest rows, optionally filtered by status."""
         where = "WHERE status = ?" if status else ""
         params: tuple[Any, ...] = (status, limit) if status else (limit,)
         with self.connect() as conn:
@@ -176,6 +180,7 @@ class Manifest:
         return rows
 
     def summary(self) -> list[dict[str, Any]]:
+        """Summarize run counts and record totals by stage and status."""
         with self.connect() as conn:
             cur = conn.execute(
                 """

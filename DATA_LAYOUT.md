@@ -41,9 +41,11 @@ The PubMed parser reads `.xml.gz` directly. Do not gunzip the PubMed baseline un
 ```text
 data/temp_data/pubmed/jsonl/        # one parsed JSONL per PubMed XML file
 data/temp_data/article_parquet/     # transformed article shards, usually one per transform shard
-data/manifests/pipeline.sqlite      # append-only SQLite manifest; WAL mode is enabled
+data/manifests/pipeline.sqlite      # collected SQLite manifest; WAL mode is enabled
 data/manifests/parse_inputs.txt     # SLURM parse-array input list
 data/manifests/transform_inputs.txt # SLURM transform-array input list
+data/manifests/slurm/parse/*.sqlite # per-task parse manifests on HPC
+data/manifests/slurm/transform-shards/*.sqlite # per-task transform manifests on HPC
 ```
 
 See `docs/STAGE_CONTRACTS.md` for the stage-level contract that maps these paths to CLI commands, manifest rows, resume behavior, and failure behavior.
