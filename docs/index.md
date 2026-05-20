@@ -1,32 +1,51 @@
 # pubdelays
 
-`pubdelays` is a research pipeline for building a reproducible PubMed/MEDLINE publication-delay dataset. It favors legibility, explicit file contracts, and rerunnable stages over production-service complexity.
+<div class="hero-grid" markdown>
 
-The pipeline reads PubMed XML, parses it into JSONL shards, joins external journal metadata with Polars, writes article-level Parquet shards, and aggregates final analysis files:
+<div class="hero-card" markdown>
+<span class="kicker">PubMed publication delays, without the duct tape</span>
 
-```text
-PubMed XML/XML.GZ
-  -> parsed JSONL shards
-  -> transformed article Parquet shards
-  -> processed.parquet + processed.csv
-```
+`pubdelays` turns PubMed/MEDLINE XML plus journal metadata into a clean, reproducible publication-delay dataset. It is built for research work: inspectable files, boring commands, explicit schemas, and enough HPC ergonomics to survive a full baseline run.
 
-## What This Repository Optimizes For
+[Run the pipeline](getting-started.md){ .md-button .md-button--primary }
+[Inspect the schema](ANALYSIS_DATASET_V1.md){ .md-button }
+</div>
 
-- **Correctness:** semantic choices are documented and covered by fixture tests.
-- **Reproducibility:** paths and resources come from `config/default.toml`; generated data stays under `data/`.
-- **Ease of use:** local and SLURM workflows use the same CLI and stage names.
-- **Auditability:** mutating stages write manifest rows; full-corpus SLURM arrays use per-task manifests that can be collected later.
-- **Research pragmatism:** this is a batch analysis pipeline, not a long-running production service.
+<div class="quick-card" markdown>
+**Core loop**
 
-## Recommended Reading Order
+1. parse XML to JSONL
+2. normalize external metadata
+3. transform article shards
+4. aggregate CSV/Parquet
+5. keep the manifest trail
+</div>
 
-1. [Getting Started](getting-started.md) for install and the standard run.
-2. [Data Layout](data-layout.md) for where raw and generated files live.
-3. [CLI Reference](cli.md) for commands by task.
-4. [Stage Contracts](STAGE_CONTRACTS.md) for precise inputs, outputs, manifests, and resume behavior.
-5. [HPC and SLURM](hpc-slurm.md) for job arrays and manifest collection.
-6. [Analysis Dataset V1](ANALYSIS_DATASET_V1.md) for final columns.
+</div>
+
+![Data flow diagram](assets/data-flow.svg)
+
+## What Makes It Usable
+
+- **Readable stages.** Every command maps to a stage with named inputs and outputs.
+- **Reproducible paths.** Defaults live in `config/default.toml`; generated artifacts stay under `data/`.
+- **Correctness over cleverness.** Date fallbacks, ceased-journal filtering, and final columns are documented where they matter.
+- **HPC without mystery state.** SLURM arrays communicate through files and per-task manifests, not shared progress logs.
+- **Private metadata stays private.** Licensed peer-review tables can be supplied at run time with `--peer-review` and are never bundled.
+
+## Control Flow
+
+The CLI stays thin: parse arguments, resolve config, call one stage, record what happened.
+
+![Control flow diagram](assets/control-flow.svg)
+
+## Where To Go Next
+
+1. [Getting Started](getting-started.md) if you want the exact commands.
+2. [Data Layout](data-layout.md) if you need to find or move files.
+3. [CLI Reference](cli.md) when you are scripting a rerun.
+4. [HPC and SLURM](hpc-slurm.md) before submitting arrays.
+5. [Analysis Dataset V1](ANALYSIS_DATASET_V1.md) before using the final CSV.
 
 ## Build These Docs
 
@@ -35,7 +54,7 @@ uv sync --extra docs
 uv run mkdocs serve
 ```
 
-For a CI-style check:
+For a strict build:
 
 ```bash
 uv run mkdocs build --strict

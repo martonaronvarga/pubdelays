@@ -5,16 +5,16 @@ from pathlib import Path
 import polars as pl
 
 from pubdelays.cli import main
-from pubdelays.validation import compare_legacy_outputs
+from pubdelays.validation import compare_outputs
 
 
 def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
     pl.DataFrame(rows).write_csv(path)
 
 
-def test_compare_legacy_classifies_expected_corrections_and_bugs(tmp_path: Path) -> None:
-    legacy = tmp_path / "legacy.csv"
-    new = tmp_path / "new.csv"
+def test_compare_outputs_classifies_expected_corrections_and_bugs(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline.csv"
+    candidate = tmp_path / "candidate.csv"
     output = tmp_path / "report.csv"
     base = {
         "doi": "10.same",
@@ -31,15 +31,15 @@ def test_compare_legacy_classifies_expected_corrections_and_bugs(tmp_path: Path)
         "ceased_before_publication": "",
     }
     write_csv(
-        legacy,
+        baseline,
         [
             base,
             {**base, "doi": "10.ceased", "title": "Ceased", "ceased_before_publication": "true"},
-            {**base, "doi": "10.bug", "title": "Legacy only"},
+            {**base, "doi": "10.bug", "title": "Baseline only"},
         ],
     )
     write_csv(
-        new,
+        candidate,
         [
             base,
             {
@@ -52,7 +52,7 @@ def test_compare_legacy_classifies_expected_corrections_and_bugs(tmp_path: Path)
         ],
     )
 
-    result = compare_legacy_outputs(legacy, new, output)
+    result = compare_outputs(baseline, candidate, output)
     report = pl.read_csv(output, infer_schema=False)
 
     assert result.categories["expected_correction"] == 2
@@ -60,14 +60,22 @@ def test_compare_legacy_classifies_expected_corrections_and_bugs(tmp_path: Path)
     assert set(report["category"]) >= {"expected_correction", "potential_migration_bug"}
 
 
-def test_compare_legacy_cli_writes_report(tmp_path: Path) -> None:
-    legacy = tmp_path / "legacy.csv"
-    new = tmp_path / "new.csv"
+def test_compare_outputs_cli_writes_report(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline.csv"
+    candidate = tmp_path / "candidate.csv"
     output = tmp_path / "validation/report.csv"
-    write_csv(legacy, [{"doi": "10.same", "title": "Same"}])
-    write_csv(new, [{"doi": "10.same", "title": "Same"}])
+    write_csv(baseline, [{"doi": "10.same", "title": "Same"}])
+    write_csv(candidate, [{"doi": "10.same", "title": "Same"}])
 
-    code = main(["compare-legacy", "--legacy", str(legacy), "--new", str(new), "--output", str(output)])
+    code = main([
+        "compare-outputs",
+        "--baseline",
+        str(baseline),
+        "--candidate",
+        str(candidate),
+        "--output",
+        str(output),
+    ])
 
     assert code == 0
     assert output.exists()

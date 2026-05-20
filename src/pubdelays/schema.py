@@ -1,9 +1,4 @@
-"""Canonical schema constants for the publication-delay pipeline.
-
-The active schema is legacy-compatible with ``process_data.R`` and
-``aggregate.R``: column order and inclusion semantics match the old TSV files,
-while the implementation is now Python-first, resumable, and auditable.
-"""
+"""Canonical schema constants for the publication-delay analysis dataset."""
 
 from __future__ import annotations
 
@@ -36,8 +31,23 @@ FILTER_STAGES: tuple[str, ...] = (
     "final_rows",
 )
 
-# Exact legacy article TSV schema selected by process_data.R before aggregate.R
-# binds rows and writes processed.csv.
+PEER_REVIEW_COLUMNS: tuple[str, ...] = (
+    "n_review_round",
+    "n_reviews",
+    "first_review_date",
+    "last_review_date",
+    "n_reviewers",
+    "date_first_accepted",
+    "review_cycle_delay",
+    "review_finding_delay",
+    "first_decision_delay",
+    "final_decision_delay",
+    "first_review_delay",
+    "peer_review_delay",
+)
+
+# Public analysis dataset column order. Optional metadata columns are emitted as
+# empty strings when their source table is not supplied.
 CANONICAL_ARTICLE_COLUMNS: tuple[str, ...] = (
     "is_covid",
     "received",
@@ -79,6 +89,7 @@ CANONICAL_ARTICLE_COLUMNS: tuple[str, ...] = (
     "reason",
     "retraction_date",
     "is_retracted",
+    *PEER_REVIEW_COLUMNS,
 )
 
 COVID_SYNONYMS: tuple[str, ...] = (

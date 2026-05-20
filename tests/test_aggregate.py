@@ -24,7 +24,7 @@ def test_aggregation_discovers_only_article_shards_and_ignores_filter_sidecars(
 ) -> None:
     shard = tmp_path / "articles-shard-00000-of-00001.parquet"
     sidecar = tmp_path / "articles-shard-00000-of-00001.filters.csv"
-    unrelated = tmp_path / "legacy.csv"
+    unrelated = tmp_path / "notes.csv"
     write_shard(shard, "kept")
     sidecar.write_text("stage,count\nraw_records,1\n", encoding="utf-8")
     unrelated.write_text("title\nnot an article shard\n", encoding="utf-8")

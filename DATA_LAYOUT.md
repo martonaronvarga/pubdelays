@@ -32,6 +32,9 @@ data/raw_data/retraction_watch/
 
 data/raw_data/publisher_metadata/
   publishers.csv  # optional ISSN-keyed publisher enrichment
+
+private/licensed peer-review metadata may be supplied at run time with
+  --peer-review path/to/private-peer-review.csv
 ```
 
 The PubMed parser reads `.xml.gz` directly. Do not gunzip the PubMed baseline unless you have a specific storage reason. Public external metadata can be planned or downloaded with `pubdelays download-external`; configured SCImago and publisher URLs are included by `--source all`. SCImago downloads must resolve to yearly files named like the layout above. Sources that require licensed or manual access still need to be placed in the documented raw paths.

@@ -13,6 +13,7 @@ data/raw_data/directory_of_open_access_journals/   DOAJ journal CSV
 data/raw_data/norwegian_publication_indicator/     Norwegian Publication Indicator CSV
 data/raw_data/retraction_watch/retraction_watch.csv Retraction Watch CSV
 data/raw_data/publisher_metadata/publishers.csv    Optional publisher enrichment
+path/to/private-peer-review.csv                    Optional licensed peer-review metadata supplied with --peer-review
 ```
 
 The PubMed parser reads `.xml.gz` directly; do not decompress baseline files unless you have a storage-specific reason.

@@ -43,8 +43,8 @@ def collect_articles(input_path: Path) -> pl.DataFrame:
 def aggregate_articles(input_path: Path, output_path: Path) -> int:
     """Aggregate article shards and write one output.
 
-    This preserves the legacy ``distinct(title, .keep_all = TRUE)`` behavior,
-    but uses Polars scans and writes Parquet/CSV/TSV based on the suffix.
+    The aggregate keeps the first row per title, then writes Parquet/CSV/TSV
+    based on the output suffix.
     """
 
     df = collect_articles(Path(input_path))
@@ -60,7 +60,7 @@ def aggregate_outputs(input_path: Path, output_paths: list[Path]) -> int:
     return df.height
 
 
-# Backwards-compatible name for older CLI/tests.
+# Alias retained for tests and direct callers that still use the previous name.
 def aggregate_tsvs(input_path: Path, output_csv: Path) -> int:
-    """Compatibility wrapper for older TSV-to-CSV aggregation callers."""
+    """Wrapper for TSV-to-CSV aggregation callers."""
     return aggregate_articles(input_path, output_csv)

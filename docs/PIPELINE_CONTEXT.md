@@ -17,7 +17,7 @@ The publication date is defined as:
 publication_date = article_date if present else pubdate
 ```
 
-This is an intentional correction relative to the legacy pipeline, which dropped missing-`article_date` rows before the fallback could contribute.
+Rows with missing `article_date` but usable `pubdate` are retained when all other date checks pass.
 
 ## Data flow
 
@@ -113,23 +113,6 @@ src/pubdelays/cli.py
 
 Command-line API. Keep it thin: parse args, load config, call modules.
 
-## Legacy semantic sources
-
-Legacy files are references only:
-
-```text
-legacy/data_processing/xmls2json.py
-legacy/data_processing/process_data.R
-legacy/data_processing/scimago.R
-legacy/data_processing/wos.R
-legacy/data_processing/doaj.R
-legacy/data_processing/npi.R
-legacy/data_processing/retraction_watch.R
-legacy/data_processing/aggregate.R
-```
-
-Do not invoke these from the new pipeline.
-
 ## Important semantic choices
 
 ### Article date fallback
@@ -150,8 +133,7 @@ Use article publication year:
 keep if ceased_year is missing or ceased_year >= publication_year
 ```
 
-Do not preserve the legacy `ceased = is.numeric(ceased)` behavior.
-
+Rows are retained when the journal has no ceased year or ceased no earlier than the publication year.
 ### Join keys
 
 Normalize ISSNs before joins:
@@ -177,7 +159,7 @@ Use Parquet as the canonical analysis format. CSV exists for portability.
 4. External metadata is loaded once per PubMed file under SLURM.
 5. A worker writes partial outputs that look complete.
 6. Path defaults drift between `README.md`, `config/default.toml`, scripts, and CLI.
-7. Legacy bugs are accidentally reintroduced in the name of parity.
+7. Documented semantic decisions are changed without updating tests and docs.
 
 ## Minimal smoke sequence
 

@@ -127,7 +127,7 @@ def test_wos_preserves_asjc_identifier_text_until_classification(tmp_path: Path)
     assert data[0]["discipline"] == "social_sciences_and_humanities"
 
 
-def test_wos_discipline_boundaries_match_legacy_case_when() -> None:
+def test_wos_discipline_boundaries_match_documented_case_when() -> None:
     assert discipline_for_asjc(1000) == "multidisciplinary"
     assert discipline_for_asjc(1111) == "life_sciences"
     assert discipline_for_asjc(3207) == "social_sciences_and_humanities"
@@ -167,7 +167,7 @@ def test_scimago_preprocessor_repairs_unescaped_publisher_quotes(tmp_path: Path)
     assert data[0]["scimago_categories"] == "Medicine (miscellaneous) (Q4)"
 
 
-def test_doaj_preprocessor_matches_legacy_selected_columns(tmp_path: Path) -> None:
+def test_doaj_preprocessor_selects_expected_columns(tmp_path: Path) -> None:
     raw = tmp_path / "doaj.csv"
     raw.write_text(
         "Journal title,Journal ISSN (print version),Journal EISSN (online version),Review process,APC,APC amount,Does the journal comply to DOAJ's definition of open access?,Ignored\n"

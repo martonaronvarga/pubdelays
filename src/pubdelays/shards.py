@@ -89,7 +89,7 @@ def iter_article_paths(input_path: Path) -> list[Path]:
     """Discover article inputs without admitting transform sidecars.
 
     Directory discovery is limited to canonical transform-shard output names.
-    Explicit file inputs remain supported for compatibility, but filter sidecars
+    Explicit file inputs remain supported for direct checks, but filter sidecars
     are never returned as article data.
     """
 

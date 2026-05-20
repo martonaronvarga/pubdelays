@@ -1,4 +1,4 @@
-"""Differential validation helpers for legacy-vs-new outputs."""
+"""Differential validation helpers for comparing two processed outputs."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ HASH_COLUMNS = (
 
 @dataclass(frozen=True)
 class DifferentialValidationResult:
-    """Summary of a legacy-vs-current dataset comparison report."""
+    """Summary of a baseline-vs-candidate dataset comparison report."""
 
     report_path: Path
     rows: int
@@ -72,12 +72,12 @@ def _ceased_correction(row: dict[str, object]) -> bool:
     return str(row.get("ceased_before_publication", "")).lower() in {"1", "true", "yes"}
 
 
-def compare_legacy_outputs(legacy_path: Path, new_path: Path, output_path: Path) -> DifferentialValidationResult:
-    """Write a row-level comparison report between legacy and active outputs."""
-    legacy = _ensure_text(_read_table(legacy_path))
-    new = _ensure_text(_read_table(new_path))
-    legacy_rows = {_key(row): row for row in legacy.to_dicts()}
-    new_rows = {_key(row): row for row in new.to_dicts()}
+def compare_outputs(baseline_path: Path, candidate_path: Path, output_path: Path) -> DifferentialValidationResult:
+    """Write a row-level comparison report between two processed outputs."""
+    baseline = _ensure_text(_read_table(baseline_path))
+    candidate = _ensure_text(_read_table(candidate_path))
+    baseline_rows = {_key(row): row for row in baseline.to_dicts()}
+    candidate_rows = {_key(row): row for row in candidate.to_dicts()}
     records: list[dict[str, str]] = []
 
     categories = {
@@ -86,25 +86,25 @@ def compare_legacy_outputs(legacy_path: Path, new_path: Path, output_path: Path)
         "potential_migration_bug": 0,
     }
 
-    if legacy.columns != new.columns:
+    if baseline.columns != candidate.columns:
         records.append(
             {
                 "category": "format_or_type_difference",
                 "key": "columns",
-                "detail": f"legacy={legacy.columns}; new={new.columns}",
+                "detail": f"baseline={baseline.columns}; candidate={candidate.columns}",
             }
         )
         categories["format_or_type_difference"] += 1
 
-    for key in sorted(set(legacy_rows) | set(new_rows)):
-        old = legacy_rows.get(key)
-        new_row = new_rows.get(key)
+    for key in sorted(set(baseline_rows) | set(candidate_rows)):
+        old = baseline_rows.get(key)
+        new_row = candidate_rows.get(key)
         if old is None and new_row is not None:
             category = "expected_correction" if _pubdate_correction(new_row) else "potential_migration_bug"
-            detail = "new-only row"
+            detail = "candidate-only row"
         elif new_row is None and old is not None:
             category = "expected_correction" if _ceased_correction(old) else "potential_migration_bug"
-            detail = "legacy-only row"
+            detail = "baseline-only row"
         elif old is not None and new_row is not None and _row_hash(old) != _row_hash(new_row):
             category = "format_or_type_difference"
             detail = "matched row hash differs"

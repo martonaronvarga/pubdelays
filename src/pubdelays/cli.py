@@ -78,7 +78,7 @@ from pubdelays.slurm import (
 from pubdelays.summaries import derive_summary_tables
 from pubdelays.transform import ExternalInputs, transform_files
 from pubdelays.ui import err, info, ok, print_kv_table, section, warn
-from pubdelays.validation import compare_legacy_outputs
+from pubdelays.validation import compare_outputs
 
 PUBMED_BASE_URLS = {
     "baseline": "https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/",
@@ -683,6 +683,7 @@ def external_inputs_from_args(args: argparse.Namespace) -> ExternalInputs:
         or config.path("external.processed.retraction_watch"),
         publisher=_optional_path(getattr(args, "publisher", None))
         or config.path("external.processed.publisher"),
+        peer_review=_optional_path(getattr(args, "peer_review", None)),
     )
 
 
@@ -1498,9 +1499,9 @@ def cmd_manifest_collect(args: argparse.Namespace) -> int:
     return 1 if corrupt else 0
 
 
-def cmd_compare_legacy(args: argparse.Namespace) -> int:
+def cmd_compare_outputs(args: argparse.Namespace) -> int:
     output = Path(args.output)
-    result = compare_legacy_outputs(Path(args.legacy), Path(args.new), output)
+    result = compare_outputs(Path(args.baseline), Path(args.candidate), output)
     ok(f"wrote differential validation report to {result.report_path}")
     print_kv_table({"differences": result.rows, **result.categories})
     return 0
@@ -2075,6 +2076,7 @@ def add_external_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--norwegian-list", default=None)
     parser.add_argument("--retraction-watch", default=None)
     parser.add_argument("--publisher", default=None)
+    parser.add_argument("--peer-review", default=None, help="optional licensed peer-review metadata table")
     parser.add_argument("--min-received", default=None)
     add_common_stage_args(parser)
 
@@ -2137,7 +2139,7 @@ def build_parser() -> argparse.ArgumentParser:
     transform_one.set_defaults(func=cmd_transform_one)
 
     transform = subparsers.add_parser(
-        "transform", help="compatibility mode: one transform output per input file"
+        "transform", help="one transform output per input file"
     )
     transform.add_argument("--input", default=None)
     transform.add_argument("--output-dir", default=None)
@@ -2201,11 +2203,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_common_stage_args(aggregate_all)
     aggregate_all.set_defaults(func=cmd_aggregate_all)
 
-    compare_legacy = subparsers.add_parser("compare-legacy", help="compare legacy and new processed outputs")
-    compare_legacy.add_argument("--legacy", required=True)
-    compare_legacy.add_argument("--new", required=True)
-    compare_legacy.add_argument("--output", default="data/processed_data/validation/differential.csv")
-    compare_legacy.set_defaults(func=cmd_compare_legacy)
+    compare_outputs_p = subparsers.add_parser("compare-outputs", help="compare two processed outputs")
+    compare_outputs_p.add_argument("--baseline", required=True)
+    compare_outputs_p.add_argument("--candidate", required=True)
+    compare_outputs_p.add_argument("--output", default="data/processed_data/validation/differential.csv")
+    compare_outputs_p.set_defaults(func=cmd_compare_outputs)
 
     schema_cmd = subparsers.add_parser("schema", help="print or validate the analysis_dataset_v1 schema")
     schema_cmd.add_argument("--input", default=None)
@@ -2246,9 +2248,9 @@ def build_parser() -> argparse.ArgumentParser:
     download_external.set_defaults(func=cmd_download_external)
 
     external_all = subparsers.add_parser("external-all", help="preprocess all local external metadata inputs")
-    external_all.add_argument("--input-dir", default=None)  # accepted for dispatch compatibility; ignored
-    external_all.add_argument("--input", default=None)  # accepted for dispatch compatibility; ignored
-    external_all.add_argument("--output", default=None)  # accepted for dispatch compatibility; ignored
+    external_all.add_argument("--input-dir", default=None)  # accepted for common stage dispatch; ignored
+    external_all.add_argument("--input", default=None)  # accepted for common stage dispatch; ignored
+    external_all.add_argument("--output", default=None)  # accepted for common stage dispatch; ignored
     external_all.add_argument("--publisher-input", default=None)
     external_all.add_argument("--publisher-output", default=None)
     external_all.add_argument("--start-year", type=int, default=2015)

@@ -19,6 +19,10 @@ The raw WoS spelling `Unpaywall Open Acess` is accepted while deriving the canon
 
 The scalar `asjc` and `discipline` columns remain first-category fields. The pipeline also preserves ordered, pipe-delimited `asjc_all`, `discipline_all`, and `scimago_categories` columns so multi-category journals remain analyzable from Parquet, CSV, R, and Python without row explosion.
 
+## Optional Peer-Review Metadata
+
+Peer-review metadata is not bundled with the repository because it may be licensed or private. Transform commands accept `--peer-review path/to/table.csv`; the table is joined by `doi`, `pmid`, or `title` when those keys are available. When no table is supplied, the public peer-review columns remain present but empty.
+
 ## Intermediate Format Contract
 
 Parser output remains JSONL by default. JSONL is append-free, line-oriented, streaming-friendly, human-auditable, and cheap to regenerate into normalized article shards. The parser also supports JSON only for small fixtures or interoperability; it is not the full-corpus default because it materializes records in one array.

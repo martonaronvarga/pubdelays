@@ -33,6 +33,7 @@ from pubdelays.schema import (
     COVID_SYNONYMS,
     FILTER_STAGES,
     MEGAJOURNAL_ISSNS,
+    PEER_REVIEW_COLUMNS,
     REQUIRED_PARSED_FIELDS,
 )
 
@@ -50,6 +51,7 @@ class ExternalInputs:
     norwegian_list: Path | None = None
     retraction_watch: Path | None = None
     publisher: Path | None = None
+    peer_review: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -245,8 +247,8 @@ def _read_json_frames(paths: list[Path]) -> pl.DataFrame:
         if path.suffix == ".jsonl":
             frames.append(pl.read_ndjson(path, infer_schema_length=None))
         else:
-            # Parsed legacy JSON arrays are accepted for migration, but JSONL is
-            # the canonical fast/resumable format.
+            # JSON arrays are accepted for small fixtures or interoperability,
+            # but JSONL is the canonical fast/resumable format.
             with Path(path).open("r", encoding="utf-8") as handle:
                 data = json.load(handle)
             if isinstance(data, dict):
@@ -294,6 +296,18 @@ def _left_join_external(df: pl.DataFrame, path: Path | None) -> pl.DataFrame:
     if right.is_empty() or "issn_linking" not in right.columns:
         return df
     return df.join(right, on="issn_linking", how="left", coalesce=True)
+
+
+def _left_join_peer_review(df: pl.DataFrame, path: Path | None) -> pl.DataFrame:
+    right = _load_external(path)
+    if right.is_empty():
+        return df
+    for key in ("doi", "pmid", "title"):
+        if key in df.columns and key in right.columns:
+            if key == "doi":
+                right = right.with_columns(doi_expr(pl.col("doi")).alias("doi"))
+            return df.join(right.unique(subset=[key], keep="first", maintain_order=True), on=key, how="left", coalesce=True)
+    return df
 
 
 def _load_retractions(path: Path | None) -> pl.DataFrame:
@@ -526,6 +540,7 @@ def transform_files(
         external.publisher,
     ]:
         df = _left_join_external(df, path)
+    df = _left_join_peer_review(df, external.peer_review)
     counts["after_external_joins"] = df.height
 
     # If NPI metadata is absent, keep local smoke tests usable.  Real full runs
@@ -575,6 +590,7 @@ def transform_files(
         "open_access_status",
         "npi_open_access",
         "does_the_journal_comply_to_doaj_s_definition_of_open_access",
+        *PEER_REVIEW_COLUMNS,
     ]:
         if col not in df.columns:
             df = df.with_columns(pl.lit(None).cast(pl.Utf8).alias(col))

@@ -4,7 +4,7 @@
 
 All exported columns are stored as strings for CSV/Parquet interoperability. Boolean flags use the string values `True` and `False`; missing text, dates, and unavailable numeric metadata use the empty string. Delay columns are integer day counts encoded as strings.
 
-Schema changes require a version bump or an explicit migration note in `docs/SEMANTIC_DECISIONS.md` and tests that update `CANONICAL_ARTICLE_COLUMNS` deliberately.
+Schema changes require a version bump or an explicit decision note in `docs/SEMANTIC_DECISIONS.md` and tests that update `CANONICAL_ARTICLE_COLUMNS` deliberately.
 
 | Column | Group | Meaning | Units / values |
 | --- | --- | --- | --- |
@@ -48,6 +48,18 @@ Schema changes require a version bump or an explicit migration note in `docs/SEM
 | `reason` | retractions | Retraction Watch reason. | text |
 | `retraction_date` | retractions | Retraction date. | ISO date or source date |
 | `is_retracted` | retractions | Retraction evidence exists. | `True`/`False` |
+| `n_review_round` | optional peer review | Review round count from a licensed/private peer-review metadata table. | integer string or empty |
+| `n_reviews` | optional peer review | Review count from the optional peer-review table. | integer string or empty |
+| `first_review_date` | optional peer review | First review date from the optional peer-review table. | ISO date or empty |
+| `last_review_date` | optional peer review | Last review date from the optional peer-review table. | ISO date or empty |
+| `n_reviewers` | optional peer review | Reviewer count from the optional peer-review table. | integer string or empty |
+| `date_first_accepted` | optional peer review | First accepted date from the optional peer-review table. | ISO date or empty |
+| `review_cycle_delay` | optional peer review | Review-cycle delay from the optional peer-review table. | days or empty |
+| `review_finding_delay` | optional peer review | Review-finding delay from the optional peer-review table. | days or empty |
+| `first_decision_delay` | optional peer review | First-decision delay from the optional peer-review table. | days or empty |
+| `final_decision_delay` | optional peer review | Final-decision delay from the optional peer-review table. | days or empty |
+| `first_review_delay` | optional peer review | First-review delay from the optional peer-review table. | days or empty |
+| `peer_review_delay` | optional peer review | Total peer-review delay from the optional peer-review table. | days or empty |
 
 Validate a produced dataset with:
 

@@ -143,6 +143,27 @@ def test_transform_files_counts_filters_and_enriches_schema(tmp_path: Path) -> N
             }
         ],
     )
+    peer_review = tmp_path / "peer_review.csv"
+    write_csv(
+        peer_review,
+        [
+            {
+                "doi": "10.1000/example",
+                "n_review_round": "2",
+                "n_reviews": "4",
+                "first_review_date": "2020-01-20",
+                "last_review_date": "2020-01-30",
+                "n_reviewers": "3",
+                "date_first_accepted": "2020-01-15",
+                "review_cycle_delay": "20",
+                "review_finding_delay": "5",
+                "first_decision_delay": "10",
+                "final_decision_delay": "25",
+                "first_review_delay": "7",
+                "peer_review_delay": "31",
+            }
+        ],
+    )
 
     output = tmp_path / "articles.parquet"
     filters = tmp_path / "filters.csv"
@@ -157,6 +178,7 @@ def test_transform_files_counts_filters_and_enriches_schema(tmp_path: Path) -> N
             norwegian_list=npi,
             retraction_watch=retractions,
             publisher=publisher,
+            peer_review=peer_review,
         ),
     )
 
@@ -179,6 +201,8 @@ def test_transform_files_counts_filters_and_enriches_schema(tmp_path: Path) -> N
     assert row["publisher"] == "Example Publisher"
     assert row["publisher_group"] == "Example Group"
     assert row["publisher_conflict"] == "False"
+    assert row["n_review_round"] == "2"
+    assert row["peer_review_delay"] == "31"
     assert row["npi_year"] == "1"
     assert row["open_access"] == "True"
     assert {r["stage"] for r in pl.read_csv(filters).to_dicts()} >= {
