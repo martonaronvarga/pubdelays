@@ -4,10 +4,12 @@ Authors: Dominik Dianovics, Marton A. Varga, Miklos Bognar, Balazs Aczel
 
 This repository contains a reproducible research pipeline for studying publication and editorial delays in PubMed/MEDLINE records. The active implementation is Python-first and Polars-backed for tabular work. It supports local bare-metal runs, Nix, uv, resumable atomic outputs, SQLite manifests, and opt-in SLURM job arrays.
 
-The full documentation lives in `docs/` and is built with Zensical:
+Read the published documentation first: https://martonaronvarga.github.io/pubdelays/
+
+The source for that site lives in `docs/` and is built with Zensical:
 
 ```bash
-uv sync --extra dev
+uv sync --group dev
 uv run zensical serve
 ```
 
@@ -21,7 +23,7 @@ src/pubdelays/aggregate.py           # Polars aggregation into processed outputs
 src/pubdelays/manifest.py            # SQLite manifest, WAL mode, process-safe append writes
 src/pubdelays/cli.py                 # pubdelays CLI
 config/default.toml                  # canonical paths and defaults
-DATA_LAYOUT.md                       # exact raw/generated data placement
+docs/reference/file-layout.md        # exact raw/generated data placement
 docs/internals/stage-contracts.md    # stage inputs, outputs, manifests, and failure behavior
 docs/reference/schemas.md            # final analysis schema and data dictionary
 ```
@@ -52,7 +54,7 @@ Create directories:
 pubdelays init-dirs
 ```
 
-Place existing raw files as documented in `DATA_LAYOUT.md`:
+Place existing raw files as documented in `docs/reference/file-layout.md`:
 
 ```text
 data/raw_data/pubmed/xmls/*.xml.gz
@@ -124,7 +126,7 @@ pubdelays download-external --source all --resume
 pubdelays external-all --resume
 ```
 
-`download-external --source all --dry-run` lists configured public metadata downloads. DOAJ uses the public journal CSV at `https://doaj.org/csv`; Retraction Watch uses Crossref's public GitLab mirror. SCImago and publisher metadata are included automatically when `external.download.scimago_url_template` and `external.download.publisher_url` are set in the config. SCImago's interactive export URL can return HTTP 403 to scripted clients; use yearly local files or an internal `{year}` mirror instead. Web of Science and Norwegian Publication Indicator snapshots still require licensed/manual source selection, so their raw paths remain documented in `DATA_LAYOUT.md`.
+`download-external --source all --dry-run` lists configured public metadata downloads. DOAJ uses the public journal CSV at `https://doaj.org/csv`; Retraction Watch uses Crossref's public GitLab mirror. SCImago and publisher metadata are included automatically when `external.download.scimago_url_template` and `external.download.publisher_url` are set in the config. SCImago's interactive export URL can return HTTP 403 to scripted clients; use yearly local files or an internal `{year}` mirror instead. Web of Science and Norwegian Publication Indicator snapshots still require licensed/manual source selection, so their raw paths remain documented in `docs/reference/file-layout.md`.
 
 Parse XML:
 

@@ -33,8 +33,8 @@ jobs:
         with:
           enable-cache: true
       - uses: actions/configure-pages@v5
-      - run: uv sync --group dev
-      - run: uv run zensical build --strict --clean
+      - run: uv sync --locked --group dev
+      - run: uv run --locked zensical build --strict --clean
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
