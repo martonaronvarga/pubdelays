@@ -10,11 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://martonaronvarga.github.io/pubdelays/PIPELINE_CONTEXT/">
+        <link rel="canonical" href="https://martonaronvarga.github.io/pubdelays/function-flow/">
       
       
-        <link rel="prev" href="../VALIDATION_AND_BENCHMARKS/">
+        <link rel="prev" href="../getting-started/">
       
+      
+        <link rel="next" href="../data-layout/">
       
       
         
@@ -25,7 +27,7 @@
     
     
       
-        <title>Pipeline Context - pubdelays</title>
+        <title>Function Flow - pubdelays</title>
       
     
     
@@ -78,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#pipeline-context" class="md-skip">
+        <a href="#function-flow" class="md-skip">
           Skip to content
         </a>
       
@@ -111,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Pipeline Context
+              Function Flow
             
           </span>
         </div>
@@ -260,11 +262,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../function-flow/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -280,12 +284,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../ANALYSIS_DATASET_V1/" class="md-tabs__link">
           
   
@@ -400,26 +402,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -437,7 +444,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -452,10 +459,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../function-flow/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Flow
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -471,6 +505,103 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#command-dispatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command Dispatch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#parsing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parsing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#external-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        External Metadata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transformation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transformation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aggregation-and-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Aggregation And Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#slurm-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLURM Execution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#end-to-end-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        End-To-End Sequence
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -599,31 +730,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
   
@@ -641,7 +767,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -740,37 +866,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Pipeline Context
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../PIPELINE_CONTEXT/" class="md-nav__link">
         
   
   
@@ -786,153 +885,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#project-goal" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Project goal
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#data-flow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Data flow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#canonical-directories" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Canonical directories
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#active-modules" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Active modules
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#important-semantic-choices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Important semantic choices
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Important semantic choices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#article-date-fallback" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Article date fallback
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ceased-journals" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ceased journals
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#join-keys" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Join keys
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#final-data-format" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Final data format
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#common-failure-modes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Common failure modes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#minimal-smoke-sequence" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Minimal smoke sequence
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -972,10 +924,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#project-goal" class="md-nav__link">
+  <a href="#command-dispatch" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Project goal
+        Command Dispatch
       
     </span>
   </a>
@@ -983,10 +935,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#data-flow" class="md-nav__link">
+  <a href="#parsing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Data flow
+        Parsing
       
     </span>
   </a>
@@ -994,10 +946,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#canonical-directories" class="md-nav__link">
+  <a href="#external-metadata" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Canonical directories
+        External Metadata
       
     </span>
   </a>
@@ -1005,10 +957,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#active-modules" class="md-nav__link">
+  <a href="#transformation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Active modules
+        Transformation
       
     </span>
   </a>
@@ -1016,71 +968,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#important-semantic-choices" class="md-nav__link">
+  <a href="#aggregation-and-validation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Important semantic choices
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Important semantic choices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#article-date-fallback" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Article date fallback
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#ceased-journals" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ceased journals
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#join-keys" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Join keys
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#final-data-format" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Final data format
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#common-failure-modes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Common failure modes
+        Aggregation And Validation
       
     </span>
   </a>
@@ -1088,10 +979,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#minimal-smoke-sequence" class="md-nav__link">
+  <a href="#slurm-execution" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Minimal smoke sequence
+        SLURM Execution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#end-to-end-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        End-To-End Sequence
       
     </span>
   </a>
@@ -1118,113 +1020,268 @@
   
 
 
-<h1 id="pipeline-context">Pipeline Context<a class="headerlink" href="#pipeline-context" title="Permanent link">&para;</a></h1>
-<p>This document gives enough context for an in-tree coding agent to modify the PubMed/MEDLINE pipeline without rediscovering the project every session.</p>
-<h2 id="project-goal">Project goal<a class="headerlink" href="#project-goal" title="Permanent link">&para;</a></h2>
-<p>The project analyzes publication and editorial delays in PubMed/MEDLINE records. The central measurements are:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>acceptance_delay  = accepted_date - received_date
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>publication_delay = publication_date - accepted_date
-</code></pre></div>
-<p>The publication date is defined as:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>publication_date = article_date if present else pubdate
-</code></pre></div>
-<p>Rows with missing <code>article_date</code> but usable <code>pubdate</code> are retained when all other date checks pass.</p>
-<h2 id="data-flow">Data flow<a class="headerlink" href="#data-flow" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>NCBI PubMed XML/XML.GZ
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  -&gt; streaming MEDLINE parser
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  -&gt; JSONL parser shards
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  -&gt; Polars transform shards joined with external metadata
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  -&gt; Parquet article shards
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  -&gt; final processed.parquet + processed.csv
-</code></pre></div>
-<p>External metadata flow:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>raw Scimago yearly CSVs         -&gt; processed Scimago table
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>raw Web of Science categories   -&gt; processed WoS table
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>raw DOAJ CSV                    -&gt; processed DOAJ table
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>raw Norwegian Publication list  -&gt; processed NPI table
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>raw Retraction Watch CSV        -&gt; processed retraction table
-</code></pre></div>
-<h2 id="canonical-directories">Canonical directories<a class="headerlink" href="#canonical-directories" title="Permanent link">&para;</a></h2>
-<p>Raw inputs:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>data/raw_data/pubmed/xmls/
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>data/raw_data/scimago/
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>data/raw_data/web_of_science/
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>data/raw_data/directory_of_open_access_journals/
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>data/raw_data/norwegian_publication_indicator/
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>data/raw_data/retraction_watch/
-</code></pre></div>
-<p>Generated intermediates:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>data/temp_data/pubmed/jsonl/
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>data/temp_data/article_parquet/
-</code></pre></div>
-<p>Generated final outputs:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>data/processed_data/processed.parquet
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>data/processed_data/processed.csv
-</code></pre></div>
-<p>Generated manifest:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>data/manifests/pipeline.sqlite
-</code></pre></div>
-<p>These directories are runtime data locations. They are ignored by git except for <code>.gitkeep</code>/README placeholders.</p>
-<h2 id="active-modules">Active modules<a class="headerlink" href="#active-modules" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>src/pubdelays/parser/medline.py
-</code></pre></div>
-<p>Streaming parser. It must preserve low memory use and support <code>.xml</code> and <code>.xml.gz</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>src/pubdelays/external/*.py
-</code></pre></div>
-<p>Polars-native preprocessors for external journal metadata. These should not contain manual CSV parsing.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>src/pubdelays/transform/articles.py
-</code></pre></div>
-<p>Article-level filtering, enrichment, delay calculation, flags, and final schema construction.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>src/pubdelays/aggregate.py
-</code></pre></div>
-<p>Parquet shard aggregation and final output writing.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>src/pubdelays/manifest.py
-</code></pre></div>
-<p>SQLite manifest with process-safe append semantics.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>src/pubdelays/cli.py
-</code></pre></div>
-<p>Command-line API. Keep it thin: parse args, load config, call modules.</p>
-<h2 id="important-semantic-choices">Important semantic choices<a class="headerlink" href="#important-semantic-choices" title="Permanent link">&para;</a></h2>
-<h3 id="article-date-fallback">Article date fallback<a class="headerlink" href="#article-date-fallback" title="Permanent link">&para;</a></h3>
-<p>Use:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">publication_dt</span> <span class="o">=</span> <span class="n">article_dt</span> <span class="ow">or</span> <span class="n">pubdate</span>
-</code></pre></div>
-<p>Rows with missing <code>article_date</code> but valid <code>pubdate</code> should be retained when all other date logic passes.</p>
-<h3 id="ceased-journals">Ceased journals<a class="headerlink" href="#ceased-journals" title="Permanent link">&para;</a></h3>
-<p>Use article publication year:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>keep if ceased_year is missing or ceased_year &gt;= publication_year
-</code></pre></div>
-<p>Rows are retained when the journal has no ceased year or ceased no earlier than the publication year.</p>
-<h3 id="join-keys">Join keys<a class="headerlink" href="#join-keys" title="Permanent link">&para;</a></h3>
-<p>Normalize ISSNs before joins:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>remove hyphens
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>uppercase X
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>trim whitespace
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>empty string/null means missing
-</code></pre></div>
-<p>Use DOI joins for Retraction Watch after normalizing DOI case/spacing.</p>
-<h3 id="final-data-format">Final data format<a class="headerlink" href="#final-data-format" title="Permanent link">&para;</a></h3>
-<p>Use Parquet as the canonical analysis format. CSV exists for portability.</p>
-<h2 id="common-failure-modes">Common failure modes<a class="headerlink" href="#common-failure-modes" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Nix builds an old or partial package because files are untracked or source filtering is wrong.</li>
-<li>CLI imports a module that is not packaged.</li>
-<li>Generated data/caches enter the source tree.</li>
-<li>External metadata is loaded once per PubMed file under SLURM.</li>
-<li>A worker writes partial outputs that look complete.</li>
-<li>Path defaults drift between <code>README.md</code>, <code>config/default.toml</code>, scripts, and CLI.</li>
-<li>Documented semantic decisions are changed without updating tests and docs.</li>
-</ol>
-<h2 id="minimal-smoke-sequence">Minimal smoke sequence<a class="headerlink" href="#minimal-smoke-sequence" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>pubdelays<span class="w"> </span>init-dirs
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>pubdelays<span class="w"> </span>preflight
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>pubdelays<span class="w"> </span>external-all<span class="w"> </span>--resume
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>pubdelays<span class="w"> </span>parse<span class="w"> </span>--limit<span class="w"> </span><span class="m">2</span><span class="w"> </span>--jobs<span class="w"> </span><span class="m">2</span><span class="w"> </span>--format<span class="w"> </span>jsonl<span class="w"> </span>--parse-mesh-subterms<span class="w"> </span>--resume
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>pubdelays<span class="w"> </span>transform-shards<span class="w"> </span>--shards<span class="w"> </span><span class="m">2</span><span class="w"> </span>--jobs<span class="w"> </span><span class="m">2</span><span class="w"> </span>--format<span class="w"> </span>parquet<span class="w"> </span>--resume
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>pubdelays<span class="w"> </span>aggregate-all<span class="w"> </span>--resume
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>pubdelays<span class="w"> </span>manifest<span class="w"> </span>--limit<span class="w"> </span><span class="m">20</span>
-</code></pre></div>
-<p>Adjust commands depending on available raw data.</p>
+<h1 id="function-flow">Function Flow<a class="headerlink" href="#function-flow" title="Permanent link">&para;</a></h1>
+<p>This page is a source-reading map. It lists the functions that carry data between stages and the files they read or write.</p>
+<h2 id="command-dispatch">Command Dispatch<a class="headerlink" href="#command-dispatch" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>File</th>
+<th>Role</th>
+<th>Calls / returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>main()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td>Parses CLI arguments and calls the selected command handler.</td>
+<td><code>args.func(args)</code></td>
+</tr>
+<tr>
+<td><code>cfg()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td>Loads the TOML configuration used by a command.</td>
+<td><code>load_config()</code></td>
+</tr>
+<tr>
+<td><code>cfg_path()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td>Resolves CLI path overrides and config defaults.</td>
+<td>Returns <code>Path</code></td>
+</tr>
+<tr>
+<td><code>manifest_from_args()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td>Opens the manifest selected by <code>--manifest</code> or config.</td>
+<td><code>Manifest(...)</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="parsing">Parsing<a class="headerlink" href="#parsing" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cmd_parse_one()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td>One XML/XML.GZ path and output directory.</td>
+<td>One JSON or JSONL parsed shard plus a manifest row.</td>
+</tr>
+<tr>
+<td><code>parse_one()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td>One PubMed XML/XML.GZ file.</td>
+<td>Writes records atomically; returns count metadata.</td>
+</tr>
+<tr>
+<td><code>parse_medline_xml()</code></td>
+<td><code>src/pubdelays/parser/medline.py</code></td>
+<td>XML stream.</td>
+<td>Yields one parsed article dictionary at a time.</td>
+</tr>
+<tr>
+<td><code>parse_medline()</code></td>
+<td><code>src/pubdelays/parser/medline.py</code></td>
+<td>One MEDLINE citation element.</td>
+<td>Article fields used by transform.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="external-metadata">External Metadata<a class="headerlink" href="#external-metadata" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cmd_external_all()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td>Configured raw metadata paths.</td>
+<td>Normalized lookup tables in <code>data/processed_data/</code>.</td>
+</tr>
+<tr>
+<td><code>preprocess_scimago()</code></td>
+<td><code>src/pubdelays/external/scimago.py</code></td>
+<td>Yearly SCImago CSVs.</td>
+<td>ISSN/year journal metrics.</td>
+</tr>
+<tr>
+<td><code>preprocess_wos()</code></td>
+<td><code>src/pubdelays/external/wos.py</code></td>
+<td>Web of Science journal categories.</td>
+<td>ISSN-keyed discipline and ASJC fields.</td>
+</tr>
+<tr>
+<td><code>preprocess_doaj()</code></td>
+<td><code>src/pubdelays/external/doaj.py</code></td>
+<td>DOAJ journal CSV.</td>
+<td>ISSN-keyed open-access/APC fields.</td>
+</tr>
+<tr>
+<td><code>preprocess_npi()</code></td>
+<td><code>src/pubdelays/external/npi.py</code></td>
+<td>Norwegian Publication Indicator table.</td>
+<td>ISSN-keyed NPI fields.</td>
+</tr>
+<tr>
+<td><code>preprocess_retraction_watch()</code></td>
+<td><code>src/pubdelays/external/retraction_watch.py</code></td>
+<td>Retraction Watch table.</td>
+<td>DOI-keyed retraction fields.</td>
+</tr>
+<tr>
+<td><code>preprocess_publisher()</code></td>
+<td><code>src/pubdelays/external/publisher.py</code></td>
+<td>Optional publisher metadata.</td>
+<td>ISSN-keyed publisher fields.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="transformation">Transformation<a class="headerlink" href="#transformation" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cmd_transform_shard()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td><code>transform_inputs.txt</code>, shard index, shard count.</td>
+<td>One article Parquet/CSV shard plus filter counts.</td>
+</tr>
+<tr>
+<td><code>transform_files()</code></td>
+<td><code>src/pubdelays/transform/articles.py</code></td>
+<td>Parsed JSONL files and <code>ExternalInputs</code>.</td>
+<td>Canonical article shard and <code>.filters.csv</code>.</td>
+</tr>
+<tr>
+<td><code>_read_json_frames()</code></td>
+<td><code>src/pubdelays/transform/articles.py</code></td>
+<td>Parsed JSONL/JSON files.</td>
+<td>Polars DataFrame with stable inferred types.</td>
+</tr>
+<tr>
+<td><code>_left_join_external()</code></td>
+<td><code>src/pubdelays/transform/articles.py</code></td>
+<td>ISSN-keyed lookup table.</td>
+<td>Adds journal metadata.</td>
+</tr>
+<tr>
+<td><code>_left_join_peer_review()</code></td>
+<td><code>src/pubdelays/transform/articles.py</code></td>
+<td>Optional private peer-review table.</td>
+<td>Adds peer-review columns by <code>doi</code>, <code>pmid</code>, or <code>title</code>.</td>
+</tr>
+<tr>
+<td><code>select_canonical_articles()</code></td>
+<td><code>src/pubdelays/transform/articles.py</code></td>
+<td>Enriched DataFrame.</td>
+<td>Final ordered analysis columns.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="aggregation-and-validation">Aggregation And Validation<a class="headerlink" href="#aggregation-and-validation" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>File</th>
+<th>Input</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>validate_article_shards()</code></td>
+<td><code>src/pubdelays/shards.py</code></td>
+<td>Article shard directory.</td>
+<td>Completeness/schema validation result.</td>
+</tr>
+<tr>
+<td><code>iter_article_paths()</code></td>
+<td><code>src/pubdelays/shards.py</code></td>
+<td>Directory or explicit files.</td>
+<td>Canonical article shard paths only.</td>
+</tr>
+<tr>
+<td><code>aggregate_articles()</code></td>
+<td><code>src/pubdelays/aggregate.py</code></td>
+<td>Article shard directory.</td>
+<td><code>processed.parquet</code> or <code>processed.csv</code>.</td>
+</tr>
+<tr>
+<td><code>validate_analysis_dataset_schema()</code></td>
+<td><code>src/pubdelays/schema.py</code></td>
+<td>Final or shard table.</td>
+<td>Boolean schema check.</td>
+</tr>
+<tr>
+<td><code>derive_summary_tables()</code></td>
+<td><code>src/pubdelays/summaries.py</code></td>
+<td>Final processed dataset.</td>
+<td>Summary CSV tables.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="slurm-execution">SLURM Execution<a class="headerlink" href="#slurm-execution" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>build_slurm_job()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td>Builds stage-specific <code>SlurmJob</code> objects.</td>
+</tr>
+<tr>
+<td><code>_split_job_array()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td>Splits arrays while keeping scheduler task IDs below cluster limits.</td>
+</tr>
+<tr>
+<td><code>build_sbatch_script()</code></td>
+<td><code>src/pubdelays/slurm.py</code></td>
+<td>Renders the final bash script passed to <code>sbatch</code>.</td>
+</tr>
+<tr>
+<td><code>submit_sbatch()</code></td>
+<td><code>src/pubdelays/slurm.py</code></td>
+<td>Submits one rendered script.</td>
+</tr>
+<tr>
+<td><code>cmd_slurm_cleanup()</code></td>
+<td><code>src/pubdelays/cli.py</code></td>
+<td>Finds and optionally cancels dependency-blocked jobs.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="end-to-end-sequence">End-To-End Sequence<a class="headerlink" href="#end-to-end-sequence" title="Permanent link">&para;</a></h2>
+<p><img alt="Function-level execution map" src="../assets/function-map.svg" /></p>
 
 
 

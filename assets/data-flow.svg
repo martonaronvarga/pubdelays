@@ -1,22 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 360" role="img" aria-labelledby="title desc">
-  <title id="title">Data flow through the pubdelays pipeline</title>
-  <desc id="desc">PubMed XML and external metadata are parsed, normalized, transformed, and aggregated into final analysis outputs.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Data flow through named stages</title>
+  <desc id="desc">Raw XML and metadata move through named functions and stages to article shards and final outputs.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 10 5 0 10z" fill="#f6c900"/></marker>
-    <style>
-      .bg{fill:#111}.input{fill:#1d1d1d;stroke:#f6c900;stroke-width:2;rx:12}.stage{fill:#21251e;stroke:#9fd58a;stroke-width:2;rx:12}.output{fill:#24210f;stroke:#f6c900;stroke-width:2;rx:12}.title{font:700 16px sans-serif;fill:#f7f0c8}.label{font:13px sans-serif;fill:#e6e0bd}.arrow{stroke:#f6c900;stroke-width:2.4;fill:none;marker-end:url(#arrow)}
-    </style>
+    <style>.bg{fill:#111}.file{fill:#1c1c1c;stroke:#f6c900;stroke-width:2.2;rx:12}.fn{fill:#1d241d;stroke:#9fd58a;stroke-width:2.2;rx:12}.title{font:700 24px sans-serif;fill:#fff1a8}.label{font:18px sans-serif;fill:#efe8c6}.arrow{stroke:#f6c900;stroke-width:3;fill:none;marker-end:url(#arrow)}</style>
   </defs>
-  <rect class="bg" width="1080" height="360" rx="16"/>
-  <rect class="input" x="40" y="50" width="190" height="72"/><text class="title" x="62" y="82">PubMed XML</text><text class="label" x="62" y="104">raw XML/XML.GZ files</text>
-  <rect class="stage" x="290" y="50" width="190" height="72"/><text class="title" x="348" y="82">parse</text><text class="label" x="316" y="104">stream records to JSONL</text>
-  <rect class="output" x="540" y="50" width="190" height="72"/><text class="title" x="575" y="82">Parsed JSONL</text><text class="label" x="568" y="104">one shard per input file</text>
-  <rect class="input" x="40" y="205" width="190" height="72"/><text class="title" x="62" y="237">External metadata</text><text class="label" x="62" y="259">journal and article tables</text>
-  <rect class="stage" x="290" y="205" width="190" height="72"/><text class="title" x="337" y="237">external-all</text><text class="label" x="318" y="259">normalize lookup tables</text>
-  <rect class="output" x="540" y="205" width="190" height="72"/><text class="title" x="573" y="237">Lookup tables</text><text class="label" x="568" y="259">processed metadata CSVs</text>
-  <rect class="stage" x="790" y="118" width="130" height="72"/><text class="title" x="818" y="150">transform</text><text class="label" x="812" y="172">filter and join</text>
-  <rect class="output" x="950" y="118" width="90" height="72"/><text class="title" x="970" y="150">shards</text><text class="label" x="965" y="172">Parquet</text>
-  <rect class="stage" x="790" y="245" width="130" height="56"/><text class="title" x="818" y="278">aggregate</text>
-  <rect class="output" x="950" y="245" width="90" height="56"/><text class="title" x="970" y="270">final</text><text class="label" x="966" y="289">CSV/Parquet</text>
-  <path class="arrow" d="M230 86H290"/><path class="arrow" d="M480 86H540"/><path class="arrow" d="M230 241H290"/><path class="arrow" d="M480 241H540"/><path class="arrow" d="M730 86C765 86 765 142 790 150"/><path class="arrow" d="M730 241C765 241 765 170 790 164"/><path class="arrow" d="M920 154H950"/><path class="arrow" d="M995 190V245"/><path class="arrow" d="M920 273H950"/>
+  <rect class="bg" width="1200" height="360" rx="16"/>
+  <rect class="file" x="40" y="55" width="210" height="92"/><text class="title" x="72" y="92">XML files</text><text class="label" x="72" y="120">PubMed source</text>
+  <rect class="fn" x="315" y="55" width="210" height="92"/><text class="title" x="358" y="92">parse_one()</text><text class="label" x="350" y="120">stream to JSONL</text>
+  <rect class="file" x="590" y="55" width="210" height="92"/><text class="title" x="638" y="92">JSONL</text><text class="label" x="624" y="120">parsed shards</text>
+  <rect class="file" x="40" y="210" width="210" height="92"/><text class="title" x="72" y="247">Metadata</text><text class="label" x="72" y="275">journal + private</text>
+  <rect class="fn" x="315" y="210" width="210" height="92"/><text class="title" x="350" y="247">external-all</text><text class="label" x="352" y="275">normalize tables</text>
+  <rect class="file" x="590" y="210" width="210" height="92"/><text class="title" x="622" y="247">Lookups</text><text class="label" x="620" y="275">processed CSVs</text>
+  <rect class="fn" x="865" y="132" width="210" height="92"/><text class="title" x="905" y="169">transform_files()</text><text class="label" x="910" y="197">filter and join</text>
+  <rect class="file" x="930" y="265" width="210" height="64"/><text class="title" x="965" y="306">processed.csv</text>
+  <path class="arrow" d="M250 101H315"/><path class="arrow" d="M525 101H590"/><path class="arrow" d="M250 256H315"/><path class="arrow" d="M525 256H590"/><path class="arrow" d="M800 101C842 101 842 165 865 170"/><path class="arrow" d="M800 256C842 256 842 195 865 190"/><path class="arrow" d="M970 224V265"/>
 </svg>
