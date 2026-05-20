@@ -27,7 +27,7 @@
     
     
       
-        <title>Runbook - pubdelays</title>
+        <title>Getting Started - pubdelays</title>
       
     
     
@@ -69,7 +69,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="pubdelays-black" data-md-color-primary="custom" data-md-color-accent="yellow">
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="amber">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -111,7 +111,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Runbook
+              Getting Started
             
           </span>
         </div>
@@ -204,7 +204,7 @@
   
     
   
-  Start
+  Overview
 
       </a>
     </li>
@@ -225,7 +225,7 @@
   
     
   
-  Runbook
+  Getting Started
 
       </a>
     </li>
@@ -330,7 +330,7 @@
   <span class="md-ellipsis">
     
   
-    Start
+    Overview
   
 
     
@@ -366,7 +366,7 @@
   <span class="md-ellipsis">
     
   
-    Runbook
+    Getting Started
   
 
     
@@ -384,7 +384,7 @@
   <span class="md-ellipsis">
     
   
-    Runbook
+    Getting Started
   
 
     
@@ -421,10 +421,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-create-the-workspace" class="md-nav__link">
+  <a href="#2-create-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Create The Workspace
+        2. Create Directories
       
     </span>
   </a>
@@ -432,10 +432,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-understand-the-call-graph" class="md-nav__link">
+  <a href="#3-review-the-function-map" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Understand The Call Graph
+        3. Review The Function Map
       
     </span>
   </a>
@@ -465,10 +465,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-check-the-result" class="md-nav__link">
+  <a href="#6-check-outputs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Check The Result
+        6. Check Outputs
       
     </span>
   </a>
@@ -863,10 +863,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-create-the-workspace" class="md-nav__link">
+  <a href="#2-create-directories" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Create The Workspace
+        2. Create Directories
       
     </span>
   </a>
@@ -874,10 +874,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-understand-the-call-graph" class="md-nav__link">
+  <a href="#3-review-the-function-map" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Understand The Call Graph
+        3. Review The Function Map
       
     </span>
   </a>
@@ -907,10 +907,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-check-the-result" class="md-nav__link">
+  <a href="#6-check-outputs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Check The Result
+        6. Check Outputs
       
     </span>
   </a>
@@ -938,27 +938,26 @@
 
 
 <h1 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
-<p>This is the runbook I would hand to someone joining the project: install the environment, put files where the pipeline expects them, run the stages, then verify the outputs.</p>
+<p>This page gives the standard path from a clean checkout to a complete analysis dataset. The commands are shown with default paths; use <code>--config</code> when running with a site-specific configuration.</p>
 <h2 id="1-install">1. Install<a class="headerlink" href="#1-install" title="Permanent link">&para;</a></h2>
-<p>Use Nix when you can:</p>
+<p>Nix is the reference environment:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>nix<span class="w"> </span>develop
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pubdelays<span class="w"> </span>--help
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pytest<span class="w"> </span>-q
 </code></pre></div>
-<p>Use uv when you are outside the Nix shell:</p>
+<p>Without Nix, use uv:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>scripts/bootstrap_uv.sh
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>uv<span class="w"> </span>run<span class="w"> </span>pubdelays<span class="w"> </span>--help
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>uv<span class="w"> </span>run<span class="w"> </span>pytest<span class="w"> </span>-q
 </code></pre></div>
-<h2 id="2-create-the-workspace">2. Create The Workspace<a class="headerlink" href="#2-create-the-workspace" title="Permanent link">&para;</a></h2>
+<h2 id="2-create-directories">2. Create Directories<a class="headerlink" href="#2-create-directories" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pubdelays<span class="w"> </span>init-dirs
 </code></pre></div>
-<p>Put PubMed XML/XML.GZ and external metadata under the paths in <a href="../data-layout/">Data Layout</a>, then run:</p>
+<p>Place PubMed XML/XML.GZ and external metadata under the paths described in <a href="../data-layout/">Data Layout</a>, then run:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pubdelays<span class="w"> </span>preflight
 </code></pre></div>
-<p>If preflight is clean, the pipeline has enough input structure to start.</p>
-<h2 id="3-understand-the-call-graph">3. Understand The Call Graph<a class="headerlink" href="#3-understand-the-call-graph" title="Permanent link">&para;</a></h2>
-<p>The code is intentionally direct. CLI handlers resolve config and paths, then pass those values into parser, transform, aggregate, and manifest helpers.</p>
+<h2 id="3-review-the-function-map">3. Review The Function Map<a class="headerlink" href="#3-review-the-function-map" title="Permanent link">&para;</a></h2>
+<p>The main command handlers resolve configuration and paths, then call parser, transformation, aggregation, validation, and manifest helpers.</p>
 <p><img alt="Function passing map" src="../assets/function-map.svg" /></p>
 <h2 id="4-run-locally">4. Run Locally<a class="headerlink" href="#4-run-locally" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pubdelays<span class="w"> </span>download<span class="w"> </span>--source<span class="w"> </span>baseline<span class="w"> </span>--jobs<span class="w"> </span><span class="m">4</span><span class="w"> </span>--resume
@@ -972,25 +971,25 @@
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>pubdelays<span class="w"> </span>summaries<span class="w"> </span>--resume
 <a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>pubdelays<span class="w"> </span>manifest<span class="w"> </span>summary
 </code></pre></div>
-<p>Already have the raw XML and metadata? Skip the download commands. The rest of the pipeline is resume-safe: complete outputs are left alone.</p>
+<p>If raw PubMed XML and external metadata are already present, skip the download commands. Stages use complete-file checks for resume behavior.</p>
 <h2 id="5-run-on-slurm">5. Run On SLURM<a class="headerlink" href="#5-run-on-slurm" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>pubdelays<span class="w"> </span>slurm<span class="w"> </span>workflow<span class="w"> </span>--shards<span class="w"> </span><span class="m">64</span><span class="w"> </span>--max-array-size<span class="w"> </span><span class="m">1001</span>
 </code></pre></div>
-<p>The workflow submits parse, transform-input preparation, transform shards, and aggregation with <code>afterok</code> dependencies. Parse and transform arrays write per-task manifests under <code>data/manifests/slurm/</code>, which keeps SQLite away from shared-write trouble.</p>
-<p>Collect those per-task manifests once after the workflow finishes:</p>
+<p>The workflow submits parse, transform-input preparation, transform shards, and aggregation with <code>afterok</code> dependencies. Parse and transform arrays write per-task manifests under <code>data/manifests/slurm/</code>.</p>
+<p>Collect per-task manifests once after the workflow completes:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pubdelays<span class="w"> </span>manifest<span class="w"> </span>collect<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--manifest<span class="w"> </span>data/manifests/pipeline.sqlite<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--input-dir<span class="w"> </span>data/manifests/slurm
 </code></pre></div>
-<h2 id="6-check-the-result">6. Check The Result<a class="headerlink" href="#6-check-the-result" title="Permanent link">&para;</a></h2>
+<h2 id="6-check-outputs">6. Check Outputs<a class="headerlink" href="#6-check-outputs" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>data/processed_data/processed.parquet  # canonical analysis dataset
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>data/processed_data/processed.csv      # collaborator/export copy
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>data/processed_data/processed.csv      # CSV export
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>data/processed_data/summaries/         # derived summary tables
 </code></pre></div>
 <p>Validate the final schema:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pubdelays<span class="w"> </span>schema<span class="w"> </span>--input<span class="w"> </span>data/processed_data/processed.parquet
 </code></pre></div>
-<p>For a 64-shard transform, this should print <code>64</code>:</p>
+<p>For a 64-shard transform, the following should return <code>64</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>find<span class="w"> </span>data/temp_data/article_parquet<span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;*.parquet&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l
 </code></pre></div>
 

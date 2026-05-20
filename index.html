@@ -67,7 +67,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="pubdelays-black" data-md-color-primary="custom" data-md-color-accent="yellow">
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="amber">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -109,7 +109,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Start
+              Overview
             
           </span>
         </div>
@@ -204,7 +204,7 @@
   
     
   
-  Start
+  Overview
 
       </a>
     </li>
@@ -223,7 +223,7 @@
   
     
   
-  Runbook
+  Getting Started
 
       </a>
     </li>
@@ -337,7 +337,7 @@
   <span class="md-ellipsis">
     
   
-    Start
+    Overview
   
 
     
@@ -355,7 +355,7 @@
   <span class="md-ellipsis">
     
   
-    Start
+    Overview
   
 
     
@@ -381,10 +381,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-makes-it-usable" class="md-nav__link">
+  <a href="#design-priorities" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Makes It Usable
+        Design Priorities
       
     </span>
   </a>
@@ -403,10 +403,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-to-go-next" class="md-nav__link">
+  <a href="#recommended-reading-order" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where To Go Next
+        Recommended Reading Order
       
     </span>
   </a>
@@ -414,10 +414,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#build-these-docs" class="md-nav__link">
+  <a href="#build-the-documentation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Build These Docs
+        Build The Documentation
       
     </span>
   </a>
@@ -446,7 +446,7 @@
   <span class="md-ellipsis">
     
   
-    Runbook
+    Getting Started
   
 
     
@@ -828,10 +828,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-makes-it-usable" class="md-nav__link">
+  <a href="#design-priorities" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Makes It Usable
+        Design Priorities
       
     </span>
   </a>
@@ -850,10 +850,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-to-go-next" class="md-nav__link">
+  <a href="#recommended-reading-order" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where To Go Next
+        Recommended Reading Order
       
     </span>
   </a>
@@ -861,10 +861,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#build-these-docs" class="md-nav__link">
+  <a href="#build-the-documentation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Build These Docs
+        Build The Documentation
       
     </span>
   </a>
@@ -892,49 +892,34 @@
 
 
 <h1 id="pubdelays">pubdelays<a class="headerlink" href="#pubdelays" title="Permanent link">&para;</a></h1>
-<div class="hero-grid">
-<div class="hero-card">
-<p><span class="kicker">PubMed publication delays, without the duct tape</span></p>
-<p><code>pubdelays</code> turns PubMed/MEDLINE XML plus journal metadata into a clean, reproducible publication-delay dataset. It is built for research work: inspectable files, boring commands, explicit schemas, and enough HPC ergonomics to survive a full baseline run.</p>
-<p><a class="md-button md-button--primary" href="getting-started/">Run the pipeline</a>
-<a class="md-button" href="ANALYSIS_DATASET_V1/">Inspect the schema</a></p>
-</div>
-<div class="quick-card">
-<p><strong>Core loop</strong></p>
-<ol>
-<li>parse XML to JSONL</li>
-<li>normalize external metadata</li>
-<li>transform article shards</li>
-<li>aggregate CSV/Parquet</li>
-<li>keep the manifest trail</li>
-</ol>
-</div>
-</div>
+<p><code>pubdelays</code> is a reproducible research pipeline for estimating publication and editorial delays from PubMed/MEDLINE records. It converts PubMed XML and journal metadata into article-level Parquet and CSV outputs with explicit schemas, stage contracts, and manifest records.</p>
+<p>The project is intended for transparent analysis rather than long-running service operation. The documentation therefore emphasizes where files live, what each stage reads and writes, and which assumptions affect the final dataset.</p>
 <p><img alt="Data flow diagram" src="assets/data-flow.svg" /></p>
-<h2 id="what-makes-it-usable">What Makes It Usable<a class="headerlink" href="#what-makes-it-usable" title="Permanent link">&para;</a></h2>
+<h2 id="design-priorities">Design Priorities<a class="headerlink" href="#design-priorities" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Readable stages.</strong> Every command maps to a stage with named inputs and outputs.</li>
-<li><strong>Reproducible paths.</strong> Defaults live in <code>config/default.toml</code>; generated artifacts stay under <code>data/</code>.</li>
-<li><strong>Correctness over cleverness.</strong> Date fallbacks, ceased-journal filtering, and final columns are documented where they matter.</li>
-<li><strong>HPC without mystery state.</strong> SLURM arrays communicate through files and per-task manifests, not shared progress logs.</li>
-<li><strong>Private metadata stays private.</strong> Licensed peer-review tables can be supplied at run time with <code>--peer-review</code> and are never bundled.</li>
+<li><strong>Reproducibility:</strong> defaults are declared in <code>config/default.toml</code>; generated data is written under <code>data/</code>.</li>
+<li><strong>Correctness:</strong> date handling, journal-status filtering, and final columns are documented and tested with fixtures.</li>
+<li><strong>Auditability:</strong> mutating stages write manifest rows; SLURM array tasks use per-task manifests to avoid shared SQLite writes.</li>
+<li><strong>Usability:</strong> the same stage names are used locally and on SLURM.</li>
+<li><strong>Private metadata support:</strong> licensed peer-review metadata can be supplied at run time with <code>--peer-review</code> and is not included in the repository.</li>
 </ul>
 <h2 id="control-flow">Control Flow<a class="headerlink" href="#control-flow" title="Permanent link">&para;</a></h2>
-<p>The CLI stays thin: parse arguments, resolve config, call one stage, record what happened.</p>
+<p>The CLI resolves configuration and paths, calls a single stage function, and records the result. The stage functions perform the data work and write complete outputs atomically.</p>
 <p><img alt="Control flow diagram" src="assets/control-flow.svg" /></p>
-<h2 id="where-to-go-next">Where To Go Next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
+<h2 id="recommended-reading-order">Recommended Reading Order<a class="headerlink" href="#recommended-reading-order" title="Permanent link">&para;</a></h2>
 <ol>
-<li><a href="getting-started/">Getting Started</a> if you want the exact commands.</li>
-<li><a href="data-layout/">Data Layout</a> if you need to find or move files.</li>
-<li><a href="cli/">CLI Reference</a> when you are scripting a rerun.</li>
-<li><a href="hpc-slurm/">HPC and SLURM</a> before submitting arrays.</li>
-<li><a href="ANALYSIS_DATASET_V1/">Analysis Dataset V1</a> before using the final CSV.</li>
+<li><a href="getting-started/">Getting Started</a> for the standard commands.</li>
+<li><a href="data-layout/">Data Layout</a> for raw, temporary, manifest, and processed paths.</li>
+<li><a href="cli/">CLI Reference</a> for command options.</li>
+<li><a href="STAGE_CONTRACTS/">Stage Contracts</a> for stage-level inputs, outputs, and resume behavior.</li>
+<li><a href="hpc-slurm/">HPC and SLURM</a> for array jobs and manifest collection.</li>
+<li><a href="ANALYSIS_DATASET_V1/">Analysis Dataset V1</a> for final columns.</li>
 </ol>
-<h2 id="build-these-docs">Build These Docs<a class="headerlink" href="#build-these-docs" title="Permanent link">&para;</a></h2>
+<h2 id="build-the-documentation">Build The Documentation<a class="headerlink" href="#build-the-documentation" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>docs
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>serve
 </code></pre></div>
-<p>For a strict build:</p>
+<p>For a strict local build:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
 </code></pre></div>
 

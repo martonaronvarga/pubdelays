@@ -1,15 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 360" role="img" aria-labelledby="title desc">
-  <title id="title">Function passing map</title>
-  <desc id="desc">Main CLI helpers pass resolved configuration and paths to parser, external preprocessors, transform, aggregation, validation, and SLURM helpers.</desc>
-  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#335c67"/></marker><style>.m{fill:#edf6f9;stroke:#335c67;stroke-width:2;rx:10}.f{fill:#fff3b0;stroke:#9e6f00;stroke-width:2;rx:10}.t{font:600 14px sans-serif;fill:#263238}.s{font:12px sans-serif;fill:#475a60}.a{stroke:#335c67;stroke-width:1.8;fill:none;marker-end:url(#arrow)}</style></defs>
-  <rect class="m" x="30" y="135" width="150" height="75"/><text class="t" x="60" y="164">cli.main</text><text class="s" x="50" y="186">parse args, dispatch</text>
-  <rect class="m" x="235" y="40" width="165" height="62"/><text class="t" x="272" y="68">build_slurm_job</text><text class="s" x="255" y="88">script model</text>
-  <rect class="m" x="235" y="145" width="165" height="62"/><text class="t" x="260" y="173">parse / parse-one</text><text class="s" x="252" y="193">XML to JSONL</text>
-  <rect class="m" x="235" y="250" width="165" height="62"/><text class="t" x="255" y="278">external-all</text><text class="s" x="252" y="298">lookup preprocessing</text>
-  <rect class="f" x="455" y="145" width="165" height="62"/><text class="t" x="485" y="173">transform_files</text><text class="s" x="475" y="193">filters + joins</text>
-  <rect class="f" x="455" y="250" width="165" height="62"/><text class="t" x="492" y="278">ExternalInputs</text><text class="s" x="472" y="298">metadata paths</text>
-  <rect class="f" x="675" y="145" width="130" height="62"/><text class="t" x="705" y="173">aggregate</text><text class="s" x="692" y="193">shards to outputs</text>
-  <rect class="f" x="675" y="40" width="130" height="62"/><text class="t" x="704" y="68">Manifest</text><text class="s" x="696" y="88">audit rows</text>
-  <rect class="m" x="845" y="145" width="105" height="62"/><text class="t" x="868" y="173">schema</text><text class="s" x="858" y="193">validate columns</text>
-  <path class="a" d="M180 172H235"/><path class="a" d="M180 160C215 120 215 75 235 70"/><path class="a" d="M180 188C215 230 215 275 235 280"/><path class="a" d="M400 176H455"/><path class="a" d="M400 281H455"/><path class="a" d="M535 250V207"/><path class="a" d="M620 176H675"/><path class="a" d="M805 176H845"/><path class="a" d="M740 145V102"/><path class="a" d="M318 102V145"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 390" role="img" aria-labelledby="title desc">
+  <title id="title">Function-level map</title>
+  <desc id="desc">CLI helpers pass resolved configuration and paths to parsing, metadata preprocessing, transformation, aggregation, validation, and SLURM helpers.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 10 5 0 10z" fill="#f6c900"/></marker>
+    <style>.bg{fill:#111}.cli{fill:#1d1d1d;stroke:#f6c900;stroke-width:2;rx:12}.fn{fill:#21251e;stroke:#9fd58a;stroke-width:2;rx:12}.data{fill:#24210f;stroke:#f6c900;stroke-width:2;rx:12}.title{font:700 15px sans-serif;fill:#f7f0c8}.label{font:12px sans-serif;fill:#e6e0bd}.arrow{stroke:#f6c900;stroke-width:2;fill:none;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect class="bg" width="1100" height="390" rx="16"/>
+  <rect class="cli" x="45" y="158" width="170" height="72"/><text class="title" x="92" y="190">cli.main</text><text class="label" x="73" y="212">parse arguments and dispatch</text>
+  <rect class="fn" x="285" y="50" width="190" height="64"/><text class="title" x="324" y="78">build_slurm_job</text><text class="label" x="319" y="98">render scheduler scripts</text>
+  <rect class="fn" x="285" y="160" width="190" height="64"/><text class="title" x="334" y="188">parse-one</text><text class="label" x="325" y="208">XML record stream to JSONL</text>
+  <rect class="fn" x="285" y="270" width="190" height="64"/><text class="title" x="330" y="298">external-all</text><text class="label" x="316" y="318">normalize metadata tables</text>
+  <rect class="data" x="550" y="160" width="185" height="64"/><text class="title" x="590" y="188">transform_files</text><text class="label" x="582" y="208">filter, join, write shard</text>
+  <rect class="data" x="550" y="270" width="185" height="64"/><text class="title" x="590" y="298">ExternalInputs</text><text class="label" x="584" y="318">metadata file paths</text>
+  <rect class="fn" x="810" y="160" width="150" height="64"/><text class="title" x="852" y="188">aggregate</text><text class="label" x="835" y="208">shards to final outputs</text>
+  <rect class="data" x="810" y="50" width="150" height="64"/><text class="title" x="852" y="78">Manifest</text><text class="label" x="834" y="98">audit stage attempts</text>
+  <rect class="cli" x="990" y="160" width="70" height="64"/><text class="title" x="1008" y="188">schema</text><text class="label" x="1002" y="208">check</text>
+  <path class="arrow" d="M215 194H285"/><path class="arrow" d="M215 178C250 135 250 84 285 82"/><path class="arrow" d="M215 210C250 255 250 302 285 302"/><path class="arrow" d="M475 192H550"/><path class="arrow" d="M475 302H550"/><path class="arrow" d="M642 270V224"/><path class="arrow" d="M735 192H810"/><path class="arrow" d="M960 192H990"/><path class="arrow" d="M885 160V114"/><path class="arrow" d="M380 114V160"/>
 </svg>
