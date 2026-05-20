@@ -1,4 +1,10 @@
-# Stage Contracts
+---
+title: Stage contracts
+description: Command-level inputs, outputs, manifest rows, resume behavior, and failure boundaries.
+icon: octicons/tasklist-16
+---
+
+# Stage contracts
 
 This document is the source-of-truth contract for the active Python pipeline stages. Paths are repository-relative defaults from `config/default.toml`; CLI flags may override them without changing the stage semantics.
 

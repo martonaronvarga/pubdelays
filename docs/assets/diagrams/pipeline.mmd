@@ -1,0 +1,25 @@
+flowchart LR
+  pubmed["PubMed XML/XML.GZ\ndata/raw_data/pubmed/xmls"] --> parse["parse / parse-one\nsrc/pubdelays/parser/medline.py"]
+  parse --> jsonl["Parsed JSONL shards\ndata/temp_data/pubmed/jsonl"]
+
+  scimago["SCImago yearly CSVs"] --> external["external-* preprocessors\nsrc/pubdelays/external"]
+  wos["Web of Science CSV"] --> external
+  doaj["DOAJ CSV"] --> external
+  npi["NPI CSV"] --> external
+  rw["Retraction Watch CSV"] --> external
+  publisher["Optional publisher CSV"] --> external
+  external --> lookups["Processed lookup CSVs\ndata/processed_data/*.csv"]
+
+  jsonl --> transform["transform-shards\nsrc/pubdelays/transform/articles.py"]
+  lookups --> transform
+  transform --> shards["Article Parquet shards\ndata/temp_data/article_parquet"]
+  shards --> validate["validate-shards\nsrc/pubdelays/shards.py"]
+  validate --> aggregate["aggregate-all\nsrc/pubdelays/aggregate.py"]
+  aggregate --> parquet["processed.parquet"]
+  aggregate --> csv["processed.csv"]
+  parquet --> summaries["summaries\ndata/processed_data/summaries"]
+
+  parse -. append .-> manifest[("SQLite manifest")]
+  external -. append .-> manifest
+  transform -. append .-> manifest
+  aggregate -. append .-> manifest

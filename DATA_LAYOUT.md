@@ -51,7 +51,7 @@ data/manifests/slurm/parse/*.sqlite # per-task parse manifests on HPC
 data/manifests/slurm/transform-shards/*.sqlite # per-task transform manifests on HPC
 ```
 
-See `docs/STAGE_CONTRACTS.md` for the stage-level contract that maps these paths to CLI commands, manifest rows, resume behavior, and failure behavior.
+See `docs/internals/stage-contracts.md` for the stage-level contract that maps these paths to CLI commands, manifest rows, resume behavior, and failure behavior.
 
 ## Generated final outputs
 
@@ -67,4 +67,4 @@ data/processed_data/processed.csv      # collaborator/export format
 data/processed_data/summaries/         # derived analysis summary CSV tables
 ```
 
-`processed.parquet` is the canonical `analysis_dataset_v1` input documented in `docs/ANALYSIS_DATASET_V1.md`. CSV is emitted for collaborators and tools that do not read Parquet. Multi-valued subject metadata is stored as pipe-delimited text columns (`asjc_all`, `discipline_all`, `scimago_categories`) for CSV/R/Python interoperability while scalar `asjc` and `discipline` retain first-category compatibility semantics. Optional publisher metadata joins on normalized linking ISSN; missing publisher input becomes empty publisher columns in article outputs.
+`processed.parquet` is the canonical `analysis_dataset_v1` input documented in `docs/reference/schemas.md`. CSV is emitted for collaborators and tools that do not read Parquet. Multi-valued subject metadata is stored as pipe-delimited text columns (`asjc_all`, `discipline_all`, `scimago_categories`) for CSV/R/Python interoperability while scalar `asjc` and `discipline` retain first-category compatibility semantics. Optional publisher metadata joins on normalized linking ISSN; missing publisher input becomes empty publisher columns in article outputs.

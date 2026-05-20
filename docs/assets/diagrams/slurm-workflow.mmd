@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant User
+  participant CLI as pubdelays slurm workflow
+  participant SLURM as sbatch/sacct
+  participant FS as Filesystem
+  participant Manifest as Per-task manifests
+
+  User->>CLI: slurm workflow --shards 64
+  CLI->>SLURM: submit parse array
+  SLURM->>FS: write JSONL parse shards
+  SLURM->>Manifest: write parse task SQLite rows
+  CLI->>SLURM: submit prepare-transform afterok parse
+  SLURM->>FS: write transform_inputs.txt
+  CLI->>SLURM: submit transform-shards array afterok prepare
+  SLURM->>FS: write article shards
+  SLURM->>Manifest: write transform task SQLite rows
+  CLI->>SLURM: submit aggregate-all afterok transform
+  SLURM->>FS: validate shards and write processed outputs
+  User->>CLI: manifest collect --input-dir data/manifests/slurm
+  CLI->>Manifest: append task rows into pipeline.sqlite

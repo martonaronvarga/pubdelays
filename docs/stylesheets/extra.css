@@ -1,64 +1,52 @@
 :root {
-  --pd-yellow: #f6c900;
-  --pd-yellow-soft: #f4df85;
-  --pd-line: rgba(246, 201, 0, 0.28);
+  --md-primary-fg-color:        #EE0F0F;
+  --md-primary-fg-color--light: #ECB7B7;
+  --md-primary-fg-color--dark:  #90030C;
+  /* Define a maximum content width for better readability */
+  --md-max-content-width: 1440px;
 }
 
-[data-md-color-scheme="slate"] {
-  --md-hue: 48;
-  --md-typeset-a-color: var(--pd-yellow-soft);
-  --md-accent-fg-color: var(--pd-yellow);
-  --md-code-bg-color: #171717;
-  --md-code-fg-color: #f7e7a6;
+.md-main__inner {
+  max-width: var(--md-max-content-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem; /* Add some padding on smaller screens */
+  padding-right: 1.5rem; /* Add some padding on smaller screens */
 }
 
-.md-header,
-.md-tabs {
-  border-bottom: 1px solid var(--pd-line);
+.md-typeset img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.5rem auto; /* Center images and add vertical spacing */
+  border: 1px solid var(--md-default-fg-color--lighter); /* Subtle border */
+  border-radius: 0.25rem; /* Slightly rounded corners */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Very subtle shadow */
 }
 
-.md-typeset h1,
-.md-typeset h2,
-.md-typeset h3 {
-  color: #f5e9b5;
+.md-typeset h1 {
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
 }
 
 .md-typeset h2 {
-  border-bottom: 1px solid var(--pd-line);
-  padding-bottom: 0.25rem;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
 }
 
-.md-typeset a:hover {
-  color: var(--pd-yellow);
+.md-typeset h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 
-.md-typeset img[src$=".svg"] {
-  display: block;
-  width: min(100%, 56rem);
-  margin: 1.25rem auto 1.75rem;
-  border: 1px solid var(--pd-line);
-  border-radius: 0.5rem;
-  background: #111;
-}
-
-.md-typeset table:not([class]) th {
-  background: rgba(246, 201, 0, 0.12);
-  color: #f5e9b5;
+.md-typeset pre > code {
+  line-height: 1.5;
+  font-size: 0.9em;
 }
 
 .md-typeset .admonition,
 .md-typeset details {
-  border-color: var(--pd-line);
-}
-
-.md-button.md-button--primary {
-  background-color: var(--pd-yellow);
-  border-color: var(--pd-yellow);
-  color: #111;
-}
-
-.md-button.md-button--primary:hover {
-  background-color: #ffe16a;
-  border-color: #ffe16a;
-  color: #111;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-left: 0.25rem solid var(--md-admonition-icon--color); /* Zensical default for left border color */
+  border-radius: 0.25rem;
 }

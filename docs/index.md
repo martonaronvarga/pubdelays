@@ -1,45 +1,75 @@
-# pubdelays
+---
+title: pubdelays documentation
+description: Documentation for the PubMed/MEDLINE publication-delay pipeline.
+icon: octicons/database-16
+---
 
-`pubdelays` is a reproducible research pipeline for estimating publication and editorial delays from PubMed/MEDLINE records. It converts PubMed XML and journal metadata into article-level Parquet and CSV outputs with explicit schemas, stage contracts, and manifest records.
+# pubdelays documentation
 
-The documentation emphasizes concrete files and functions: where inputs live, which functions read them, what each stage writes, and which checks protect the final dataset.
+`pubdelays` is a Python package and CLI for turning PubMed/MEDLINE XML plus journal metadata into an article-level publication-delay dataset. The active code path is under `src/pubdelays/`, uses `lxml` for streaming XML parsing and Polars for tabular preprocessing, transformation, and aggregation.
 
-![Detailed data flow](assets/data-flow.svg)
+!!! note "Summary"
+    The CLI entry point is `pubdelays` in `pyproject.toml`. Default paths and stage settings are in `config/default.toml`. The public output schema is `analysis_dataset_v1` in `src/pubdelays/schema.py`.
 
-For a more detailed source map, see [Function Flow](function-flow.md).
+<div class="grid cards" markdown>
 
-## Design Priorities
+-   **Start a run**
 
-- **Reproducibility:** defaults are declared in `config/default.toml`; generated data is written under `data/`.
-- **Correctness:** date handling, journal-status filtering, and final columns are documented and tested with fixtures.
-- **Auditability:** mutating stages write manifest rows; SLURM array tasks use per-task manifests to avoid shared SQLite writes.
-- **Usability:** the same stage names are used locally and on SLURM.
-- **Private metadata support:** licensed peer-review metadata can be supplied at run time with `--peer-review` and is not included in the repository.
+    Install the environment, create expected directories, and run the default local workflow.
 
-## Control Flow
+    [Quickstart](getting-started/quickstart.md)
 
-The execution path is deliberately shallow. The parser chooses a handler, the handler resolves configuration, and the stage writes outputs and manifest records.
+-   **Pipeline semantics**
 
-![Command execution sequence](assets/control-flow.svg)
+    See how PubMed XML, external metadata, transform shards, manifests, and final outputs connect.
 
-## Recommended Reading Order
+    [Architecture](concepts/architecture.md)
 
-1. [Getting Started](getting-started.md) for the standard commands.
-2. [Data Layout](data-layout.md) for raw, temporary, manifest, and processed paths.
-3. [CLI Reference](cli.md) for command options.
-4. [Stage Contracts](STAGE_CONTRACTS.md) for stage-level inputs, outputs, and resume behavior.
-5. [HPC and SLURM](hpc-slurm.md) for array jobs and manifest collection.
-6. [Analysis Dataset V1](ANALYSIS_DATASET_V1.md) for final columns.
+-   **Use the CLI**
 
-## Build The Documentation
+    Review command families, common options, manifest helpers, and SLURM commands.
 
-```bash
-uv sync --extra docs
-uv run mkdocs serve
+    [CLI reference](reference/cli.md)
+
+-   **Inspect the data contract**
+
+    Check final columns, shard naming, file layout, and validation rules.
+
+    [Schemas](reference/schemas.md)
+
+</div>
+
+## Pipeline map
+
+```mermaid
+flowchart LR
+  pubmed["PubMed XML/XML.GZ"] --> parse["parse / parse-one"]
+  parse --> jsonl["JSONL shards"]
+  external["external-* preprocessors"] --> lookups["lookup CSVs"]
+  jsonl --> transform["transform-shards"]
+  lookups --> transform
+  transform --> shards["article shards"]
+  shards --> aggregate["aggregate-all"]
+  aggregate --> parquet["processed.parquet"]
+  aggregate --> csv["processed.csv"]
+  parse -.-> manifest[("manifest")]
+  transform -.-> manifest
+  aggregate -.-> manifest
 ```
 
-For a strict local build:
+The reusable source for the full diagram is in [assets/diagrams/pipeline.mmd](assets/diagrams/pipeline.mmd).
+
+## Recommended reading order
+
+1. [Installation](getting-started/installation.md) and [quickstart](getting-started/quickstart.md) for a reproducible local setup.
+2. [Configuration](getting-started/configuration.md) and [file layout](reference/file-layout.md) before placing raw data.
+3. [Architecture](concepts/architecture.md) and [invariants](concepts/invariants.md) before changing semantics.
+4. [Stage contracts](internals/stage-contracts.md), [validation](internals/validation.md), and [testing](contributing/testing.md) before running a full corpus or editing code.
+
+## Build this site
 
 ```bash
-uv run mkdocs build --strict
+uv sync --extra dev
+uv run zensical build
+uv run zensical serve
 ```

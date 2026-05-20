@@ -4,11 +4,11 @@ Authors: Dominik Dianovics, Marton A. Varga, Miklos Bognar, Balazs Aczel
 
 This repository contains a reproducible research pipeline for studying publication and editorial delays in PubMed/MEDLINE records. The active implementation is Python-first and Polars-backed for tabular work. It supports local bare-metal runs, Nix, uv, resumable atomic outputs, SQLite manifests, and opt-in SLURM job arrays.
 
-The full documentation lives in `docs/` and is built with MkDocs:
+The full documentation lives in `docs/` and is built with Zensical:
 
 ```bash
-uv sync --extra docs
-uv run mkdocs serve
+uv sync --extra dev
+uv run zensical serve
 ```
 
 ## Active layout
@@ -22,8 +22,8 @@ src/pubdelays/manifest.py            # SQLite manifest, WAL mode, process-safe a
 src/pubdelays/cli.py                 # pubdelays CLI
 config/default.toml                  # canonical paths and defaults
 DATA_LAYOUT.md                       # exact raw/generated data placement
-docs/STAGE_CONTRACTS.md              # stage inputs, outputs, manifests, and failure behavior
-docs/ANALYSIS_DATASET_V1.md          # final analysis schema and data dictionary
+docs/internals/stage-contracts.md    # stage inputs, outputs, manifests, and failure behavior
+docs/reference/schemas.md            # final analysis schema and data dictionary
 ```
 
 ## Install
@@ -111,7 +111,7 @@ Downloads keep `.md5` sidecars and verify them after transfer. Baseline and upda
 
 ## Individual stages
 
-All commands use `config/default.toml` by default and validate required sections, path keys, dates, and supported shard formats before running a stage. Stage inputs, outputs, manifest rows, resume behavior, and failure behavior are documented in `docs/STAGE_CONTRACTS.md`. The top-level `--help` output lists the canonical workflow order; expensive workflow commands such as `download`, `parse`, `external-all`, `transform-shards`, and `aggregate-all` support `--dry-run` for planning without writing outputs or manifest rows. Override config paths with:
+All commands use `config/default.toml` by default and validate required sections, path keys, dates, and supported shard formats before running a stage. Stage inputs, outputs, manifest rows, resume behavior, and failure behavior are documented in `docs/internals/stage-contracts.md`. The top-level `--help` output lists the canonical workflow order; expensive workflow commands such as `download`, `parse`, `external-all`, `transform-shards`, and `aggregate-all` support `--dry-run` for planning without writing outputs or manifest rows. Override config paths with:
 
 ```bash
 pubdelays --config path/to/config.toml <command>
