@@ -1,10 +1,10 @@
 # Getting Started
 
-This is the runbook I would hand to someone joining the project: install the environment, put files where the pipeline expects them, run the stages, then verify the outputs.
+This page gives the standard path from a clean checkout to a complete analysis dataset. The commands are shown with default paths; use `--config` when running with a site-specific configuration.
 
 ## 1. Install
 
-Use Nix when you can:
+Nix is the reference environment:
 
 ```bash
 nix develop
@@ -12,7 +12,7 @@ pubdelays --help
 pytest -q
 ```
 
-Use uv when you are outside the Nix shell:
+Without Nix, use uv:
 
 ```bash
 scripts/bootstrap_uv.sh
@@ -20,23 +20,21 @@ uv run pubdelays --help
 uv run pytest -q
 ```
 
-## 2. Create The Workspace
+## 2. Create Directories
 
 ```bash
 pubdelays init-dirs
 ```
 
-Put PubMed XML/XML.GZ and external metadata under the paths in [Data Layout](data-layout.md), then run:
+Place PubMed XML/XML.GZ and external metadata under the paths described in [Data Layout](data-layout.md), then run:
 
 ```bash
 pubdelays preflight
 ```
 
-If preflight is clean, the pipeline has enough input structure to start.
+## 3. Review The Function Map
 
-## 3. Understand The Call Graph
-
-The code is intentionally direct. CLI handlers resolve config and paths, then pass those values into parser, transform, aggregate, and manifest helpers.
+The main command handlers resolve configuration and paths, then call parser, transformation, aggregation, validation, and manifest helpers.
 
 ![Function passing map](assets/function-map.svg)
 
@@ -55,7 +53,7 @@ pubdelays summaries --resume
 pubdelays manifest summary
 ```
 
-Already have the raw XML and metadata? Skip the download commands. The rest of the pipeline is resume-safe: complete outputs are left alone.
+If raw PubMed XML and external metadata are already present, skip the download commands. Stages use complete-file checks for resume behavior.
 
 ## 5. Run On SLURM
 
@@ -63,9 +61,9 @@ Already have the raw XML and metadata? Skip the download commands. The rest of t
 pubdelays slurm workflow --shards 64 --max-array-size 1001
 ```
 
-The workflow submits parse, transform-input preparation, transform shards, and aggregation with `afterok` dependencies. Parse and transform arrays write per-task manifests under `data/manifests/slurm/`, which keeps SQLite away from shared-write trouble.
+The workflow submits parse, transform-input preparation, transform shards, and aggregation with `afterok` dependencies. Parse and transform arrays write per-task manifests under `data/manifests/slurm/`.
 
-Collect those per-task manifests once after the workflow finishes:
+Collect per-task manifests once after the workflow completes:
 
 ```bash
 pubdelays manifest collect \
@@ -73,11 +71,11 @@ pubdelays manifest collect \
   --input-dir data/manifests/slurm
 ```
 
-## 6. Check The Result
+## 6. Check Outputs
 
 ```text
 data/processed_data/processed.parquet  # canonical analysis dataset
-data/processed_data/processed.csv      # collaborator/export copy
+data/processed_data/processed.csv      # CSV export
 data/processed_data/summaries/         # derived summary tables
 ```
 
@@ -87,7 +85,7 @@ Validate the final schema:
 pubdelays schema --input data/processed_data/processed.parquet
 ```
 
-For a 64-shard transform, this should print `64`:
+For a 64-shard transform, the following should return `64`:
 
 ```bash
 find data/temp_data/article_parquet -name '*.parquet' | wc -l

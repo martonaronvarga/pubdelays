@@ -1,60 +1,42 @@
 # pubdelays
 
-<div class="hero-grid" markdown>
+`pubdelays` is a reproducible research pipeline for estimating publication and editorial delays from PubMed/MEDLINE records. It converts PubMed XML and journal metadata into article-level Parquet and CSV outputs with explicit schemas, stage contracts, and manifest records.
 
-<div class="hero-card" markdown>
-<span class="kicker">PubMed publication delays, without the duct tape</span>
-
-`pubdelays` turns PubMed/MEDLINE XML plus journal metadata into a clean, reproducible publication-delay dataset. It is built for research work: inspectable files, boring commands, explicit schemas, and enough HPC ergonomics to survive a full baseline run.
-
-[Run the pipeline](getting-started.md){ .md-button .md-button--primary }
-[Inspect the schema](ANALYSIS_DATASET_V1.md){ .md-button }
-</div>
-
-<div class="quick-card" markdown>
-**Core loop**
-
-1. parse XML to JSONL
-2. normalize external metadata
-3. transform article shards
-4. aggregate CSV/Parquet
-5. keep the manifest trail
-</div>
-
-</div>
+The project is intended for transparent analysis rather than long-running service operation. The documentation therefore emphasizes where files live, what each stage reads and writes, and which assumptions affect the final dataset.
 
 ![Data flow diagram](assets/data-flow.svg)
 
-## What Makes It Usable
+## Design Priorities
 
-- **Readable stages.** Every command maps to a stage with named inputs and outputs.
-- **Reproducible paths.** Defaults live in `config/default.toml`; generated artifacts stay under `data/`.
-- **Correctness over cleverness.** Date fallbacks, ceased-journal filtering, and final columns are documented where they matter.
-- **HPC without mystery state.** SLURM arrays communicate through files and per-task manifests, not shared progress logs.
-- **Private metadata stays private.** Licensed peer-review tables can be supplied at run time with `--peer-review` and are never bundled.
+- **Reproducibility:** defaults are declared in `config/default.toml`; generated data is written under `data/`.
+- **Correctness:** date handling, journal-status filtering, and final columns are documented and tested with fixtures.
+- **Auditability:** mutating stages write manifest rows; SLURM array tasks use per-task manifests to avoid shared SQLite writes.
+- **Usability:** the same stage names are used locally and on SLURM.
+- **Private metadata support:** licensed peer-review metadata can be supplied at run time with `--peer-review` and is not included in the repository.
 
 ## Control Flow
 
-The CLI stays thin: parse arguments, resolve config, call one stage, record what happened.
+The CLI resolves configuration and paths, calls a single stage function, and records the result. The stage functions perform the data work and write complete outputs atomically.
 
 ![Control flow diagram](assets/control-flow.svg)
 
-## Where To Go Next
+## Recommended Reading Order
 
-1. [Getting Started](getting-started.md) if you want the exact commands.
-2. [Data Layout](data-layout.md) if you need to find or move files.
-3. [CLI Reference](cli.md) when you are scripting a rerun.
-4. [HPC and SLURM](hpc-slurm.md) before submitting arrays.
-5. [Analysis Dataset V1](ANALYSIS_DATASET_V1.md) before using the final CSV.
+1. [Getting Started](getting-started.md) for the standard commands.
+2. [Data Layout](data-layout.md) for raw, temporary, manifest, and processed paths.
+3. [CLI Reference](cli.md) for command options.
+4. [Stage Contracts](STAGE_CONTRACTS.md) for stage-level inputs, outputs, and resume behavior.
+5. [HPC and SLURM](hpc-slurm.md) for array jobs and manifest collection.
+6. [Analysis Dataset V1](ANALYSIS_DATASET_V1.md) for final columns.
 
-## Build These Docs
+## Build The Documentation
 
 ```bash
 uv sync --extra docs
 uv run mkdocs serve
 ```
 
-For a strict build:
+For a strict local build:
 
 ```bash
 uv run mkdocs build --strict

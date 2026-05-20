@@ -6,8 +6,8 @@ repo_name: martonaronvarga/pubdelays
 strict: true
 
 nav:
-  - Start: index.md
-  - Runbook: getting-started.md
+  - Overview: index.md
+  - Getting Started: getting-started.md
   - Workflow:
       - Data Layout: data-layout.md
       - CLI Reference: cli.md
@@ -26,9 +26,9 @@ theme:
   icon:
     repo: fontawesome/brands/github
   palette:
-    scheme: pubdelays-black
-    primary: custom
-    accent: yellow
+    scheme: slate
+    primary: black
+    accent: amber
   font:
     text: IBM Plex Sans
     code: IBM Plex Mono

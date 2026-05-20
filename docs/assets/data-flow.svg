@@ -1,21 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 270" role="img" aria-labelledby="title desc">
-  <title id="title">pubdelays data flow</title>
-  <desc id="desc">Raw PubMed and external metadata flow through parse, external preprocessing, transform, aggregate, and summary stages.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 360" role="img" aria-labelledby="title desc">
+  <title id="title">Data flow through the pubdelays pipeline</title>
+  <desc id="desc">PubMed XML and external metadata are parsed, normalized, transformed, and aggregated into final analysis outputs.</desc>
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#305f72"/></marker>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 10 5 0 10z" fill="#f6c900"/></marker>
     <style>
-      .box{fill:#f7fbfc;stroke:#305f72;stroke-width:2;rx:12}.stage{fill:#e6f2ef;stroke:#2f6f5e;stroke-width:2;rx:12}.out{fill:#fff6df;stroke:#9a6b00;stroke-width:2;rx:12}.t{font:600 15px sans-serif;fill:#18343b}.s{font:13px sans-serif;fill:#314e55}.a{stroke:#305f72;stroke-width:2;fill:none;marker-end:url(#arrow)}
+      .bg{fill:#111}.input{fill:#1d1d1d;stroke:#f6c900;stroke-width:2;rx:12}.stage{fill:#21251e;stroke:#9fd58a;stroke-width:2;rx:12}.output{fill:#24210f;stroke:#f6c900;stroke-width:2;rx:12}.title{font:700 16px sans-serif;fill:#f7f0c8}.label{font:13px sans-serif;fill:#e6e0bd}.arrow{stroke:#f6c900;stroke-width:2.4;fill:none;marker-end:url(#arrow)}
     </style>
   </defs>
-  <rect class="box" x="25" y="30" width="150" height="70"/><text class="t" x="45" y="58">PubMed XML</text><text class="s" x="45" y="80">raw_data/pubmed</text>
-  <rect class="stage" x="235" y="30" width="150" height="70"/><text class="t" x="278" y="58">parse</text><text class="s" x="255" y="80">streaming XML</text>
-  <rect class="out" x="445" y="30" width="155" height="70"/><text class="t" x="475" y="58">JSONL shards</text><text class="s" x="468" y="80">temp_data/pubmed</text>
-  <rect class="box" x="25" y="155" width="150" height="70"/><text class="t" x="45" y="183">External data</text><text class="s" x="45" y="205">Scimago, WoS, etc.</text>
-  <rect class="stage" x="235" y="155" width="150" height="70"/><text class="t" x="270" y="183">external-all</text><text class="s" x="255" y="205">normalize lookups</text>
-  <rect class="out" x="445" y="155" width="155" height="70"/><text class="t" x="468" y="183">Lookup tables</text><text class="s" x="468" y="205">processed_data/*.csv</text>
-  <rect class="stage" x="665" y="92" width="140" height="70"/><text class="t" x="698" y="120">transform</text><text class="s" x="686" y="142">filter + join</text>
-  <rect class="out" x="840" y="92" width="120" height="70"/><text class="t" x="865" y="120">Parquet</text><text class="s" x="858" y="142">article shards</text>
-  <rect class="stage" x="665" y="190" width="140" height="55"/><text class="t" x="700" y="220">aggregate</text>
-  <rect class="out" x="840" y="190" width="120" height="55"/><text class="t" x="862" y="216">outputs</text><text class="s" x="852" y="235">CSV/Parquet</text>
-  <path class="a" d="M175 65 H235"/><path class="a" d="M385 65 H445"/><path class="a" d="M175 190 H235"/><path class="a" d="M385 190 H445"/><path class="a" d="M600 65 C635 65 635 115 665 120"/><path class="a" d="M600 190 C635 190 635 140 665 135"/><path class="a" d="M805 127 H840"/><path class="a" d="M900 162 V190"/><path class="a" d="M805 218 H840"/>
+  <rect class="bg" width="1080" height="360" rx="16"/>
+  <rect class="input" x="40" y="50" width="190" height="72"/><text class="title" x="62" y="82">PubMed XML</text><text class="label" x="62" y="104">raw XML/XML.GZ files</text>
+  <rect class="stage" x="290" y="50" width="190" height="72"/><text class="title" x="348" y="82">parse</text><text class="label" x="316" y="104">stream records to JSONL</text>
+  <rect class="output" x="540" y="50" width="190" height="72"/><text class="title" x="575" y="82">Parsed JSONL</text><text class="label" x="568" y="104">one shard per input file</text>
+  <rect class="input" x="40" y="205" width="190" height="72"/><text class="title" x="62" y="237">External metadata</text><text class="label" x="62" y="259">journal and article tables</text>
+  <rect class="stage" x="290" y="205" width="190" height="72"/><text class="title" x="337" y="237">external-all</text><text class="label" x="318" y="259">normalize lookup tables</text>
+  <rect class="output" x="540" y="205" width="190" height="72"/><text class="title" x="573" y="237">Lookup tables</text><text class="label" x="568" y="259">processed metadata CSVs</text>
+  <rect class="stage" x="790" y="118" width="130" height="72"/><text class="title" x="818" y="150">transform</text><text class="label" x="812" y="172">filter and join</text>
+  <rect class="output" x="950" y="118" width="90" height="72"/><text class="title" x="970" y="150">shards</text><text class="label" x="965" y="172">Parquet</text>
+  <rect class="stage" x="790" y="245" width="130" height="56"/><text class="title" x="818" y="278">aggregate</text>
+  <rect class="output" x="950" y="245" width="90" height="56"/><text class="title" x="970" y="270">final</text><text class="label" x="966" y="289">CSV/Parquet</text>
+  <path class="arrow" d="M230 86H290"/><path class="arrow" d="M480 86H540"/><path class="arrow" d="M230 241H290"/><path class="arrow" d="M480 241H540"/><path class="arrow" d="M730 86C765 86 765 142 790 150"/><path class="arrow" d="M730 241C765 241 765 170 790 164"/><path class="arrow" d="M920 154H950"/><path class="arrow" d="M995 190V245"/><path class="arrow" d="M920 273H950"/>
 </svg>
