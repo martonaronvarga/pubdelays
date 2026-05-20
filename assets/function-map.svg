@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 360" role="img" aria-labelledby="title desc">
+  <title id="title">Function passing map</title>
+  <desc id="desc">Main CLI helpers pass resolved configuration and paths to parser, external preprocessors, transform, aggregation, validation, and SLURM helpers.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#335c67"/></marker><style>.m{fill:#edf6f9;stroke:#335c67;stroke-width:2;rx:10}.f{fill:#fff3b0;stroke:#9e6f00;stroke-width:2;rx:10}.t{font:600 14px sans-serif;fill:#263238}.s{font:12px sans-serif;fill:#475a60}.a{stroke:#335c67;stroke-width:1.8;fill:none;marker-end:url(#arrow)}</style></defs>
+  <rect class="m" x="30" y="135" width="150" height="75"/><text class="t" x="60" y="164">cli.main</text><text class="s" x="50" y="186">parse args, dispatch</text>
+  <rect class="m" x="235" y="40" width="165" height="62"/><text class="t" x="272" y="68">build_slurm_job</text><text class="s" x="255" y="88">script model</text>
+  <rect class="m" x="235" y="145" width="165" height="62"/><text class="t" x="260" y="173">parse / parse-one</text><text class="s" x="252" y="193">XML to JSONL</text>
+  <rect class="m" x="235" y="250" width="165" height="62"/><text class="t" x="255" y="278">external-all</text><text class="s" x="252" y="298">lookup preprocessing</text>
+  <rect class="f" x="455" y="145" width="165" height="62"/><text class="t" x="485" y="173">transform_files</text><text class="s" x="475" y="193">filters + joins</text>
+  <rect class="f" x="455" y="250" width="165" height="62"/><text class="t" x="492" y="278">ExternalInputs</text><text class="s" x="472" y="298">metadata paths</text>
+  <rect class="f" x="675" y="145" width="130" height="62"/><text class="t" x="705" y="173">aggregate</text><text class="s" x="692" y="193">shards to outputs</text>
+  <rect class="f" x="675" y="40" width="130" height="62"/><text class="t" x="704" y="68">Manifest</text><text class="s" x="696" y="88">audit rows</text>
+  <rect class="m" x="845" y="145" width="105" height="62"/><text class="t" x="868" y="173">schema</text><text class="s" x="858" y="193">validate columns</text>
+  <path class="a" d="M180 172H235"/><path class="a" d="M180 160C215 120 215 75 235 70"/><path class="a" d="M180 188C215 230 215 275 235 280"/><path class="a" d="M400 176H455"/><path class="a" d="M400 281H455"/><path class="a" d="M535 250V207"/><path class="a" d="M620 176H675"/><path class="a" d="M805 176H845"/><path class="a" d="M740 145V102"/><path class="a" d="M318 102V145"/>
+</svg>

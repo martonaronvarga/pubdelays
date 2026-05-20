@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 320" role="img" aria-labelledby="title desc">
+  <title id="title">High-level control flow</title>
+  <desc id="desc">CLI commands load configuration, resolve paths, call stage functions, write outputs atomically, and append manifest rows.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 10 5 0 10z" fill="#394867"/></marker><style>.b{fill:#f8f7ff;stroke:#394867;stroke-width:2;rx:12}.g{fill:#eef9f1;stroke:#3a7d44;stroke-width:2;rx:12}.y{fill:#fff8e8;stroke:#9a6b00;stroke-width:2;rx:12}.t{font:600 15px sans-serif;fill:#1f2d3d}.s{font:13px sans-serif;fill:#435466}.a{stroke:#394867;stroke-width:2;fill:none;marker-end:url(#arrow)}</style></defs>
+  <rect class="b" x="30" y="35" width="150" height="65"/><text class="t" x="62" y="62">CLI command</text><text class="s" x="55" y="84">argparse entrypoint</text>
+  <rect class="g" x="240" y="35" width="150" height="65"/><text class="t" x="278" y="62">Config</text><text class="s" x="260" y="84">defaults + overrides</text>
+  <rect class="g" x="450" y="35" width="150" height="65"/><text class="t" x="486" y="62">Path plan</text><text class="s" x="466" y="84">input/output roots</text>
+  <rect class="b" x="660" y="35" width="170" height="65"/><text class="t" x="704" y="62">Stage call</text><text class="s" x="684" y="84">parse / transform / aggregate</text>
+  <rect class="y" x="145" y="175" width="150" height="65"/><text class="t" x="174" y="202">Atomic write</text><text class="s" x="168" y="224">tmp then replace</text>
+  <rect class="y" x="375" y="175" width="150" height="65"/><text class="t" x="405" y="202">Manifest row</text><text class="s" x="397" y="224">success / skip / fail</text>
+  <rect class="b" x="605" y="175" width="150" height="65"/><text class="t" x="648" y="202">Validate</text><text class="s" x="632" y="224">schema + shards</text>
+  <path class="a" d="M180 68H240"/><path class="a" d="M390 68H450"/><path class="a" d="M600 68H660"/><path class="a" d="M745 100C745 145 245 135 220 175"/><path class="a" d="M295 207H375"/><path class="a" d="M525 207H605"/>
+</svg>

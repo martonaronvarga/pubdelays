@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 270" role="img" aria-labelledby="title desc">
+  <title id="title">pubdelays data flow</title>
+  <desc id="desc">Raw PubMed and external metadata flow through parse, external preprocessing, transform, aggregate, and summary stages.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#305f72"/></marker>
+    <style>
+      .box{fill:#f7fbfc;stroke:#305f72;stroke-width:2;rx:12}.stage{fill:#e6f2ef;stroke:#2f6f5e;stroke-width:2;rx:12}.out{fill:#fff6df;stroke:#9a6b00;stroke-width:2;rx:12}.t{font:600 15px sans-serif;fill:#18343b}.s{font:13px sans-serif;fill:#314e55}.a{stroke:#305f72;stroke-width:2;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect class="box" x="25" y="30" width="150" height="70"/><text class="t" x="45" y="58">PubMed XML</text><text class="s" x="45" y="80">raw_data/pubmed</text>
+  <rect class="stage" x="235" y="30" width="150" height="70"/><text class="t" x="278" y="58">parse</text><text class="s" x="255" y="80">streaming XML</text>
+  <rect class="out" x="445" y="30" width="155" height="70"/><text class="t" x="475" y="58">JSONL shards</text><text class="s" x="468" y="80">temp_data/pubmed</text>
+  <rect class="box" x="25" y="155" width="150" height="70"/><text class="t" x="45" y="183">External data</text><text class="s" x="45" y="205">Scimago, WoS, etc.</text>
+  <rect class="stage" x="235" y="155" width="150" height="70"/><text class="t" x="270" y="183">external-all</text><text class="s" x="255" y="205">normalize lookups</text>
+  <rect class="out" x="445" y="155" width="155" height="70"/><text class="t" x="468" y="183">Lookup tables</text><text class="s" x="468" y="205">processed_data/*.csv</text>
+  <rect class="stage" x="665" y="92" width="140" height="70"/><text class="t" x="698" y="120">transform</text><text class="s" x="686" y="142">filter + join</text>
+  <rect class="out" x="840" y="92" width="120" height="70"/><text class="t" x="865" y="120">Parquet</text><text class="s" x="858" y="142">article shards</text>
+  <rect class="stage" x="665" y="190" width="140" height="55"/><text class="t" x="700" y="220">aggregate</text>
+  <rect class="out" x="840" y="190" width="120" height="55"/><text class="t" x="862" y="216">outputs</text><text class="s" x="852" y="235">CSV/Parquet</text>
+  <path class="a" d="M175 65 H235"/><path class="a" d="M385 65 H445"/><path class="a" d="M175 190 H235"/><path class="a" d="M385 190 H445"/><path class="a" d="M600 65 C635 65 635 115 665 120"/><path class="a" d="M600 190 C635 190 635 140 665 135"/><path class="a" d="M805 127 H840"/><path class="a" d="M900 162 V190"/><path class="a" d="M805 218 H840"/>
+</svg>
