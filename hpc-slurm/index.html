@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>HPC and SLURM - pubdelays</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "HPC and SLURM";
+        var mkdocs_page_input_path = "hpc-slurm.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> pubdelays
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflow</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../data-layout/">Data Layout</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../STAGE_CONTRACTS/">Stage Contracts</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">HPC and SLURM</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#prepare">Prepare</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#dry-run">Dry Run</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#submit-workflow">Submit Workflow</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#monitor">Monitor</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#recovery">Recovery</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#finalize">Finalize</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../ANALYSIS_DATASET_V1/">Analysis Dataset V1</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SEMANTIC_DECISIONS/">Semantic Decisions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../VALIDATION_AND_BENCHMARKS/">Validation and Benchmarks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../PIPELINE_CONTEXT/">Pipeline Context</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">pubdelays</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Workflow</li>
+      <li class="breadcrumb-item active">HPC and SLURM</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/martonaronvarga/pubdelays/edit/master/docs/hpc-slurm.md">Edit on martonaronvarga/pubdelays</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="hpc-and-slurm">HPC and SLURM<a class="headerlink" href="#hpc-and-slurm" title="Permanent link">&para;</a></h1>
+<p>SLURM support is optional and explicit. Local commands work without a scheduler; SLURM commands generate <code>sbatch</code> scripts using resources from <code>config/default.toml</code> or a supplied config.</p>
+<h2 id="prepare">Prepare<a class="headerlink" href="#prepare" title="Permanent link">&para;</a></h2>
+<p>Use the repository defaults or copy a cluster config:</p>
+<pre><code class="language-bash">cp config/default.toml config/hpc.toml
+</code></pre>
+<p>Set the scheduler fields your cluster requires:</p>
+<pre><code class="language-toml">[slurm]
+runner = &quot;uv run pubdelays&quot;
+log_dir = &quot;logs/slurm&quot;
+partition = &quot;&quot;
+account = &quot;&quot;
+qos = &quot;&quot;
+max_array_size = 1001
+</code></pre>
+<p><code>max_array_size</code> is the scheduler array task limit. The CLI splits oversized arrays and remaps logical task IDs so clusters that reject task IDs above <code>MaxArraySize - 1</code> still work.</p>
+<h2 id="dry-run">Dry Run<a class="headerlink" href="#dry-run" title="Permanent link">&para;</a></h2>
+<p>Inspect generated scripts before submission:</p>
+<pre><code class="language-bash">uv run pubdelays --config config/hpc.toml slurm submit parse --dry-run
+uv run pubdelays --config config/hpc.toml slurm submit transform-shards --shards 64 --dry-run
+uv run pubdelays --config config/hpc.toml slurm workflow --shards 64 --dry-run
+</code></pre>
+<p>The parse and transform scripts should include <code>PUBDELAYS_STAGE_MANIFEST</code>, which means array workers use per-task manifest files instead of sharing one SQLite DB.</p>
+<h2 id="submit-workflow">Submit Workflow<a class="headerlink" href="#submit-workflow" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">uv run pubdelays --config config/hpc.toml slurm workflow --shards 64 --max-array-size 1001
+</code></pre>
+<p>The workflow submits:</p>
+<ol>
+<li><code>parse</code>: one PubMed XML/XML.GZ file per array task.</li>
+<li><code>prepare-transform</code>: creates <code>data/manifests/transform_inputs.txt</code>.</li>
+<li><code>transform-shards</code>: one modulo shard per array task.</li>
+<li><code>aggregate-all</code>: validates shard completeness and writes final outputs.</li>
+</ol>
+<p>Dependencies use <code>afterok</code>, so downstream jobs wait for upstream success.</p>
+<h2 id="monitor">Monitor<a class="headerlink" href="#monitor" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">squeue -u &quot;$USER&quot; -o &quot;%.18i %.30j %.2t %.10M %.30R&quot;
+uv run pubdelays --config config/hpc.toml slurm status &lt;job-id&gt;
+</code></pre>
+<p>Logs default to <code>logs/slurm/</code>.</p>
+<p>Common checks:</p>
+<pre><code class="language-bash">find data/temp_data/pubmed/jsonl -name '*.jsonl' | wc -l
+find data/temp_data/article_parquet -name '*.parquet' | wc -l
+</code></pre>
+<p>For a 64-shard run, a complete transform has 64 article shard files.</p>
+<h2 id="recovery">Recovery<a class="headerlink" href="#recovery" title="Permanent link">&para;</a></h2>
+<p>Cancel dependency-blocked jobs after an upstream failure:</p>
+<pre><code class="language-bash">uv run pubdelays --config config/hpc.toml slurm cleanup &lt;root-job-id&gt;
+uv run pubdelays --config config/hpc.toml slurm cleanup &lt;root-job-id&gt; --cancel
+</code></pre>
+<p>Check and archive a corrupt manifest without relying on the <code>sqlite3</code> shell:</p>
+<pre><code class="language-bash">uv run pubdelays --config config/hpc.toml manifest check --manifest data/manifests/pipeline.sqlite
+uv run pubdelays --config config/hpc.toml manifest check \
+  --manifest data/manifests/pipeline.sqlite \
+  --cleanup \
+  --archive-dir data/manifests/corrupt
+</code></pre>
+<p>After parse/transform array jobs finish, collect per-task manifests once:</p>
+<pre><code class="language-bash">uv run pubdelays --config config/hpc.toml manifest collect \
+  --manifest data/manifests/pipeline.sqlite \
+  --input-dir data/manifests/slurm
+</code></pre>
+<p><code>manifest collect</code> is append-only and intended for one post-run audit collection. If repeated, row counts duplicate; use output file counts and shard validation as completion signals.</p>
+<h2 id="finalize">Finalize<a class="headerlink" href="#finalize" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">uv run pubdelays --config config/hpc.toml validate-shards --shards 64 --format parquet
+uv run pubdelays --config config/hpc.toml schema --input data/processed_data/processed.parquet
+</code></pre>
+<p>Final outputs default to:</p>
+<pre><code class="language-text">data/processed_data/processed.parquet
+data/processed_data/processed.csv
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../STAGE_CONTRACTS/" class="btn btn-neutral float-left" title="Stage Contracts"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../ANALYSIS_DATASET_V1/" class="btn btn-neutral float-right" title="Analysis Dataset V1">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/martonaronvarga/pubdelays" class="fa fa-code-fork" style="color: #fcfcfc"> martonaronvarga/pubdelays</a>
+        </span>
+    
+    
+      <span><a href="../STAGE_CONTRACTS/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../ANALYSIS_DATASET_V1/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

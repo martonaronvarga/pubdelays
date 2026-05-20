@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Stage Contracts - pubdelays</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Stage Contracts";
+        var mkdocs_page_input_path = "STAGE_CONTRACTS.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> pubdelays
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflow</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../data-layout/">Data Layout</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Stage Contracts</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#shared-rules">Shared Rules</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#stage-table">Stage Table</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#empty-inputs">Empty Inputs</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#malformed-inputs">Malformed Inputs</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#parse-output-formats">Parse Output Formats</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#partial-shards-and-aggregation">Partial Shards And Aggregation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#manifest-expectations">Manifest Expectations</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../hpc-slurm/">HPC and SLURM</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../ANALYSIS_DATASET_V1/">Analysis Dataset V1</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SEMANTIC_DECISIONS/">Semantic Decisions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../VALIDATION_AND_BENCHMARKS/">Validation and Benchmarks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../PIPELINE_CONTEXT/">Pipeline Context</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">pubdelays</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Workflow</li>
+      <li class="breadcrumb-item active">Stage Contracts</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/martonaronvarga/pubdelays/edit/master/docs/STAGE_CONTRACTS.md">Edit on martonaronvarga/pubdelays</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="stage-contracts">Stage Contracts<a class="headerlink" href="#stage-contracts" title="Permanent link">&para;</a></h1>
+<p>This document is the source-of-truth contract for the active Python pipeline stages. Paths are repository-relative defaults from <code>config/default.toml</code>; CLI flags may override them without changing the stage semantics.</p>
+<h2 id="shared-rules">Shared Rules<a class="headerlink" href="#shared-rules" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Mutating data stages write through same-directory temporary files and atomically rename on success.</li>
+<li><code>--resume</code> skips only when the expected output exists and is non-empty.</li>
+<li>Local manifested stages append to <code>data/manifests/pipeline.sqlite</code> unless <code>--manifest</code> overrides it.</li>
+<li>SLURM parse and transform array tasks use per-task manifests under <code>data/manifests/slurm/</code>; collect them after a run with <code>manifest collect</code> when a consolidated audit table is needed.</li>
+<li>Manifest rows use <code>status</code> values <code>success</code>, <code>skipped</code>, or <code>failed</code> where the command currently records failures.</li>
+<li><code>records</code> means rows or records emitted by that stage; <code>deleted</code> is stage-specific and documented below.</li>
+<li><code>init-dirs</code>, <code>preflight</code>, <code>list-inputs</code>, and <code>manifest</code> are inspection or helper commands and do not append manifest rows.</li>
+</ul>
+<h2 id="stage-table">Stage Table<a class="headerlink" href="#stage-table" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Manifest stage</th>
+<th>Inputs</th>
+<th>Outputs</th>
+<th>Row counts and metadata</th>
+<th>Resume behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>init-dirs</code></td>
+<td>none</td>
+<td><code>config/default.toml</code></td>
+<td>Canonical raw, temp, processed, manifest, and external directories</td>
+<td>No data rows; creates directories only</td>
+<td>Idempotent directory creation</td>
+</tr>
+<tr>
+<td><code>preflight</code></td>
+<td>none</td>
+<td>Configured raw paths and generated path defaults</td>
+<td>Console readiness report</td>
+<td>Reports XML file count and missing required inputs</td>
+<td>No output to resume</td>
+</tr>
+<tr>
+<td><code>download</code></td>
+<td><code>download</code></td>
+<td>NCBI PubMed <code>baseline</code> or <code>updatefiles</code> index</td>
+<td><code>.xml.gz</code> and <code>.md5</code> files under <code>data/raw_data/pubmed/xmls/</code></td>
+<td><code>records</code> is downloaded file count; <code>deleted</code> is MD5 failure count; metadata records source, link count, skipped count, and failed sidecars</td>
+<td>Skips existing non-empty files before download; still verifies present <code>.md5</code> sidecars</td>
+</tr>
+<tr>
+<td><code>external-scimago</code></td>
+<td><code>external-scimago</code></td>
+<td><code>data/raw_data/scimago/scimagojr &lt;year&gt;.csv</code></td>
+<td><code>data/processed_data/scimago.csv</code></td>
+<td><code>records</code> is normalized ISSN rows in the output</td>
+<td>Skips complete output</td>
+</tr>
+<tr>
+<td><code>external-wos</code></td>
+<td><code>external-wos</code></td>
+<td><code>data/raw_data/web_of_science/wos.csv</code></td>
+<td><code>data/processed_data/web_of_science.csv</code></td>
+<td><code>records</code> is normalized journal ISSN rows in the output</td>
+<td>Skips complete output</td>
+</tr>
+<tr>
+<td><code>external-doaj</code></td>
+<td><code>external-doaj</code></td>
+<td><code>data/raw_data/directory_of_open_access_journals/doaj_2025_05_15.csv</code></td>
+<td><code>data/processed_data/doaj.csv</code></td>
+<td><code>records</code> is normalized journal ISSN rows in the output</td>
+<td>Skips complete output</td>
+</tr>
+<tr>
+<td><code>external-npi</code></td>
+<td><code>external-npi</code></td>
+<td><code>data/raw_data/norwegian_publication_indicator/norwegian_list_2025_05_14.csv</code></td>
+<td><code>data/processed_data/norwegian_list.csv</code></td>
+<td><code>records</code> is normalized journal ISSN rows in the output</td>
+<td>Skips complete output</td>
+</tr>
+<tr>
+<td><code>external-retraction-watch</code></td>
+<td><code>external-retraction-watch</code></td>
+<td><code>data/raw_data/retraction_watch/retraction_watch.csv</code></td>
+<td><code>data/processed_data/retraction_watch.csv</code></td>
+<td><code>records</code> is filtered retraction rows in the output</td>
+<td>Skips complete output</td>
+</tr>
+<tr>
+<td><code>external-publisher</code></td>
+<td><code>external-publisher</code></td>
+<td><code>data/raw_data/publisher_metadata/publishers.csv</code></td>
+<td><code>data/processed_data/publisher_metadata.csv</code></td>
+<td><code>records</code> is normalized publisher ISSN rows in the output; conflict columns flag duplicate-key disagreements</td>
+<td>Skips complete output</td>
+</tr>
+<tr>
+<td><code>external-all</code></td>
+<td>individual <code>external-*</code> rows</td>
+<td>All configured external raw inputs</td>
+<td>All configured external processed outputs</td>
+<td>One manifest row per external preprocessor; missing optional publisher input is skipped without an output</td>
+<td>Each preprocessor applies its own resume check</td>
+</tr>
+<tr>
+<td><code>journals</code></td>
+<td><code>journals</code></td>
+<td>NLM <code>J_Medline.txt</code> URL</td>
+<td><code>data/external/pubmed-journals.csv</code></td>
+<td><code>records</code> is parsed journal records; metadata records URL</td>
+<td>No current resume shortcut</td>
+</tr>
+<tr>
+<td><code>parse-one</code></td>
+<td><code>parse</code></td>
+<td>One <code>.xml</code> or <code>.xml.gz</code> MEDLINE file</td>
+<td>One <code>.jsonl</code> or <code>.json</code> parsed shard</td>
+<td><code>records</code> is parsed citations, including deletion records; <code>deleted</code> is <code>DeleteCitation</code> record count; metadata records format, <code>min_pub_year</code>, and <code>recover_malformed_xml</code></td>
+<td>Skips complete output</td>
+</tr>
+<tr>
+<td><code>parse</code></td>
+<td><code>parse</code></td>
+<td>All <code>.xml</code> and <code>.xml.gz</code> files under <code>data/raw_data/pubmed/xmls/</code></td>
+<td>One parsed shard per input under <code>data/temp_data/pubmed/jsonl/</code></td>
+<td>Same as <code>parse-one</code>, with one manifest row per input file</td>
+<td>Per-file complete-output skip</td>
+</tr>
+<tr>
+<td><code>validate</code></td>
+<td><code>validate-json</code></td>
+<td>Parsed <code>.jsonl</code> or <code>.json</code> file or directory</td>
+<td>Console validation report only</td>
+<td><code>records</code> is valid records read before errors; <code>deleted</code> is failure count; metadata records file count and failures</td>
+<td>No output to resume</td>
+</tr>
+<tr>
+<td><code>validate-shards</code></td>
+<td>none</td>
+<td>Article shard directory, expected shard count, and expected format</td>
+<td>Console validation report only</td>
+<td>Validates expected shard IDs, duplicate outputs, encoded total count, format, readability, and canonical schema</td>
+<td>No output to resume</td>
+</tr>
+<tr>
+<td><code>list-inputs</code></td>
+<td>none</td>
+<td>Directory plus kind <code>xml</code>, <code>json</code>, or <code>glob</code></td>
+<td>Atomic path list, usually <code>data/manifests/parse_inputs.txt</code> or <code>data/manifests/transform_inputs.txt</code></td>
+<td>No manifest row; output line count is the listed input count</td>
+<td>Rewrites the list atomically</td>
+</tr>
+<tr>
+<td><code>transform-one</code></td>
+<td><code>transform</code></td>
+<td>One parsed <code>.jsonl</code> or <code>.json</code> input plus processed external metadata</td>
+<td>One article shard and optional filter-count CSV</td>
+<td><code>records</code> is <code>final_rows</code>; metadata contains filter counts and filter-count path</td>
+<td>Skips complete output</td>
+</tr>
+<tr>
+<td><code>transform</code></td>
+<td><code>transform</code></td>
+<td>Parsed input file or all parsed files in <code>data/temp_data/pubmed/jsonl/</code></td>
+<td>One article shard per input in <code>data/temp_data/article_parquet/</code></td>
+<td>Same as <code>transform-one</code>; compatibility mode only</td>
+<td>Per-output complete-file skip</td>
+</tr>
+<tr>
+<td><code>transform-shard</code></td>
+<td><code>transform-shard</code></td>
+<td><code>transform_inputs.txt</code>, shard index, shard count, and processed external metadata</td>
+<td><code>articles-shard-&lt;index&gt;-of-&lt;shards&gt;.&lt;format&gt;</code> plus <code>.filters.csv</code></td>
+<td><code>records</code> is <code>final_rows</code>; metadata contains filter counts, <code>shard_index</code>, <code>shards</code>, and selected input count</td>
+<td>Skips complete shard output</td>
+</tr>
+<tr>
+<td><code>transform-shards</code></td>
+<td><code>transform-shard</code></td>
+<td>All parsed JSON/JSONL files in <code>data/temp_data/pubmed/jsonl/</code></td>
+<td>Atomic <code>transform_inputs.txt</code> and one output per expected shard, including empty canonical shards</td>
+<td>One manifest row per shard</td>
+<td>Rewrites input list; each shard applies its own resume check</td>
+</tr>
+<tr>
+<td><code>aggregate</code></td>
+<td><code>aggregate</code></td>
+<td>Existing canonical article shards under <code>data/temp_data/article_parquet/</code> or one explicit shard</td>
+<td>One processed dataset, default <code>data/processed_data/processed.parquet</code></td>
+<td><code>records</code> is final deduplicated row count</td>
+<td>Skips complete output</td>
+</tr>
+<tr>
+<td><code>aggregate-all</code></td>
+<td><code>aggregate-all</code></td>
+<td>Complete canonical article shard set under <code>data/temp_data/article_parquet/</code></td>
+<td><code>data/processed_data/processed.parquet</code> and <code>data/processed_data/processed.csv</code></td>
+<td><code>records</code> is final deduplicated row count; metadata records CSV path and shard validation details</td>
+<td>Skips only when both final outputs are complete after shard validation</td>
+</tr>
+<tr>
+<td><code>summaries</code></td>
+<td><code>summaries</code></td>
+<td><code>data/processed_data/processed.parquet</code></td>
+<td>CSV tables under <code>data/processed_data/summaries/</code></td>
+<td><code>records</code> is derived table count; metadata records table paths</td>
+<td>Rewrites summary outputs atomically</td>
+</tr>
+<tr>
+<td><code>manifest</code></td>
+<td>none</td>
+<td><code>data/manifests/pipeline.sqlite</code></td>
+<td>Console report of recent rows</td>
+<td>Displays recent manifest rows</td>
+<td>No output to resume</td>
+</tr>
+</tbody>
+</table>
+<h2 id="empty-inputs">Empty Inputs<a class="headerlink" href="#empty-inputs" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>parse</code> fails with exit code 1 when no XML files are found.</li>
+<li><code>validate</code> over an empty directory records <code>validate-json</code> success with zero files and zero records.</li>
+<li><code>transform_files</code> writes an empty canonical article shard when selected parsed records are empty or all filtered out.</li>
+<li><code>transform-shard</code> writes an empty canonical article shard plus filter counts when its modulo selection is empty, and records a <code>transform-shard</code> success manifest row with <code>empty_selection=true</code>.</li>
+<li><code>aggregate</code> writes an empty canonical dataset when the shard directory exists but contains no canonical article shards; a missing explicit input path raises an error.</li>
+<li><code>aggregate-all</code> refuses missing, duplicate, wrong-total, wrong-format, unreadable, or schema-invalid shard sets unless <code>--allow-incomplete</code> is explicit.</li>
+</ul>
+<h2 id="malformed-inputs">Malformed Inputs<a class="headerlink" href="#malformed-inputs" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Malformed JSON or JSONL makes <code>validate</code> append a <code>validate-json</code> row with <code>status=failed</code> and return nonzero.</li>
+<li>External preprocessors append <code>status=failed</code> with error text when the preprocessor raises.</li>
+<li><code>parse-one</code> and <code>parse</code> fail fast on malformed XML by default, append <code>status=failed</code> when XML parsing raises, and leave previous complete outputs intact through atomic writes. <code>--recover-malformed-xml</code> opts into lxml best-effort recovery.</li>
+<li>Transform and aggregate commands may raise on malformed inputs; not all of those code paths currently append failed manifest rows.</li>
+</ul>
+<h2 id="parse-output-formats">Parse Output Formats<a class="headerlink" href="#parse-output-formats" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>jsonl</code> is the preferred full-scale parse format because records are written one at a time.</li>
+<li><code>json</code> writes a single JSON array and accumulates parsed records in memory; use it only for small fixtures or interoperability cases.</li>
+</ul>
+<h2 id="partial-shards-and-aggregation">Partial Shards And Aggregation<a class="headerlink" href="#partial-shards-and-aggregation" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Local <code>transform-shards</code> and SLURM <code>transform-shard</code> use the same modulo rule: an input at line index <code>i</code> belongs to shard <code>i % shards</code>.</li>
+<li>Expected shard output names encode both the shard index and total shard count.</li>
+<li>Directory aggregation only discovers canonical <code>articles-shard-*.parquet</code>, <code>articles-shard-*.tsv</code>, and <code>articles-shard-*.csv</code> data files; sidecars such as <code>*.filters.csv</code> are ignored.</li>
+<li><code>validate-shards</code> is the shared local/SLURM completeness validator. It checks expected shard count and IDs, duplicate outputs, wrong <code>of-N</code> totals, wrong format, unreadable files, and canonical schema compatibility.</li>
+<li><code>aggregate-all</code> runs the same validator by default. Use <code>--allow-incomplete</code> only for deliberate partial debugging outputs.</li>
+</ul>
+<h2 id="manifest-expectations">Manifest Expectations<a class="headerlink" href="#manifest-expectations" title="Permanent link">&para;</a></h2>
+<p>Every mutating manifested stage should record:</p>
+<pre><code class="language-text">stage, status, input_path, output_path, input/output bytes, input/output SHA-256 when enabled, records, deleted when stage-specific, timestamps, worker, metadata, error
+</code></pre>
+<p>Skipped rows include metadata explaining the skip reason. Failure rows include <code>error</code> text where the command catches the exception.</p>
+<p><code>pubdelays manifest</code> prints recent rows. <code>manifest summary</code>, <code>manifest failed</code>, <code>manifest show --json</code>, and <code>manifest retry-script</code> provide lightweight audit and retry inspection without opening SQLite directly.</p>
+<p><code>manifest check</code> runs SQLite integrity checks through Python, which is useful on HPC systems without the <code>sqlite3</code> command. <code>manifest collect</code> appends rows from per-task manifests into the target manifest; it is intended as a one-time post-run audit collection, not a repeatedly idempotent synchronization step.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../cli/" class="btn btn-neutral float-left" title="CLI Reference"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../hpc-slurm/" class="btn btn-neutral float-right" title="HPC and SLURM">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/martonaronvarga/pubdelays" class="fa fa-code-fork" style="color: #fcfcfc"> martonaronvarga/pubdelays</a>
+        </span>
+    
+    
+      <span><a href="../cli/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../hpc-slurm/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

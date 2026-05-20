@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Validation and Benchmarks - pubdelays</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Validation and Benchmarks";
+        var mkdocs_page_input_path = "VALIDATION_AND_BENCHMARKS.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> pubdelays
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflow</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../data-layout/">Data Layout</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../STAGE_CONTRACTS/">Stage Contracts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../hpc-slurm/">HPC and SLURM</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../ANALYSIS_DATASET_V1/">Analysis Dataset V1</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SEMANTIC_DECISIONS/">Semantic Decisions</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Validation and Benchmarks</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#static-checks">Static checks</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#cli-smoke-checks">CLI smoke checks</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#parser-validation">Parser validation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#external-metadata-validation">External metadata validation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#transform-validation">Transform validation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#manifest-validation">Manifest validation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#cross-run-validation">Cross-run validation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#performance-benchmark-plan">Performance benchmark plan</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#external-preprocessors">External preprocessors</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#xml-parse-throughput">XML parse throughput</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#transform-throughput">Transform throughput</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#aggregation-throughput">Aggregation throughput</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#recommended-defaults">Recommended defaults</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../PIPELINE_CONTEXT/">Pipeline Context</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">pubdelays</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Reference</li>
+      <li class="breadcrumb-item active">Validation and Benchmarks</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/martonaronvarga/pubdelays/edit/master/docs/VALIDATION_AND_BENCHMARKS.md">Edit on martonaronvarga/pubdelays</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="validation-and-benchmarks">Validation and Benchmarks<a class="headerlink" href="#validation-and-benchmarks" title="Permanent link">&para;</a></h1>
+<p>This document defines the validation gates and performance checks for the active PubMed/MEDLINE pipeline.</p>
+<h2 id="static-checks">Static checks<a class="headerlink" href="#static-checks" title="Permanent link">&para;</a></h2>
+<p>Run before committing:</p>
+<pre><code class="language-bash">python -m compileall -q src tests
+ruff check src tests
+pytest -q
+git diff --check
+</code></pre>
+<p>With Nix:</p>
+<pre><code class="language-bash">nix flake check --show-trace
+nix build --show-trace --print-build-logs
+</code></pre>
+<p>With uv:</p>
+<pre><code class="language-bash">uv sync --extra dev
+uv run pytest -q
+uv run pubdelays --help
+</code></pre>
+<h2 id="cli-smoke-checks">CLI smoke checks<a class="headerlink" href="#cli-smoke-checks" title="Permanent link">&para;</a></h2>
+<p>These should work without raw data:</p>
+<pre><code class="language-bash">pubdelays --help
+pubdelays init-dirs
+pubdelays preflight
+pubdelays manifest --limit 10
+pubdelays schema
+</code></pre>
+<p><code>preflight</code> may report missing raw inputs, but should exit with a clear, documented status.</p>
+<h2 id="parser-validation">Parser validation<a class="headerlink" href="#parser-validation" title="Permanent link">&para;</a></h2>
+<p>Fixture tests must cover:</p>
+<pre><code class="language-text">normal PubmedArticle
+missing History
+missing ArticleDate but present PubDate
+DeleteCitation
+DOI in ELocationID and ArticleIdList
+publication type extraction
+ISSNLinking extraction
+MeSH terms with qualifiers
+</code></pre>
+<p>Command:</p>
+<pre><code class="language-bash">pytest -q tests/test_medline_parser.py
+</code></pre>
+<h2 id="external-metadata-validation">External metadata validation<a class="headerlink" href="#external-metadata-validation" title="Permanent link">&para;</a></h2>
+<p>Each external preprocessor must check required input columns and produce documented output columns.</p>
+<p>Command:</p>
+<pre><code class="language-bash">pytest -q tests/test_external_preprocessors.py
+</code></pre>
+<p>Smoke command on real data:</p>
+<pre><code class="language-bash">pubdelays external-all --resume
+</code></pre>
+<p>Expected processed outputs:</p>
+<pre><code class="language-text">data/processed_data/scimago.csv
+data/processed_data/web_of_science.csv
+data/processed_data/doaj.csv
+data/processed_data/norwegian_list.csv
+data/processed_data/retraction_watch.csv
+</code></pre>
+<h2 id="transform-validation">Transform validation<a class="headerlink" href="#transform-validation" title="Permanent link">&para;</a></h2>
+<p>Required behavioral tests:</p>
+<pre><code class="language-text">accepted and received required
+article_date preferred over pubdate
+pubdate fallback works when article_date missing
+negative delays are dropped
+ceased journal filtering works
+retraction DOI join works
+Scimago/NPI year-specific metadata is selected
+final schema order is stable
+</code></pre>
+<p>Command:</p>
+<pre><code class="language-bash">pytest -q tests/test_transform_articles.py
+</code></pre>
+<h2 id="manifest-validation">Manifest validation<a class="headerlink" href="#manifest-validation" title="Permanent link">&para;</a></h2>
+<p>After any smoke run:</p>
+<pre><code class="language-bash">pubdelays manifest --limit 20
+</code></pre>
+<p>Check:</p>
+<pre><code class="language-text">failed rows include error text
+skipped rows include skip reason metadata
+success rows include output path and row count when applicable
+worker identity is present
+elapsed_seconds is nonnegative
+</code></pre>
+<h2 id="cross-run-validation">Cross-run validation<a class="headerlink" href="#cross-run-validation" title="Permanent link">&para;</a></h2>
+<p>When full raw data are available, compare a new run against the previous accepted processed dataset and manifest summary.</p>
+<p>Required comparisons:</p>
+<pre><code class="language-text">1. total row count
+2. total unique DOI count
+3. total unique PMID count if available
+4. column names and order
+5. per-stage filter counts
+6. join cardinalities by external source
+7. missingness by key fields
+8. distribution summaries for acceptance_delay and publication_delay
+9. rows retained by pubdate fallback
+10. rows removed by ceased-year correction
+</code></pre>
+<p>Suggested row-hash check:</p>
+<pre><code class="language-text">hash selected stable columns: doi, title, journal, issn_linking, received, accepted, article_date, acceptance_delay, publication_delay
+compare matched rows by DOI, then by PMID, then by normalized title+journal
+</code></pre>
+<h2 id="performance-benchmark-plan">Performance benchmark plan<a class="headerlink" href="#performance-benchmark-plan" title="Permanent link">&para;</a></h2>
+<p>Record hardware, filesystem, Python version, Polars version, Nix/uv environment, number of workers, and SLURM settings. Benchmark reports are generated artifacts; write them under <code>data/processed_data/benchmarks/</code> and do not commit them.</p>
+<p>Use this setup block before stage-specific commands:</p>
+<pre><code class="language-bash">mkdir -p data/processed_data/benchmarks
+REPORT=&quot;data/processed_data/benchmarks/benchmark-$(date -u +%Y%m%dT%H%M%SZ).txt&quot;
+{
+  echo &quot;# pubdelays benchmark&quot;
+  date -u
+  uname -a
+  python --version
+  pubdelays --help | head -1
+} &gt; &quot;$REPORT&quot;
+TIME=&quot;/usr/bin/time -v -a -o $REPORT&quot;
+</code></pre>
+<p><code>/usr/bin/time -v</code> records elapsed time and peak RSS on Linux. On systems without GNU time, use <code>time -p</code> and record peak RSS from the scheduler or OS monitor.</p>
+<h3 id="external-preprocessors">External preprocessors<a class="headerlink" href="#external-preprocessors" title="Permanent link">&para;</a></h3>
+<p>Measure all external preprocessors together, or replace <code>external-all</code> with one <code>external-*</code> command for per-source timings:</p>
+<pre><code class="language-bash">$TIME pubdelays external-all --resume
+</code></pre>
+<p>Record output rows from the manifest and output sizes:</p>
+<pre><code class="language-bash">pubdelays manifest summary &gt;&gt; &quot;$REPORT&quot;
+du -h data/processed_data/scimago.csv data/processed_data/web_of_science.csv data/processed_data/doaj.csv data/processed_data/norwegian_list.csv data/processed_data/retraction_watch.csv data/processed_data/publisher_metadata.csv &gt;&gt; &quot;$REPORT&quot; 2&gt;/dev/null || true
+</code></pre>
+<h3 id="xml-parse-throughput">XML parse throughput<a class="headerlink" href="#xml-parse-throughput" title="Permanent link">&para;</a></h3>
+<p>Full-corpus parse benchmark:</p>
+<pre><code class="language-bash">XML_MB_BEFORE=$(find data/raw_data/pubmed/xmls -type f \( -name '*.xml' -o -name '*.xml.gz' \) -print0 | du --files0-from=- -cb | tail -1 | cut -f1)
+$TIME pubdelays parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
+JSONL_MB_AFTER=$(find data/temp_data/pubmed/jsonl -type f -name '*.jsonl' -print0 | du --files0-from=- -cb | tail -1 | cut -f1)
+printf 'parse_input_bytes=%s\nparse_output_bytes=%s\n' &quot;$XML_MB_BEFORE&quot; &quot;$JSONL_MB_AFTER&quot; &gt;&gt; &quot;$REPORT&quot;
+pubdelays manifest summary &gt;&gt; &quot;$REPORT&quot;
+</code></pre>
+<p>For a small reproducible smoke benchmark equivalent to <code>benchmark parse --limit 10</code>, copy or symlink ten XML/XML.GZ files into a temporary configured <code>pubmed.xml_dir</code>, then run the same parse command with that config.</p>
+<p>Measure:</p>
+<pre><code class="language-text">XML files / minute
+records / second
+input MB / second
+output MB / second
+peak RSS per worker
+</code></pre>
+<h3 id="transform-throughput">Transform throughput<a class="headerlink" href="#transform-throughput" title="Permanent link">&para;</a></h3>
+<p>Canonical local benchmark:</p>
+<pre><code class="language-bash">$TIME pubdelays transform-shards --shards 64 --jobs 16 --format parquet --resume
+pubdelays manifest summary &gt;&gt; &quot;$REPORT&quot;
+</code></pre>
+<p>Measure shard skew from filter sidecars:</p>
+<pre><code class="language-bash">python - &lt;&lt;'PY' &gt;&gt; &quot;$REPORT&quot;
+from pathlib import Path
+import csv
+rows = []
+for path in sorted(Path('data/temp_data/article_parquet').glob('*.filters.csv')):
+    with path.open(newline='', encoding='utf-8') as handle:
+        final = {row['stage']: int(row['count']) for row in csv.DictReader(handle)}.get('final_rows', 0)
+    rows.append(final)
+if rows:
+    print(f'transform_shards={len(rows)} min_rows={min(rows)} max_rows={max(rows)} skew={max(rows) / max(min(rows), 1):.2f}')
+PY
+</code></pre>
+<p>Measure:</p>
+<pre><code class="language-text">JSONL files / minute
+input records / second
+output rows / second
+input MB / second
+output MB / second
+peak RSS per worker
+shard skew
+</code></pre>
+<p>For a small reproducible smoke benchmark equivalent to <code>benchmark transform --shards 8</code>, run:</p>
+<pre><code class="language-bash">$TIME pubdelays transform-shards --shards 8 --jobs 8 --format parquet --resume
+</code></pre>
+<h3 id="aggregation-throughput">Aggregation throughput<a class="headerlink" href="#aggregation-throughput" title="Permanent link">&para;</a></h3>
+<pre><code class="language-bash">$TIME pubdelays aggregate-all --resume
+pubdelays manifest summary &gt;&gt; &quot;$REPORT&quot;
+du -h data/temp_data/article_parquet data/processed_data/processed.parquet data/processed_data/processed.csv &gt;&gt; &quot;$REPORT&quot; 2&gt;/dev/null || true
+</code></pre>
+<p>Measure:</p>
+<pre><code class="language-text">Parquet shard count
+input rows / second
+input MB / second
+final Parquet size
+CSV export time
+peak RSS
+</code></pre>
+<h2 id="recommended-defaults">Recommended defaults<a class="headerlink" href="#recommended-defaults" title="Permanent link">&para;</a></h2>
+<p>Local workstation:</p>
+<pre><code class="language-text">JOBS = physical cores - 1
+SHARDS = 8 to 16
+</code></pre>
+<p>HPC shared filesystem:</p>
+<pre><code class="language-text">parse: one XML file per SLURM array task
+transform: SHARDS = 32 to 128
+aggregate: single job with enough memory
+</code></pre>
+<p>Avoid over-sharding. Too many tiny Parquet files hurt aggregation and shared-filesystem metadata performance.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../SEMANTIC_DECISIONS/" class="btn btn-neutral float-left" title="Semantic Decisions"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../PIPELINE_CONTEXT/" class="btn btn-neutral float-right" title="Pipeline Context">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/martonaronvarga/pubdelays" class="fa fa-code-fork" style="color: #fcfcfc"> martonaronvarga/pubdelays</a>
+        </span>
+    
+    
+      <span><a href="../SEMANTIC_DECISIONS/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../PIPELINE_CONTEXT/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

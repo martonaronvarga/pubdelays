@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Pipeline Context - pubdelays</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Pipeline Context";
+        var mkdocs_page_input_path = "PIPELINE_CONTEXT.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> pubdelays
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflow</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../data-layout/">Data Layout</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../STAGE_CONTRACTS/">Stage Contracts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../hpc-slurm/">HPC and SLURM</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../ANALYSIS_DATASET_V1/">Analysis Dataset V1</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SEMANTIC_DECISIONS/">Semantic Decisions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../VALIDATION_AND_BENCHMARKS/">Validation and Benchmarks</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Pipeline Context</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#project-goal">Project goal</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#data-flow">Data flow</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#canonical-directories">Canonical directories</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#active-modules">Active modules</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#legacy-semantic-sources">Legacy semantic sources</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#important-semantic-choices">Important semantic choices</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#article-date-fallback">Article date fallback</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#ceased-journals">Ceased journals</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#join-keys">Join keys</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#final-data-format">Final data format</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#common-failure-modes">Common failure modes</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#minimal-smoke-sequence">Minimal smoke sequence</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">pubdelays</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Reference</li>
+      <li class="breadcrumb-item active">Pipeline Context</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/martonaronvarga/pubdelays/edit/master/docs/PIPELINE_CONTEXT.md">Edit on martonaronvarga/pubdelays</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="pipeline-context">Pipeline Context<a class="headerlink" href="#pipeline-context" title="Permanent link">&para;</a></h1>
+<p>This document gives enough context for an in-tree coding agent to modify the PubMed/MEDLINE pipeline without rediscovering the project every session.</p>
+<h2 id="project-goal">Project goal<a class="headerlink" href="#project-goal" title="Permanent link">&para;</a></h2>
+<p>The project analyzes publication and editorial delays in PubMed/MEDLINE records. The central measurements are:</p>
+<pre><code class="language-text">acceptance_delay  = accepted_date - received_date
+publication_delay = publication_date - accepted_date
+</code></pre>
+<p>The publication date is defined as:</p>
+<pre><code class="language-text">publication_date = article_date if present else pubdate
+</code></pre>
+<p>This is an intentional correction relative to the legacy pipeline, which dropped missing-<code>article_date</code> rows before the fallback could contribute.</p>
+<h2 id="data-flow">Data flow<a class="headerlink" href="#data-flow" title="Permanent link">&para;</a></h2>
+<pre><code class="language-text">NCBI PubMed XML/XML.GZ
+  -&gt; streaming MEDLINE parser
+  -&gt; JSONL parser shards
+  -&gt; Polars transform shards joined with external metadata
+  -&gt; Parquet article shards
+  -&gt; final processed.parquet + processed.csv
+</code></pre>
+<p>External metadata flow:</p>
+<pre><code class="language-text">raw Scimago yearly CSVs         -&gt; processed Scimago table
+raw Web of Science categories   -&gt; processed WoS table
+raw DOAJ CSV                    -&gt; processed DOAJ table
+raw Norwegian Publication list  -&gt; processed NPI table
+raw Retraction Watch CSV        -&gt; processed retraction table
+</code></pre>
+<h2 id="canonical-directories">Canonical directories<a class="headerlink" href="#canonical-directories" title="Permanent link">&para;</a></h2>
+<p>Raw inputs:</p>
+<pre><code class="language-text">data/raw_data/pubmed/xmls/
+data/raw_data/scimago/
+data/raw_data/web_of_science/
+data/raw_data/directory_of_open_access_journals/
+data/raw_data/norwegian_publication_indicator/
+data/raw_data/retraction_watch/
+</code></pre>
+<p>Generated intermediates:</p>
+<pre><code class="language-text">data/temp_data/pubmed/jsonl/
+data/temp_data/article_parquet/
+</code></pre>
+<p>Generated final outputs:</p>
+<pre><code class="language-text">data/processed_data/processed.parquet
+data/processed_data/processed.csv
+</code></pre>
+<p>Generated manifest:</p>
+<pre><code class="language-text">data/manifests/pipeline.sqlite
+</code></pre>
+<p>These directories are runtime data locations. They are ignored by git except for <code>.gitkeep</code>/README placeholders.</p>
+<h2 id="active-modules">Active modules<a class="headerlink" href="#active-modules" title="Permanent link">&para;</a></h2>
+<pre><code class="language-text">src/pubdelays/parser/medline.py
+</code></pre>
+<p>Streaming parser. It must preserve low memory use and support <code>.xml</code> and <code>.xml.gz</code>.</p>
+<pre><code class="language-text">src/pubdelays/external/*.py
+</code></pre>
+<p>Polars-native preprocessors for external journal metadata. These should not contain manual CSV parsing.</p>
+<pre><code class="language-text">src/pubdelays/transform/articles.py
+</code></pre>
+<p>Article-level filtering, enrichment, delay calculation, flags, and final schema construction.</p>
+<pre><code class="language-text">src/pubdelays/aggregate.py
+</code></pre>
+<p>Parquet shard aggregation and final output writing.</p>
+<pre><code class="language-text">src/pubdelays/manifest.py
+</code></pre>
+<p>SQLite manifest with process-safe append semantics.</p>
+<pre><code class="language-text">src/pubdelays/cli.py
+</code></pre>
+<p>Command-line API. Keep it thin: parse args, load config, call modules.</p>
+<h2 id="legacy-semantic-sources">Legacy semantic sources<a class="headerlink" href="#legacy-semantic-sources" title="Permanent link">&para;</a></h2>
+<p>Legacy files are references only:</p>
+<pre><code class="language-text">legacy/data_processing/xmls2json.py
+legacy/data_processing/process_data.R
+legacy/data_processing/scimago.R
+legacy/data_processing/wos.R
+legacy/data_processing/doaj.R
+legacy/data_processing/npi.R
+legacy/data_processing/retraction_watch.R
+legacy/data_processing/aggregate.R
+</code></pre>
+<p>Do not invoke these from the new pipeline.</p>
+<h2 id="important-semantic-choices">Important semantic choices<a class="headerlink" href="#important-semantic-choices" title="Permanent link">&para;</a></h2>
+<h3 id="article-date-fallback">Article date fallback<a class="headerlink" href="#article-date-fallback" title="Permanent link">&para;</a></h3>
+<p>Use:</p>
+<pre><code class="language-python">publication_dt = article_dt or pubdate
+</code></pre>
+<p>Rows with missing <code>article_date</code> but valid <code>pubdate</code> should be retained when all other date logic passes.</p>
+<h3 id="ceased-journals">Ceased journals<a class="headerlink" href="#ceased-journals" title="Permanent link">&para;</a></h3>
+<p>Use article publication year:</p>
+<pre><code class="language-text">keep if ceased_year is missing or ceased_year &gt;= publication_year
+</code></pre>
+<p>Do not preserve the legacy <code>ceased = is.numeric(ceased)</code> behavior.</p>
+<h3 id="join-keys">Join keys<a class="headerlink" href="#join-keys" title="Permanent link">&para;</a></h3>
+<p>Normalize ISSNs before joins:</p>
+<pre><code class="language-text">remove hyphens
+uppercase X
+trim whitespace
+empty string/null means missing
+</code></pre>
+<p>Use DOI joins for Retraction Watch after normalizing DOI case/spacing.</p>
+<h3 id="final-data-format">Final data format<a class="headerlink" href="#final-data-format" title="Permanent link">&para;</a></h3>
+<p>Use Parquet as the canonical analysis format. CSV exists for portability.</p>
+<h2 id="common-failure-modes">Common failure modes<a class="headerlink" href="#common-failure-modes" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Nix builds an old or partial package because files are untracked or source filtering is wrong.</li>
+<li>CLI imports a module that is not packaged.</li>
+<li>Generated data/caches enter the source tree.</li>
+<li>External metadata is loaded once per PubMed file under SLURM.</li>
+<li>A worker writes partial outputs that look complete.</li>
+<li>Path defaults drift between <code>README.md</code>, <code>config/default.toml</code>, scripts, and CLI.</li>
+<li>Legacy bugs are accidentally reintroduced in the name of parity.</li>
+</ol>
+<h2 id="minimal-smoke-sequence">Minimal smoke sequence<a class="headerlink" href="#minimal-smoke-sequence" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">pubdelays init-dirs
+pubdelays preflight
+pubdelays external-all --resume
+pubdelays parse --limit 2 --jobs 2 --format jsonl --parse-mesh-subterms --resume
+pubdelays transform-shards --shards 2 --jobs 2 --format parquet --resume
+pubdelays aggregate-all --resume
+pubdelays manifest --limit 20
+</code></pre>
+<p>Adjust commands depending on available raw data.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../VALIDATION_AND_BENCHMARKS/" class="btn btn-neutral float-left" title="Validation and Benchmarks"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/martonaronvarga/pubdelays" class="fa fa-code-fork" style="color: #fcfcfc"> martonaronvarga/pubdelays</a>
+        </span>
+    
+    
+      <span><a href="../VALIDATION_AND_BENCHMARKS/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

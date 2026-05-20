@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="description" content="Reproducible PubMed/MEDLINE publication-delay pipeline" />
+      <link rel="shortcut icon" href="img/favicon.ico" />
+    <title>pubdelays</title>
+    <link rel="stylesheet" href="css/theme.css" />
+    <link rel="stylesheet" href="css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Home";
+        var mkdocs_page_input_path = "index.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="." class="icon icon-home"> pubdelays
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+                <li class="toctree-l1 current"><a class="reference internal current" href="#">Home</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#what-this-repository-optimizes-for">What This Repository Optimizes For</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#recommended-reading-order">Recommended Reading Order</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#build-these-docs">Build These Docs</a>
+    </li>
+    </ul>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflow</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="data-layout/">Data Layout</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="cli/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="STAGE_CONTRACTS/">Stage Contracts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="hpc-slurm/">HPC and SLURM</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="ANALYSIS_DATASET_V1/">Analysis Dataset V1</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="SEMANTIC_DECISIONS/">Semantic Decisions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="VALIDATION_AND_BENCHMARKS/">Validation and Benchmarks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="PIPELINE_CONTEXT/">Pipeline Context</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href=".">pubdelays</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">Home</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/martonaronvarga/pubdelays/edit/master/docs/index.md">Edit on martonaronvarga/pubdelays</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="pubdelays">pubdelays<a class="headerlink" href="#pubdelays" title="Permanent link">&para;</a></h1>
+<p><code>pubdelays</code> is a research pipeline for building a reproducible PubMed/MEDLINE publication-delay dataset. It favors legibility, explicit file contracts, and rerunnable stages over production-service complexity.</p>
+<p>The pipeline reads PubMed XML, parses it into JSONL shards, joins external journal metadata with Polars, writes article-level Parquet shards, and aggregates final analysis files:</p>
+<pre><code class="language-text">PubMed XML/XML.GZ
+  -&gt; parsed JSONL shards
+  -&gt; transformed article Parquet shards
+  -&gt; processed.parquet + processed.csv
+</code></pre>
+<h2 id="what-this-repository-optimizes-for">What This Repository Optimizes For<a class="headerlink" href="#what-this-repository-optimizes-for" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Correctness:</strong> semantic choices are documented and covered by fixture tests.</li>
+<li><strong>Reproducibility:</strong> paths and resources come from <code>config/default.toml</code>; generated data stays under <code>data/</code>.</li>
+<li><strong>Ease of use:</strong> local and SLURM workflows use the same CLI and stage names.</li>
+<li><strong>Auditability:</strong> mutating stages write manifest rows; full-corpus SLURM arrays use per-task manifests that can be collected later.</li>
+<li><strong>Research pragmatism:</strong> this is a batch analysis pipeline, not a long-running production service.</li>
+</ul>
+<h2 id="recommended-reading-order">Recommended Reading Order<a class="headerlink" href="#recommended-reading-order" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="getting-started/">Getting Started</a> for install and the standard run.</li>
+<li><a href="data-layout/">Data Layout</a> for where raw and generated files live.</li>
+<li><a href="cli/">CLI Reference</a> for commands by task.</li>
+<li><a href="STAGE_CONTRACTS/">Stage Contracts</a> for precise inputs, outputs, manifests, and resume behavior.</li>
+<li><a href="hpc-slurm/">HPC and SLURM</a> for job arrays and manifest collection.</li>
+<li><a href="ANALYSIS_DATASET_V1/">Analysis Dataset V1</a> for final columns.</li>
+</ol>
+<h2 id="build-these-docs">Build These Docs<a class="headerlink" href="#build-these-docs" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">uv sync --extra docs
+uv run mkdocs serve
+</code></pre>
+<p>For a CI-style check:</p>
+<pre><code class="language-bash">uv run mkdocs build --strict
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="getting-started/" class="btn btn-neutral float-right" title="Getting Started">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/martonaronvarga/pubdelays" class="fa fa-code-fork" style="color: #fcfcfc"> martonaronvarga/pubdelays</a>
+        </span>
+    
+    
+    
+      <span><a href="getting-started/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = ".";</script>
+    <script src="js/theme_extra.js"></script>
+    <script src="js/theme.js"></script>
+      <script src="search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
+
+<!--
+MkDocs version : 1.6.1
+Build Date UTC : 1980-01-01 00:00:00+00:00
+-->

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Analysis Dataset V1 - pubdelays</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Analysis Dataset V1";
+        var mkdocs_page_input_path = "ANALYSIS_DATASET_V1.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> pubdelays
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflow</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../data-layout/">Data Layout</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cli/">CLI Reference</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../STAGE_CONTRACTS/">Stage Contracts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../hpc-slurm/">HPC and SLURM</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Analysis Dataset V1</a>
+    <ul class="current">
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SEMANTIC_DECISIONS/">Semantic Decisions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../VALIDATION_AND_BENCHMARKS/">Validation and Benchmarks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../PIPELINE_CONTEXT/">Pipeline Context</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">pubdelays</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Reference</li>
+      <li class="breadcrumb-item active">Analysis Dataset V1</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/martonaronvarga/pubdelays/edit/master/docs/ANALYSIS_DATASET_V1.md">Edit on martonaronvarga/pubdelays</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="analysis-dataset-v1">Analysis Dataset V1<a class="headerlink" href="#analysis-dataset-v1" title="Permanent link">&para;</a></h1>
+<p><code>analysis_dataset_v1</code> is the public schema for <code>data/processed_data/processed.parquet</code> and <code>data/processed_data/processed.csv</code>.</p>
+<p>All exported columns are stored as strings for CSV/Parquet interoperability. Boolean flags use the string values <code>True</code> and <code>False</code>; missing text, dates, and unavailable numeric metadata use the empty string. Delay columns are integer day counts encoded as strings.</p>
+<p>Schema changes require a version bump or an explicit migration note in <code>docs/SEMANTIC_DECISIONS.md</code> and tests that update <code>CANONICAL_ARTICLE_COLUMNS</code> deliberately.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Group</th>
+<th>Meaning</th>
+<th>Units / values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>is_covid</code></td>
+<td>flags</td>
+<td>Article title/keyword COVID synonym flag.</td>
+<td><code>True</code>/<code>False</code></td>
+</tr>
+<tr>
+<td><code>received</code></td>
+<td>dates</td>
+<td>Manuscript received date from PubMed history.</td>
+<td>ISO date</td>
+</tr>
+<tr>
+<td><code>article_date</code></td>
+<td>dates</td>
+<td>Publication date used for publication delay.</td>
+<td>ISO date</td>
+</tr>
+<tr>
+<td><code>article_date_raw</code></td>
+<td>dates</td>
+<td>Raw ArticleDate-derived date before retraction correction.</td>
+<td>ISO date or empty</td>
+</tr>
+<tr>
+<td><code>publication_date_source</code></td>
+<td>dates</td>
+<td>Source for <code>article_date</code>.</td>
+<td><code>article_date</code>, <code>pubdate</code>, or empty</td>
+</tr>
+<tr>
+<td><code>acceptance_delay</code></td>
+<td>outcomes</td>
+<td>Accepted minus received.</td>
+<td>days</td>
+</tr>
+<tr>
+<td><code>is_psych</code></td>
+<td>flags</td>
+<td>First ASJC code is in the psychology range.</td>
+<td><code>True</code>/<code>False</code></td>
+</tr>
+<tr>
+<td><code>is_mega</code></td>
+<td>flags</td>
+<td>Linking ISSN is in the configured megajournal set.</td>
+<td><code>True</code>/<code>False</code></td>
+</tr>
+<tr>
+<td><code>issn_linking</code></td>
+<td>identifiers</td>
+<td>Normalized PubMed linking ISSN.</td>
+<td>ISSN without punctuation</td>
+</tr>
+<tr>
+<td><code>h_index_year</code></td>
+<td>journal metadata</td>
+<td>Scimago h-index for the article year.</td>
+<td>integer string</td>
+</tr>
+<tr>
+<td><code>open_access</code></td>
+<td>external enrichment</td>
+<td>Open-access flag from DOAJ, WoS, or NPI evidence.</td>
+<td><code>True</code>/<code>False</code></td>
+</tr>
+<tr>
+<td><code>publication_delay</code></td>
+<td>outcomes</td>
+<td>Publication date minus accepted date.</td>
+<td>days</td>
+</tr>
+<tr>
+<td><code>publication_types</code></td>
+<td>article metadata</td>
+<td>PubMed publication type labels.</td>
+<td>semicolon/text</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>identifiers</td>
+<td>Article title.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>journal</code></td>
+<td>identifiers</td>
+<td>Journal title from PubMed.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>quartile_year</code></td>
+<td>journal metadata</td>
+<td>Scimago quartile for the article year.</td>
+<td><code>Q1</code>-<code>Q4</code> or empty</td>
+</tr>
+<tr>
+<td><code>rank_year</code></td>
+<td>journal metadata</td>
+<td>Scimago rank for the article year.</td>
+<td>integer string</td>
+</tr>
+<tr>
+<td><code>discipline</code></td>
+<td>field classification</td>
+<td>First WoS-derived umbrella discipline.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>asjc</code></td>
+<td>field classification</td>
+<td>First WoS ASJC code.</td>
+<td>code string</td>
+</tr>
+<tr>
+<td><code>discipline_all</code></td>
+<td>field classification</td>
+<td>All WoS-derived umbrella disciplines.</td>
+<td>pipe-delimited text</td>
+</tr>
+<tr>
+<td><code>asjc_all</code></td>
+<td>field classification</td>
+<td>All WoS ASJC codes for the journal.</td>
+<td>pipe-delimited code strings</td>
+</tr>
+<tr>
+<td><code>scimago_categories</code></td>
+<td>field classification</td>
+<td>Scimago categories from current-year metadata.</td>
+<td>pipe-delimited text</td>
+</tr>
+<tr>
+<td><code>publisher</code></td>
+<td>external enrichment</td>
+<td>First non-empty publisher name for the ISSN.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>publisher_group</code></td>
+<td>external enrichment</td>
+<td>First non-empty publisher group/parent.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>publisher_conflict</code></td>
+<td>external enrichment</td>
+<td>Publisher rows disagree for the ISSN.</td>
+<td><code>True</code>/<code>False</code> or empty</td>
+</tr>
+<tr>
+<td><code>publisher_group_conflict</code></td>
+<td>external enrichment</td>
+<td>Publisher-group rows disagree for the ISSN.</td>
+<td><code>True</code>/<code>False</code> or empty</td>
+</tr>
+<tr>
+<td><code>npi_discipline</code></td>
+<td>field classification</td>
+<td>Norwegian Publication Indicator discipline.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>npi_field</code></td>
+<td>field classification</td>
+<td>Norwegian Publication Indicator field.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>npi_year</code></td>
+<td>journal metadata</td>
+<td>NPI level for the article year.</td>
+<td>level string</td>
+</tr>
+<tr>
+<td><code>is_series</code></td>
+<td>journal metadata</td>
+<td>NPI series flag.</td>
+<td>source value</td>
+</tr>
+<tr>
+<td><code>established</code></td>
+<td>journal metadata</td>
+<td>NPI established year.</td>
+<td>year string</td>
+</tr>
+<tr>
+<td><code>country</code></td>
+<td>journal metadata</td>
+<td>Journal country from external metadata.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>keywords</code></td>
+<td>article metadata</td>
+<td>PubMed keyword text.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>apc</code></td>
+<td>external enrichment</td>
+<td>DOAJ APC availability flag/value.</td>
+<td>source value</td>
+</tr>
+<tr>
+<td><code>apc_amount</code></td>
+<td>external enrichment</td>
+<td>DOAJ APC amount.</td>
+<td>amount string</td>
+</tr>
+<tr>
+<td><code>doi</code></td>
+<td>identifiers</td>
+<td>Normalized article DOI.</td>
+<td>lowercase DOI</td>
+</tr>
+<tr>
+<td><code>retraction_nature</code></td>
+<td>retractions</td>
+<td>Retraction Watch nature.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td>retractions</td>
+<td>Retraction Watch reason.</td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>retraction_date</code></td>
+<td>retractions</td>
+<td>Retraction date.</td>
+<td>ISO date or source date</td>
+</tr>
+<tr>
+<td><code>is_retracted</code></td>
+<td>retractions</td>
+<td>Retraction evidence exists.</td>
+<td><code>True</code>/<code>False</code></td>
+</tr>
+</tbody>
+</table>
+<p>Validate a produced dataset with:</p>
+<pre><code class="language-bash">pubdelays schema --input data/processed_data/processed.parquet
+</code></pre>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../hpc-slurm/" class="btn btn-neutral float-left" title="HPC and SLURM"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../SEMANTIC_DECISIONS/" class="btn btn-neutral float-right" title="Semantic Decisions">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/martonaronvarga/pubdelays" class="fa fa-code-fork" style="color: #fcfcfc"> martonaronvarga/pubdelays</a>
+        </span>
+    
+    
+      <span><a href="../hpc-slurm/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../SEMANTIC_DECISIONS/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

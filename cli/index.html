@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>CLI Reference - pubdelays</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "CLI Reference";
+        var mkdocs_page_input_path = "cli.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> pubdelays
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflow</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../data-layout/">Data Layout</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">CLI Reference</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#setup-and-inspection">Setup and Inspection</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#downloads">Downloads</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#external-metadata">External Metadata</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#parse-validate-transform-aggregate">Parse, Validate, Transform, Aggregate</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#manifest-commands">Manifest Commands</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#slurm-commands">SLURM Commands</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../STAGE_CONTRACTS/">Stage Contracts</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../hpc-slurm/">HPC and SLURM</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../ANALYSIS_DATASET_V1/">Analysis Dataset V1</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../SEMANTIC_DECISIONS/">Semantic Decisions</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../VALIDATION_AND_BENCHMARKS/">Validation and Benchmarks</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../PIPELINE_CONTEXT/">Pipeline Context</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">pubdelays</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Workflow</li>
+      <li class="breadcrumb-item active">CLI Reference</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/martonaronvarga/pubdelays/edit/master/docs/cli.md">Edit on martonaronvarga/pubdelays</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="cli-reference">CLI Reference<a class="headerlink" href="#cli-reference" title="Permanent link">&para;</a></h1>
+<p>The canonical command is <code>pubdelays</code>. Put global options before the subcommand:</p>
+<pre><code class="language-bash">pubdelays --config config/default.toml &lt;command&gt;
+</code></pre>
+<p>Relative config paths resolve from the repository root.</p>
+<h2 id="setup-and-inspection">Setup and Inspection<a class="headerlink" href="#setup-and-inspection" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">pubdelays init-dirs
+pubdelays preflight
+pubdelays schema
+pubdelays schema --input data/processed_data/processed.parquet
+</code></pre>
+<h2 id="downloads">Downloads<a class="headerlink" href="#downloads" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">pubdelays download --source baseline --jobs 4 --resume
+pubdelays download --source updatefiles --jobs 4 --resume
+pubdelays download-external --source all --resume
+</code></pre>
+<p><code>download</code> verifies PubMed <code>.xml.gz</code> files with <code>.md5</code> sidecars. <code>download-external</code> writes public/configured external metadata into raw-data paths. Web of Science and Norwegian Publication Indicator inputs usually remain manual/licensed files.</p>
+<h2 id="external-metadata">External Metadata<a class="headerlink" href="#external-metadata" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">pubdelays external-all --resume
+pubdelays external-scimago --resume
+pubdelays external-wos --resume
+pubdelays external-doaj --resume
+pubdelays external-npi --resume
+pubdelays external-retraction-watch --resume
+pubdelays external-publisher --resume
+</code></pre>
+<p><code>external-all</code> runs the configured preprocessors and writes normalized lookup tables under <code>data/processed_data/</code>.</p>
+<h2 id="parse-validate-transform-aggregate">Parse, Validate, Transform, Aggregate<a class="headerlink" href="#parse-validate-transform-aggregate" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">pubdelays parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
+pubdelays validate
+pubdelays transform-shards --shards 64 --jobs 16 --format parquet --resume
+pubdelays validate-shards --shards 64 --format parquet
+pubdelays aggregate-all --resume
+pubdelays summaries --resume
+</code></pre>
+<p><code>transform</code> exists for compatibility, but <code>transform-shards</code> is preferred for full-corpus work because each worker loads external metadata once for many JSONL files.</p>
+<h2 id="manifest-commands">Manifest Commands<a class="headerlink" href="#manifest-commands" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">pubdelays manifest --limit 20
+pubdelays manifest summary
+pubdelays manifest failed --limit 50
+pubdelays manifest show --json
+pubdelays manifest retry-script
+</code></pre>
+<p>HPC recovery helpers that do not require the <code>sqlite3</code> shell:</p>
+<pre><code class="language-bash">pubdelays manifest check --manifest data/manifests/pipeline.sqlite
+pubdelays manifest check --manifest data/manifests/pipeline.sqlite --cleanup --archive-dir data/manifests/corrupt
+pubdelays manifest collect --manifest data/manifests/pipeline.sqlite --input-dir data/manifests/slurm
+</code></pre>
+<p><code>manifest collect</code> appends per-task rows into the target manifest. It is intended as a post-run audit step; if you run it repeatedly against the same files, collected counts are duplicated.</p>
+<h2 id="slurm-commands">SLURM Commands<a class="headerlink" href="#slurm-commands" title="Permanent link">&para;</a></h2>
+<pre><code class="language-bash">pubdelays slurm submit parse --dry-run
+pubdelays slurm submit transform-shards --dry-run --shards 64
+pubdelays slurm workflow --shards 64 --max-array-size 1001
+pubdelays slurm status &lt;job-id&gt;
+pubdelays slurm cleanup &lt;job-id&gt;
+pubdelays slurm cleanup &lt;job-id&gt; --cancel
+</code></pre>
+<p><code>slurm cleanup</code> previews dependency-blocked pending jobs by default and cancels them only with <code>--cancel</code>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../data-layout/" class="btn btn-neutral float-left" title="Data Layout"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../STAGE_CONTRACTS/" class="btn btn-neutral float-right" title="Stage Contracts">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/martonaronvarga/pubdelays" class="fa fa-code-fork" style="color: #fcfcfc"> martonaronvarga/pubdelays</a>
+        </span>
+    
+    
+      <span><a href="../data-layout/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../STAGE_CONTRACTS/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "..";</script>
+    <script src="../js/theme_extra.js"></script>
+    <script src="../js/theme.js"></script>
+      <script src="../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
