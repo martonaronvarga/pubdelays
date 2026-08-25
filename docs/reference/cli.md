@@ -106,7 +106,7 @@ pubdelays quality-report
 
 `run-analysis` runs the configured study-specific command from `[analysis]`, captures stdout/stderr, and records the subprocess status in the manifest. The core CLI does not encode analysis semantics such as GAMs or plot definitions.
 
-`validate-analysis` writes final-output validation tables for delay outliers, missingness/range checks, missingness mechanisms, journal counts, article counts by time, COVID counts, and Scopus/NPI discipline agreement. Quality-check failures are reported but do not make the command fail unless `--strict-checks` is passed. It can also write kept rows to `processed_validated.parquet` and excluded rows to `processed_validation_excluded.parquet` instead of overwriting `processed.csv` in place.
+`validate-analysis` writes final-output validation tables for delay outliers, outcome-specific eligibility, missingness/range checks, missingness mechanisms, journal counts, article counts by time, COVID counts, and Scopus/NPI discipline agreement. Declared date and delay restrictions are cohort exclusions rather than hard data-integrity failures. Other quality-check failures are reported but do not make the command fail unless `--strict-checks` is passed. The optional filtered output remains the paired-valid subset for compatibility; outcome-specific analyses should consume the aggregate dataset and apply the eligibility table's declared rule.
 
 `filter-counts` aggregates transform `.filters.csv` sidecars into one row-count/drop-count audit table.
 

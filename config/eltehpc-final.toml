@@ -1,0 +1,119 @@
+[pipeline]
+manifest = "data/manifests/runs/final_20260805_v3/pipeline.sqlite"
+parse_inputs = "data/manifests/runs/final_20260805_v3/parse_inputs.txt"
+transform_inputs = "data/manifests/runs/final_20260805_v3/transform_inputs.txt"
+
+[pubmed]
+xml_dir = "data/raw_data/pubmed/baseline"
+jsonl_dir = "data/temp_data/runs/final_20260805_v3/pubmed/jsonl"
+baseline_xml_dir = "data/raw_data/pubmed/baseline"
+update_xml_dir = "data/raw_data/pubmed/updatefiles"
+baseline_jsonl_dir = "data/temp_data/runs/final_20260805_v3/pubmed/baseline_jsonl"
+update_jsonl_dir = "data/temp_data/runs/final_20260805_v3/pubmed/update_jsonl"
+resolved_jsonl_dir = "data/temp_data/runs/final_20260805_v3/pubmed/resolved_jsonl"
+state_db = "data/temp_data/runs/final_20260805_v3/pubmed/state.sqlite"
+state_counts = "data/processed_data/runs/final_20260805_v3/pubmed_state_counts.json"
+
+[external.raw]
+scimago_dir = "data/raw_data/scimago"
+web_of_science_csv = "data/raw_data/web_of_science/scopus_source_list_2026_06.csv"
+doaj_csv = "data/raw_data/directory_of_open_access_journals/doaj_journalcsv_20260705_2321_utf8.csv"
+norwegian_list_csv = "data/raw_data/norwegian_publication_indicator/norwegian_list_2026_08_05.csv"
+retraction_watch_csv = "data/raw_data/retraction_watch/retraction_watch.csv"
+publisher_csv = "data/raw_data/publisher_metadata/publishers.csv"
+peer_review_csv = "data/raw_data/peer_review/peer_review.csv"
+
+[external.download]
+doaj_url = "https://doaj.org/csv"
+retraction_watch_url = "https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv"
+scimago_url_template = ""
+publisher_url = ""
+
+[external.processed]
+scimago = "data/processed_data/runs/final_20260805_v3/external/scimago.csv"
+web_of_science = "data/processed_data/runs/final_20260805_v3/external/web_of_science.csv"
+doaj = "data/processed_data/runs/final_20260805_v3/external/doaj.csv"
+norwegian_list = "data/processed_data/runs/final_20260805_v3/external/norwegian_list.csv"
+retraction_watch = "data/processed_data/runs/final_20260805_v3/external/retraction_watch.csv"
+publisher = "data/processed_data/runs/final_20260805_v3/external/publisher_metadata.csv"
+peer_review = "data/processed_data/runs/final_20260805_v3/external/peer_review.csv"
+exchange_rates = "data/processed_data/exchange_rates.csv"
+pubmed_journals = "data/external/pubmed-journals.csv"
+
+[transform]
+article_shard_dir = "data/temp_data/runs/final_20260805_v3/article_parquet"
+article_shard_format = "parquet"
+min_received = "2013-01-01"
+default_shards = 64
+
+[aggregate]
+processed_parquet = "data/processed_data/runs/final_20260805_v3/processed.parquet"
+processed_csv = "data/processed_data/runs/final_20260805_v3/processed.csv"
+summary_dir = "data/processed_data/runs/final_20260805_v3/summaries"
+filter_counts = "data/processed_data/runs/final_20260805_v3/filter_counts.csv"
+
+[quality]
+report_dir = "data/processed_data/runs/final_20260805_v3/quality"
+
+[analysis]
+cwd = "."
+input = "data/processed_data/runs/final_20260805_v3/processed.parquet"
+output_dir = "data/processed_data/runs/final_20260805_v3/analysis"
+command = ["python", "pubdelays_analysis/outputs.py", "--input", "data/processed_data/runs/final_20260805_v3/processed.parquet", "--table-dir", "data/processed_data/runs/final_20260805_v3/analysis_tables", "--figure-data-dir", "data/processed_data/runs/final_20260805_v3/analysis_figures"]
+
+[validation]
+report_dir = "data/processed_data/runs/final_20260805_v3/validation_tables"
+filtered_output = "data/processed_data/runs/final_20260805_v3/processed_paired_validated.parquet"
+excluded_output = "data/processed_data/runs/final_20260805_v3/processed_paired_excluded.parquet"
+min_article_date = "2016-01-01"
+max_article_date = "2025-12-31"
+min_delay_days = 1
+max_delay_days = 1095
+
+[slurm]
+runner = "uv run pubdelays"
+log_dir = "logs/slurm/final_20260805_v3"
+partition = "hpc2019"
+account = ""
+qos = ""
+max_array_size = 1001
+
+[slurm.resources.download]
+cpus_per_task = 4
+mem = "8G"
+time = "12:00:00"
+
+[slurm.resources.download_external]
+cpus_per_task = 2
+mem = "4G"
+time = "02:00:00"
+
+[slurm.resources.external_all]
+cpus_per_task = 2
+mem = "12G"
+time = "02:00:00"
+
+[slurm.resources.parse]
+cpus_per_task = 1
+mem = "6G"
+time = "04:00:00"
+
+[slurm.resources.resolve_state]
+cpus_per_task = 1
+mem = "16G"
+time = "08:00:00"
+
+[slurm.resources.prepare_transform]
+cpus_per_task = 1
+mem = "2G"
+time = "00:30:00"
+
+[slurm.resources.transform_shards]
+cpus_per_task = 4
+mem = "24G"
+time = "06:00:00"
+
+[slurm.resources.aggregate_all]
+cpus_per_task = 4
+mem = "48G"
+time = "04:00:00"

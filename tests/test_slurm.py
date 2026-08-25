@@ -156,6 +156,15 @@ def test_transform_slurm_job_uses_per_task_manifest_and_logical_shard_id() -> No
     assert any("${SLURM_ARRAY_JOB_ID:-local}-${PUBDELAYS_ARRAY_TASK_ID}.sqlite" in line for line in job.setup)
 
 
+def test_resolve_state_has_dedicated_resources() -> None:
+    args = build_parser().parse_args(["slurm", "submit", "resolve-state", "--dry-run"])
+
+    job, _metadata = build_slurm_job(args, "resolve-state")
+
+    assert job.resources.mem == "16G"
+    assert job.resources.time == "08:00:00"
+
+
 def test_split_job_array_restarts_task_ids_and_sets_input_offset(tmp_path: Path) -> None:
     job = SlurmJob(
         name="pubdelays-parse",

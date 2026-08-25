@@ -102,6 +102,11 @@ cpus_per_task = 1
 mem = "6G"
 time = "04:00:00"
 
+[slurm.resources.resolve_state]
+cpus_per_task = 1
+mem = "16G"
+time = "08:00:00"
+
 [slurm.resources.prepare_transform]
 cpus_per_task = 1
 mem = "2G"

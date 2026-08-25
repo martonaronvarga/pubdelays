@@ -2008,7 +2008,7 @@ SLURM_STAGE_CONFIG = {
     "parse": "parse",
     "parse-baseline": "parse",
     "parse-updatefiles": "parse",
-    "resolve-state": "prepare_transform",
+    "resolve-state": "resolve_state",
     "prepare-transform": "prepare_transform",
     "transform-shards": "transform_shards",
     "aggregate-all": "aggregate_all",

@@ -45,4 +45,4 @@ External raw paths live under `[external.raw]`; normalized outputs live under `[
 
 ## SLURM resources
 
-`[slurm]` sets the runner, log directory, and optional scheduler account fields. `[slurm.resources.<stage>]` sets `cpus_per_task`, `mem`, and `time` for stage-specific job scripts.
+`[slurm]` sets the runner, log directory, and optional scheduler account fields. `[slurm.resources.<stage>]` sets `cpus_per_task`, `mem`, and `time` for stage-specific job scripts. State reconstruction uses the distinct `slurm.resources.resolve_state` table because its SQLite state database has different memory and walltime needs from transform-input preparation.

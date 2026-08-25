@@ -63,6 +63,26 @@ def test_derive_summary_tables_from_processed_parquet(tmp_path: Path) -> None:
     assert publisher["publisher"].to_list() == ["Example Publisher"]
     distribution = pl.read_csv(outputs["delay_distribution"], infer_schema=False)
     assert set(distribution["article_year"].to_list()) == {"2020", "2021"}
+    assert distribution["acceptance_articles"].cast(pl.Int64).sum() == 3
+    assert distribution["publication_articles"].cast(pl.Int64).sum() == 3
+
+
+def test_analysis_outputs_apply_outcome_windows_independently(tmp_path: Path) -> None:
+    processed = tmp_path / "processed.parquet"
+    pl.DataFrame(
+        [
+            canonical_row(title="A", acceptance_delay="20", publication_delay="1200"),
+            canonical_row(title="B", acceptance_delay="1200", publication_delay="30"),
+            canonical_row(title="C", article_date="2026-01-01"),
+        ]
+    ).write_parquet(processed)
+
+    outputs = derive_analysis_outputs(processed, tmp_path / "tables", tmp_path / "figures")
+    summary = pl.read_csv(outputs["table:delay_summary"], infer_schema=False)
+
+    assert summary["date_window_articles"].item() == "2"
+    assert summary["acceptance_articles"].item() == "1"
+    assert summary["publication_articles"].item() == "1"
 
 
 def test_derive_analysis_outputs_include_analysis_tables_and_peer_review_data(tmp_path: Path) -> None:

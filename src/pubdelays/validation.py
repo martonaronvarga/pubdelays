@@ -25,6 +25,7 @@ HASH_COLUMNS = (
 )
 VALIDATION_TABLES: tuple[str, ...] = (
     "validation_checks",
+    "outcome_eligibility",
     "outlier_delays",
     "journal_n",
     "journal_articles_n",
@@ -234,10 +235,7 @@ def _validation_checks(
         checks.append(_check_record("missing:retraction_reason", failed == 0, retracted.height, failed))
 
     range_checks = {
-        "range:article_date": pl.col("article_date_parsed").is_between(min_article_date, max_article_date),
         "range:received_date": pl.col("received_date") <= pl.col("article_date_parsed"),
-        "range:acceptance_delay": pl.col("acceptance_delay_days").is_between(min_delay_days, max_delay_days),
-        "range:publication_delay": pl.col("publication_delay_days").is_between(min_delay_days, max_delay_days),
         "range:established": pl.col("established_year").is_null() | pl.col("established_year").is_between(1500, 2026),
         "range:h_index": pl.col("h_index_year_num").is_null() | (pl.col("h_index_year_num") >= 0),
         "range:rank": pl.col("rank_year_num").is_null() | (pl.col("rank_year_num") >= 0),
@@ -316,14 +314,34 @@ def validate_analysis_output(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     df = _analysis_frame(input_path)
-    in_window = (
-        pl.col("article_date_parsed").is_between(min_article_date, max_article_date)
-        & pl.col("acceptance_delay_days").is_between(min_delay_days, max_delay_days)
-        & pl.col("publication_delay_days").is_between(min_delay_days, max_delay_days)
+    date_mask = pl.col("article_date_parsed").is_between(min_article_date, max_article_date)
+    acceptance_mask = date_mask & pl.col("acceptance_delay_days").is_between(
+        min_delay_days, max_delay_days
     )
-    keep_mask = in_window.fill_null(False)
+    publication_mask = date_mask & pl.col("publication_delay_days").is_between(
+        min_delay_days, max_delay_days
+    )
+    keep_mask = (acceptance_mask & publication_mask).fill_null(False)
     filtered = df.filter(keep_mask)
     excluded = df.filter(~keep_mask)
+
+    eligibility = []
+    for outcome, mask in (
+        ("date_window", date_mask),
+        ("acceptance_delay", acceptance_mask),
+        ("publication_delay", publication_mask),
+        ("both_outcomes", acceptance_mask & publication_mask),
+    ):
+        eligible = df.filter(mask.fill_null(False)).height
+        eligibility.append(
+            {
+                "cohort": outcome,
+                "rows_in": df.height,
+                "eligible": eligible,
+                "excluded": df.height - eligible,
+                "eligible_percent": round(eligible / df.height * 100, 4) if df.height else 0.0,
+            }
+        )
 
     tables: dict[str, pl.DataFrame] = {
         "validation_checks": _validation_checks(
@@ -333,6 +351,7 @@ def validate_analysis_output(
             min_delay_days=min_delay_days,
             max_delay_days=max_delay_days,
         ),
+        "outcome_eligibility": pl.DataFrame(eligibility),
         "outlier_delays": pl.DataFrame(
             [
                 {

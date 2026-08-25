@@ -61,6 +61,7 @@ def test_validate_analysis_output_writes_validation_tables(tmp_path: Path) -> No
     assert result.excluded_output == tmp_path / "excluded.parquet"
     assert set(result.tables) >= {
         "validation_checks",
+        "outcome_eligibility",
         "outlier_delays",
         "articles_per_year",
         "journal_articles_n",
@@ -70,7 +71,11 @@ def test_validate_analysis_output_writes_validation_tables(tmp_path: Path) -> No
         "missingness_pairwise",
     }
     checks = pl.read_csv(result.tables["validation_checks"], infer_schema=False)
-    assert "range:publication_delay" in checks["check"].to_list()
+    assert "range:publication_delay" not in checks["check"].to_list()
+    assert result.failed_checks == 0
+    eligibility = pl.read_csv(result.tables["outcome_eligibility"], infer_schema=False)
+    assert eligibility.filter(pl.col("cohort") == "acceptance_delay")["eligible"].item() == "1"
+    assert eligibility.filter(pl.col("cohort") == "publication_delay")["eligible"].item() == "1"
     outliers = pl.read_csv(result.tables["outlier_delays"], infer_schema=False)
     assert outliers.filter(pl.col("metric") == "publication_delay_above_max")["count"].item() == "1"
     assert pl.read_parquet(tmp_path / "validated.parquet").height == 1

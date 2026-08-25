@@ -121,7 +121,7 @@ def _analysis_frame(path: Path) -> pl.DataFrame:
         "first_decision_delay",
         "final_decision_delay",
     )
-    return (
+    frame = (
         _ensure_columns(_read_processed(path), needed)
         .with_columns(
             pl.col("article_date").cast(pl.Utf8, strict=False).str.slice(0, 4).alias("article_year"),
@@ -137,6 +137,15 @@ def _analysis_frame(path: Path) -> pl.DataFrame:
             pl.col("final_decision_delay").cast(pl.Float64, strict=False).alias("final_decision_delay_days"),
         )
         .filter(pl.col("article_year").str.contains(r"^\d{4}$"))
+        .filter(pl.col("article_year").cast(pl.Int64).is_between(2016, 2025))
+    )
+    return frame.with_columns(
+        pl.when(pl.col("acceptance_delay_days").is_between(1, 1095))
+        .then(pl.col("acceptance_delay_days"))
+        .alias("acceptance_delay_days"),
+        pl.when(pl.col("publication_delay_days").is_between(1, 1095))
+        .then(pl.col("publication_delay_days"))
+        .alias("publication_delay_days"),
     )
 
 
@@ -177,7 +186,9 @@ def _article_number(df: pl.DataFrame, keys: list[str]) -> pl.DataFrame:
 def _delay_summary(df: pl.DataFrame, keys: list[str] | None = None) -> pl.DataFrame:
     group_keys = keys or []
     agg = [
-        pl.len().alias("articles"),
+        pl.len().alias("date_window_articles"),
+        pl.col("acceptance_delay_days").count().alias("acceptance_articles"),
+        pl.col("publication_delay_days").count().alias("publication_articles"),
         pl.col("acceptance_delay_days").mean().round(2).alias("acceptance_delay_mean_days"),
         pl.col("acceptance_delay_days").median().alias("acceptance_delay_median_days"),
         pl.col("acceptance_delay_days").quantile(0.25).alias("acceptance_delay_p25_days"),

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import polars as pl
+
+from pubdelays.manifest import sha256_file
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -369,16 +372,47 @@ def fit_outcome(
             )
     pl.DataFrame(missing_rows).write_csv(missingness_path)
     final_model.save_model(model_path)
+    _plot_outputs(output_dir, predictions, importance)
+    artifact_paths = {
+        "metrics": metrics_path,
+        "predictions": predictions_path,
+        "feature_importance": importance_path,
+        "shap_values": shap_path,
+        "shap_importance": shap_importance_path,
+        "model": model_path,
+        "feature_missingness": missingness_path,
+        "actual_vs_predicted": output_dir / "actual_vs_predicted.svg",
+        "residuals": output_dir / "residuals.svg",
+        "feature_importance_figure": output_dir / "feature_importance.svg",
+    }
     manifest_path.write_text(
         json.dumps(
             {
                 "outcome": outcome,
                 "exclude_retracted": exclude_retracted,
+                "sample_fraction": sample_fraction,
+                "input": {
+                    "path": str(Path(input_path)),
+                    "bytes": Path(input_path).stat().st_size,
+                    "sha256": sha256_file(Path(input_path)),
+                },
                 "config": asdict(config),
                 "features": list(FEATURES),
                 "categorical_features": list(CATEGORICAL_FEATURES),
                 "best_iterations": best_iterations,
                 "rows": {name: value.height for name, value in parts.items()},
+                "versions": {
+                    package: importlib.metadata.version(package)
+                    for package in ("catboost", "matplotlib", "numpy", "pandas", "polars", "scikit-learn")
+                },
+                "artifacts": {
+                    name: {
+                        "path": str(path),
+                        "bytes": path.stat().st_size,
+                        "sha256": sha256_file(path),
+                    }
+                    for name, path in artifact_paths.items()
+                },
                 "interpretation": "retrospective predictive association; SHAP values are not causal",
             },
             indent=2,
@@ -386,7 +420,6 @@ def fit_outcome(
         + "\n",
         encoding="utf-8",
     )
-    _plot_outputs(output_dir, predictions, importance)
     return {
         "metrics": metrics_path,
         "predictions": predictions_path,
@@ -401,7 +434,7 @@ def fit_outcome(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Fit retrospective CatBoost delay models.")
-    parser.add_argument("--input", default="data/processed_data/processed_validated.parquet")
+    parser.add_argument("--input", default="data/processed_data/processed.parquet")
     parser.add_argument("--output-dir", default="data/processed_data/boosting")
     parser.add_argument(
         "--outcome",

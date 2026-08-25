@@ -44,6 +44,15 @@ def _base_frame(path: Path) -> pl.DataFrame:
             pl.col("publication_delay").cast(pl.Int64, strict=False).alias("publication_delay_days"),
         )
         .filter(pl.col("article_year").str.contains(r"^\d{4}$"))
+        .filter(pl.col("article_year").cast(pl.Int64).is_between(2016, 2025))
+        .with_columns(
+            pl.when(pl.col("acceptance_delay_days").is_between(1, 1095))
+            .then(pl.col("acceptance_delay_days"))
+            .alias("acceptance_delay_days"),
+            pl.when(pl.col("publication_delay_days").is_between(1, 1095))
+            .then(pl.col("publication_delay_days"))
+            .alias("publication_delay_days"),
+        )
         .collect()
     )
 
@@ -68,7 +77,9 @@ def _delay_distribution(df: pl.DataFrame) -> pl.DataFrame:
     return _text(
         df.group_by("article_year", maintain_order=True)
         .agg(
-            pl.len().alias("articles"),
+            pl.len().alias("date_window_articles"),
+            pl.col("acceptance_delay_days").count().alias("acceptance_articles"),
+            pl.col("publication_delay_days").count().alias("publication_articles"),
             pl.col("acceptance_delay_days").median().alias("acceptance_delay_median_days"),
             pl.col("publication_delay_days").median().alias("publication_delay_median_days"),
             pl.col("acceptance_delay_days").quantile(0.25).alias("acceptance_delay_p25_days"),

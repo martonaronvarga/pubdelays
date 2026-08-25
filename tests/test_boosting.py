@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import polars as pl
@@ -117,3 +118,7 @@ def test_fit_outcome_writes_complete_small_artifact_set(tmp_path: Path) -> None:
     assert {"catboost", "global_historical_median", "journal_historical_median"} <= set(
         metrics["model"]
     )
+    manifest = json.loads(outputs["manifest"].read_text(encoding="utf-8"))
+    assert manifest["sample_fraction"] == 1.0
+    assert len(manifest["input"]["sha256"]) == 64
+    assert set(manifest["artifacts"]) >= {"model", "metrics", "predictions"}
