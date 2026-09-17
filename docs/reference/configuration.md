@@ -15,8 +15,11 @@ icon: octicons/gear-16
 | `pipeline.manifest` | `data/manifests/pipeline.sqlite` | Manifested stages and `manifest` subcommands. |
 | `pipeline.parse_inputs` | `data/manifests/parse_inputs.txt` | SLURM parse input lists. |
 | `pipeline.transform_inputs` | `data/manifests/transform_inputs.txt` | Transform sharding and SLURM transform arrays. |
-| `pubmed.xml_dir` | `data/raw_data/pubmed/xmls` | Download, parse, preflight. |
-| `pubmed.jsonl_dir` | `data/temp_data/pubmed/jsonl` | Parse outputs, validate, transform inputs. |
+| `pubmed.baseline_xml_dir` | `data/raw_data/pubmed/baseline` | Baseline download, parse, preflight. |
+| `pubmed.update_xml_dir` | `data/raw_data/pubmed/updatefiles` | Update download, parse, preflight. |
+| `pubmed.baseline_jsonl_dir` | `data/temp_data/pubmed/baseline_jsonl` | Ephemeral parsed baseline records; removed after successful state resolution. |
+| `pubmed.update_jsonl_dir` | `data/temp_data/pubmed/update_jsonl` | Ephemeral parsed updates/deletions; removed after successful state resolution. |
+| `pubmed.resolved_jsonl_dir` | `data/temp_data/pubmed/resolved_jsonl` | Resolved live PubMed state used by validation and transform. |
 | `transform.article_shard_dir` | `data/temp_data/article_parquet` | Transform outputs and shard validation. |
 | `transform.article_shard_format` | `parquet` | Transform and aggregation default format. |
 | `transform.min_received` | `2013-01-01` | Journal metadata eligibility filter. |
@@ -33,7 +36,7 @@ icon: octicons/gear-16
 | `validation.report_dir` | `data/processed_data/validation_tables` | `validate-analysis`. |
 | `validation.filtered_output` | `data/processed_data/processed_validated.parquet` | Rows kept by `validate-analysis`. |
 | `validation.excluded_output` | `data/processed_data/processed_validation_excluded.parquet` | Rows excluded by final validation bounds. |
-| `validation.min_article_date` / `validation.max_article_date` | `2016-01-01` / `2025-06-01` | Final-output validation window. |
+| `validation.min_article_date` / `validation.max_article_date` | `2016-01-01` / `2025-12-31` | Final-output validation window. |
 | `validation.min_delay_days` / `validation.max_delay_days` | `1` / `1095` | Final-output delay validation bounds. |
 
 ## External raw and processed paths

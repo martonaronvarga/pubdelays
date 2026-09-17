@@ -45,8 +45,13 @@ parse_inputs = {quoted(manifests / 'parse_inputs.txt')}
 transform_inputs = {quoted(manifests / 'transform_inputs.txt')}
 
 [pubmed]
-xml_dir = {quoted(raw / 'pubmed/xmls')}
-jsonl_dir = {quoted(temporary / 'pubmed/jsonl')}
+baseline_xml_dir = {quoted(raw / 'pubmed/baseline')}
+update_xml_dir = {quoted(raw / 'pubmed/updatefiles')}
+baseline_jsonl_dir = {quoted(temporary / 'pubmed/baseline_jsonl')}
+update_jsonl_dir = {quoted(temporary / 'pubmed/update_jsonl')}
+resolved_jsonl_dir = {quoted(temporary / 'pubmed/resolved_jsonl')}
+state_db = {quoted(temporary / 'pubmed/state.sqlite')}
+state_counts = {quoted(processed / 'pubmed_state_counts.json')}
 
 [external.raw]
 scimago_dir = {quoted(manual['scimago_dir'])}
@@ -173,7 +178,11 @@ def run_live_smoke(
         else:
             sources[source] = "source_not_supplied"
 
-    _run(config_path, ["parse", "--jobs", str(jobs), "--format", "jsonl", *resume_arg])
+    _run(
+        config_path,
+        ["parse", "--source", "baseline", "--jobs", str(jobs), "--format", "jsonl", *resume_arg],
+    )
+    _run(config_path, ["resolve-state", *resume_arg])
     _run(config_path, ["validate"])
     _run(config_path, ["transform-shards", "--shards", str(shards), "--jobs", str(jobs), "--format", "parquet", *resume_arg])
     _run(config_path, ["validate-shards", "--shards", str(shards), "--format", "parquet"])

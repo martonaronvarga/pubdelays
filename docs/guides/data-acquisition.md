@@ -30,6 +30,10 @@ Downloads are written under `data/raw_data/`; PubMed files are accepted only wit
 matching MD5 sidecar. The manifest records stage inputs, outputs, counts, status,
 checksums, and configuration.
 
+Raw PubMed XML is the retained reproducibility source. Parsing produces temporary
+baseline/update JSONL working sets; `resolve-state` removes those working shards
+after successful reconstruction while retaining the raw XML and resolved live state.
+
 ## User-supplied journal snapshots
 
 - **SCImago:** download the required annual journal-rank exports through SCImago's

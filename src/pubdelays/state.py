@@ -35,6 +35,36 @@ def _write_jsonl(path: Path, records: Iterable[dict[str, object]]) -> int:
     return count
 
 
+def cleanup_unresolved_shards(
+    baseline: Path,
+    updatefiles: Path,
+    output_dir: Path,
+) -> dict[str, int]:
+    """Remove parsed input shards after successful state resolution."""
+    baseline = Path(baseline)
+    updatefiles = Path(updatefiles)
+    output_dir = Path(output_dir).resolve()
+    baseline_root = (baseline.parent if baseline.is_file() else baseline).resolve()
+    update_root = (updatefiles.parent if updatefiles.is_file() else updatefiles).resolve()
+    if baseline_root == update_root:
+        raise ValueError("PubMed state cleanup: baseline and update directories must differ")
+    if output_dir in {baseline_root, update_root}:
+        raise ValueError("PubMed state cleanup: resolved output must differ from parsed input directories")
+
+    baseline_paths = _jsonl_paths(baseline)
+    update_paths = _jsonl_paths(updatefiles)
+    for path in (*baseline_paths, *update_paths):
+        if path.resolve().is_relative_to(output_dir):
+            raise ValueError(f"PubMed state cleanup: refusing to remove resolved output {path}")
+
+    for path in (*baseline_paths, *update_paths):
+        path.unlink()
+    return {
+        "cleaned_baseline_shards": len(baseline_paths),
+        "cleaned_update_shards": len(update_paths),
+    }
+
+
 def resolve_pubmed_state(
     baseline: Path,
     updatefiles: Path,

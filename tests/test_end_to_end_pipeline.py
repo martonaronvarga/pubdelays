@@ -87,7 +87,15 @@ def write_config(path: Path, values: dict[str, object]) -> Path:
 def config_copy() -> dict[str, object]:
     return {
         "pipeline": {"manifest": "", "parse_inputs": "data/manifests/parse_inputs.txt", "transform_inputs": ""},
-        "pubmed": {"xml_dir": "", "jsonl_dir": ""},
+        "pubmed": {
+            "baseline_xml_dir": "",
+            "update_xml_dir": "",
+            "baseline_jsonl_dir": "",
+            "update_jsonl_dir": "",
+            "resolved_jsonl_dir": "",
+            "state_db": "",
+            "state_counts": "",
+        },
         "external": {
             "raw": {},
             "processed": {
@@ -118,7 +126,7 @@ def config_copy() -> dict[str, object]:
             "report_dir": "data/processed_data/validation_tables",
             "filtered_output": "data/processed_data/processed_validated.parquet",
             "min_article_date": "2016-01-01",
-            "max_article_date": "2025-06-01",
+            "max_article_date": "2025-12-31",
             "min_delay_days": 1,
             "max_delay_days": 1095,
         },
@@ -129,8 +137,13 @@ def configure(tmp_path: Path) -> Path:
     values = config_copy()
     values["pipeline"]["manifest"] = "data/manifests/pipeline.sqlite"
     values["pipeline"]["transform_inputs"] = "data/manifests/transform_inputs.txt"
-    values["pubmed"]["xml_dir"] = "data/raw_data/pubmed/xmls"
-    values["pubmed"]["jsonl_dir"] = "data/temp_data/pubmed/jsonl"
+    values["pubmed"]["baseline_xml_dir"] = "data/raw_data/pubmed/baseline"
+    values["pubmed"]["update_xml_dir"] = "data/raw_data/pubmed/updatefiles"
+    values["pubmed"]["baseline_jsonl_dir"] = "data/temp_data/pubmed/baseline_jsonl"
+    values["pubmed"]["update_jsonl_dir"] = "data/temp_data/pubmed/update_jsonl"
+    values["pubmed"]["resolved_jsonl_dir"] = "data/temp_data/pubmed/resolved_jsonl"
+    values["pubmed"]["state_db"] = "data/temp_data/pubmed/state.sqlite"
+    values["pubmed"]["state_counts"] = "data/processed_data/pubmed_state_counts.json"
     values["transform"]["article_shard_dir"] = "data/temp_data/article_parquet"
     values["transform"]["default_shards"] = 2
     values["aggregate"]["processed_parquet"] = "data/processed_data/processed.parquet"
@@ -192,12 +205,15 @@ def write_external_inputs(root: Path) -> None:
 def test_tiny_end_to_end_pipeline(tmp_path: Path) -> None:
     config = configure(tmp_path)
     write_external_inputs(tmp_path)
-    write_gz(tmp_path / "data/raw_data/pubmed/xmls/sample.xml.gz", sample_xml())
+    write_gz(tmp_path / "data/raw_data/pubmed/baseline/sample.xml.gz", sample_xml())
 
     common = ["--config", str(config)]
     assert main([*common, "init-dirs"]) == 0
     assert main([*common, "external-all", "--resume"]) == 0
-    assert main([*common, "parse", "--jobs", "1", "--format", "jsonl", "--resume"]) == 0
+    assert main([*common, "parse", "--source", "baseline", "--jobs", "1", "--format", "jsonl", "--resume"]) == 0
+    assert main([*common, "resolve-state", "--resume"]) == 0
+    assert not list((tmp_path / "data/temp_data/pubmed/baseline_jsonl").glob("*.jsonl"))
+    assert not list((tmp_path / "data/temp_data/pubmed/update_jsonl").glob("*.jsonl"))
     assert main([*common, "validate"]) == 0
     assert main([*common, "transform-shards", "--shards", "2", "--jobs", "1", "--resume"]) == 0
     assert main([*common, "validate-shards", "--shards", "2", "--format", "parquet"]) == 0

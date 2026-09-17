@@ -1,6 +1,9 @@
 flowchart LR
-  pubmed["PubMed XML/XML.GZ\ndata/raw_data/pubmed/xmls"] --> parse["parse / parse-one\nsrc/pubdelays/parser/medline.py"]
-  parse --> jsonl["Parsed JSONL shards\ndata/temp_data/pubmed/jsonl"]
+  baseline["PubMed baseline XML/XML.GZ\ndata/raw_data/pubmed/baseline"] --> parse["parse / parse-one\nsrc/pubdelays/parser/medline.py"]
+  updates["PubMed update XML/XML.GZ\ndata/raw_data/pubmed/updatefiles"] --> parse
+  parse --> jsonl["Temporary baseline/update JSONL shards"]
+  jsonl --> resolved["resolve-state\ndata/temp_data/pubmed/resolved_jsonl"]
+  resolved -. success cleanup .-> cleanup["Delete unresolved JSONL shards"]
 
   scimago["SCImago yearly CSVs"] --> external["external-* preprocessors\nsrc/pubdelays/external"]
   wos["Scopus Source List CSV"] --> external
@@ -10,7 +13,7 @@ flowchart LR
   publisher["Optional publisher CSV"] --> external
   external --> lookups["Processed lookup CSVs\ndata/processed_data/*.csv"]
 
-  jsonl --> transform["transform-shards\nsrc/pubdelays/transform/articles.py"]
+  resolved --> transform["transform-shards\nsrc/pubdelays/transform/articles.py"]
   lookups --> transform
   transform --> shards["Article Parquet shards\ndata/temp_data/article_parquet"]
   shards --> validate["validate-shards\nsrc/pubdelays/shards.py"]

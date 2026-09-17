@@ -13,7 +13,9 @@ cd "$ROOT"
 "$RUN" --config "$CONFIG" preflight
 "$RUN" --config "$CONFIG" external-all --resume
 "$RUN" --config "$CONFIG" journals --resume
-"$RUN" --config "$CONFIG" parse --jobs "$JOBS" --format jsonl --parse-mesh-subterms --resume
+"$RUN" --config "$CONFIG" parse --source baseline --jobs "$JOBS" --format jsonl --parse-mesh-subterms --resume
+"$RUN" --config "$CONFIG" parse --source updatefiles --jobs "$JOBS" --format jsonl --parse-mesh-subterms --resume
+"$RUN" --config "$CONFIG" resolve-state --resume
 "$RUN" --config "$CONFIG" validate
 "$RUN" --config "$CONFIG" transform-shards --shards "$SHARDS" --jobs "$JOBS" --format parquet --resume
 "$RUN" --config "$CONFIG" aggregate-all --resume

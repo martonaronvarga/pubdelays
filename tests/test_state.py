@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from pubdelays.state import resolve_pubmed_state
+import pytest
+
+from pubdelays.state import cleanup_unresolved_shards, resolve_pubmed_state
 
 
 def _write(path: Path, rows: list[dict[str, object]]) -> None:
@@ -64,3 +66,33 @@ def test_resolve_pubmed_state_retains_records_without_pmid_for_fallback(tmp_path
     assert counts["baseline_without_pmid"] == 1
     assert counts["update_without_pmid"] == 1
     assert counts["resolved_rows"] == 2
+
+
+def test_cleanup_unresolved_shards_removes_only_parsed_inputs(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline"
+    updates = tmp_path / "updates"
+    resolved = tmp_path / "resolved"
+    _write(baseline / "base.jsonl", [{"pmid": "1"}])
+    _write(updates / "update.jsonl", [{"pmid": "2"}])
+    _write(resolved / "base.jsonl", [{"pmid": "1"}])
+    (baseline / "keep.txt").write_text("raw audit note\n", encoding="utf-8")
+
+    counts = cleanup_unresolved_shards(baseline, updates, resolved)
+
+    assert counts == {"cleaned_baseline_shards": 1, "cleaned_update_shards": 1}
+    assert not list(baseline.glob("*.jsonl"))
+    assert not list(updates.glob("*.jsonl"))
+    assert (baseline / "keep.txt").exists()
+    assert (resolved / "base.jsonl").exists()
+
+
+def test_cleanup_unresolved_shards_rejects_output_overlap(tmp_path: Path) -> None:
+    baseline = tmp_path / "baseline"
+    updates = tmp_path / "updates"
+    _write(baseline / "base.jsonl", [{"pmid": "1"}])
+    updates.mkdir()
+
+    with pytest.raises(ValueError, match="resolved output must differ"):
+        cleanup_unresolved_shards(baseline, updates, baseline)
+
+    assert (baseline / "base.jsonl").exists()

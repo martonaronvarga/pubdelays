@@ -25,6 +25,11 @@ stateDiagram-v2
 
 Mutating stages write through temporary files and atomically rename on success. With `--resume`, a stage skips only when the expected output exists and is non-empty. Some aggregate paths require multiple complete outputs before skipping.
 
+`resolve-state` removes unresolved baseline/update JSONL shards only after state
+reconstruction succeeds. A resolution exception occurs before cleanup, leaving the
+parsed inputs available for diagnosis. Cleanup rejects configurations in which an
+input directory and resolved output directory overlap.
+
 ## Malformed inputs
 
 - Malformed JSON/JSONL makes `validate` append a `validate-json` failure row and return nonzero.

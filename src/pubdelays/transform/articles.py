@@ -363,6 +363,8 @@ def _read_json_frames(paths: list[Path]) -> pl.DataFrame:
     """Read parsed JSON/JSONL files while preserving late non-null field types."""
     frames: list[pl.DataFrame] = []
     for path in paths:
+        if path.stat().st_size == 0:
+            continue
         if path.suffix == ".jsonl":
             frames.append(pl.read_ndjson(path, infer_schema_length=None))
         else:

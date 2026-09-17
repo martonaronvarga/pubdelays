@@ -4,8 +4,6 @@ parse_inputs = "data/manifests/parse_inputs.txt"
 transform_inputs = "data/manifests/transform_inputs.txt"
 
 [pubmed]
-xml_dir = "data/raw_data/pubmed/xmls"
-jsonl_dir = "data/temp_data/pubmed/jsonl"
 baseline_xml_dir = "data/raw_data/pubmed/baseline"
 update_xml_dir = "data/raw_data/pubmed/updatefiles"
 baseline_jsonl_dir = "data/temp_data/pubmed/baseline_jsonl"

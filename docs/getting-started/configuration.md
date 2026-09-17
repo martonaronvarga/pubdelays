@@ -17,7 +17,8 @@ Windows absolute paths are preserved instead of being treated as repository-rela
 
 ```toml
 manifest = 'C:\pubdelays\data\manifests\pipeline.sqlite'
-xml_dir = "C:/pubdelays/data/raw_data/pubmed/xmls"
+baseline_xml_dir = "C:/pubdelays/data/raw_data/pubmed/baseline"
+update_xml_dir = "C:/pubdelays/data/raw_data/pubmed/updatefiles"
 ```
 
 ## Important sections
@@ -25,7 +26,7 @@ xml_dir = "C:/pubdelays/data/raw_data/pubmed/xmls"
 | Section | Keys documented here | Used by |
 | --- | --- | --- |
 | `[pipeline]` | `manifest`, `parse_inputs`, `transform_inputs` | Manifest commands, SLURM lists, transform sharding |
-| `[pubmed]` | `xml_dir`, `jsonl_dir` | Download, parse, validate |
+| `[pubmed]` | baseline/update XML, parsed JSONL, resolved-state paths | Download, parse, resolve, validate |
 | `[external.raw]` | SCImago, WoS, DOAJ, NPI, Retraction Watch, publisher, optional peer-review raw paths | `external-*`, `preflight` |
 | `[external.processed]` | Normalized lookup outputs, including optional peer-review metadata | Transform joins |
 | `[transform]` | `article_shard_dir`, `article_shard_format`, `min_received`, `default_shards` | Transform and shard validation |
@@ -47,7 +48,7 @@ CLI path flags are stage overrides. For example, `transform-shards` can override
 
 ```bash
 pubdelays transform-shards \
-  --input-dir data/temp_data/pubmed/jsonl \
+  --input-dir data/temp_data/pubmed/resolved_jsonl \
   --output-dir data/temp_data/article_parquet \
   --shards 64 \
   --format parquet

@@ -16,7 +16,8 @@ def test_smoke_config_is_isolated_and_loadable(tmp_path: Path) -> None:
 
     smoke = load_config(config_path)
 
-    assert smoke.path("pubmed.xml_dir").is_relative_to(workspace.resolve())
+    assert smoke.path("pubmed.baseline_xml_dir").is_relative_to(workspace.resolve())
+    assert smoke.path("pubmed.update_xml_dir").is_relative_to(workspace.resolve())
     assert smoke.path("aggregate.processed_parquet").is_relative_to(workspace.resolve())
     assert smoke.path("external.raw.web_of_science_csv") == project.path(
         "external.raw.web_of_science_csv"

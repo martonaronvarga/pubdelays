@@ -15,7 +15,7 @@ pubdelays --config config/default.toml <command>
 `uv run python -m pubdelays.cli --help` reports this main workflow:
 
 ```text
-init-dirs -> preflight -> download -> external-all -> parse -> validate -> transform-shards -> validate-shards -> aggregate-all -> manifest summary
+init-dirs -> preflight -> download baseline/updatefiles -> external-all -> parse baseline/updatefiles -> resolve-state -> validate -> transform-shards -> validate-shards -> aggregate-all -> manifest summary
 ```
 
 ## Command families
@@ -23,7 +23,7 @@ init-dirs -> preflight -> download -> external-all -> parse -> validate -> trans
 | Family | Commands | Main purpose |
 | --- | --- | --- |
 | Setup and inspection | `init-dirs`, `preflight`, `schema`, `provenance`, `smoke-live`, `list-inputs` | Prepare directories, check raw inputs, inspect schema/provenance, or run an isolated live check. |
-| PubMed input | `download`, `parse-one`, `parse`, `validate`, `journals` | Fetch/parse PubMed XML and validate parser outputs. |
+| PubMed input | `download`, `parse-one`, `parse`, `resolve-state`, `validate`, `journals` | Fetch/parse PubMed XML, resolve updates, and validate parser outputs. |
 | External metadata | `download-external`, `external-all`, `external-scimago`, `external-wos`, `external-doaj`, `external-publisher`, `external-npi`, `external-retraction-watch` | Fetch public/configured metadata and normalize raw CSVs. |
 | Transform and aggregate | `transform-one`, `transform`, `transform-shard`, `transform-shards`, `validate-shards`, `aggregate`, `aggregate-all`, `summaries` | Create article shards and final outputs. |
 | Audit and comparison | `manifest`, `compare-outputs` | Inspect stage records or compare processed outputs. |
@@ -71,6 +71,11 @@ pubdelays validate data/temp_data/pubmed/resolved_jsonl
 ```
 
 Parsing supports `--format jsonl` and `--format json`. JSONL is the full-scale default; JSON materializes one array and is for small fixtures or interoperability.
+For full-scale JSONL runs, `resolve-state` removes the parsed files from the configured
+`baseline_jsonl_dir` and `update_jsonl_dir` only after it has successfully written the
+resolved state. Its count file and manifest metadata record
+`cleaned_baseline_shards` and `cleaned_update_shards`. Raw XML and resolved JSONL are
+not removed.
 
 ## External metadata
 

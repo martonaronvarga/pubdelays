@@ -55,6 +55,7 @@ scripts/swival-review.sh
 # Local reference/scratch inputs
 colleague/
 process_data_local_temp.R
+docs/paper/
 
 # Raw/generated data
 data/raw_data/**

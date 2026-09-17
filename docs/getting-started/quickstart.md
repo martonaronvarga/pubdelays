@@ -9,7 +9,7 @@ icon: octicons/play-16
 This page follows the default local workflow printed by `pubdelays --help`:
 
 ```text
-init-dirs -> preflight -> download -> external-all -> parse -> validate -> transform-shards -> validate-shards -> aggregate-all -> manifest summary
+init-dirs -> preflight -> download baseline/updatefiles -> external-all -> parse baseline/updatefiles -> resolve-state -> validate -> transform-shards -> validate-shards -> aggregate-all -> manifest summary
 ```
 
 ## Prepare paths
@@ -27,6 +27,7 @@ If raw data is already present, skip downloading and move to preprocessing. Othe
 
 ```bash
 pubdelays download --source baseline --jobs 4 --resume
+pubdelays download --source updatefiles --jobs 4 --resume
 pubdelays download-external --source all --resume
 ```
 
@@ -37,7 +38,9 @@ pubdelays download-external --source all --resume
 
 ```bash
 pubdelays external-all --resume
-pubdelays parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
+pubdelays parse --source baseline --jobs 16 --format jsonl --parse-mesh-subterms --resume
+pubdelays parse --source updatefiles --jobs 16 --format jsonl --parse-mesh-subterms --resume
+pubdelays resolve-state --resume
 pubdelays validate
 pubdelays transform-shards --shards 64 --jobs 16 --format parquet --resume
 pubdelays validate-shards --shards 64 --format parquet
@@ -45,6 +48,10 @@ pubdelays aggregate-all --resume
 pubdelays summaries --resume
 pubdelays manifest summary
 ```
+
+`resolve-state` is the storage boundary. It first writes the resolved live state,
+then removes the JSONL files from `baseline_jsonl/` and `update_jsonl/`. Cleanup is
+not run when resolution fails. Raw XML remains available for a reproducible reparse.
 
 The repository wrapper runs the same core sequence with configurable parallelism:
 
@@ -55,12 +62,15 @@ JOBS=16 SHARDS=64 scripts/pipeline.sh
 ## Check outputs
 
 ```text
-data/temp_data/pubmed/jsonl/          parsed PubMed shards
+data/temp_data/pubmed/resolved_jsonl/ resolved live PubMed shards
 data/temp_data/article_parquet/       canonical transform shards
 data/processed_data/processed.parquet preferred analysis dataset
 data/processed_data/processed.csv     CSV export
 data/manifests/pipeline.sqlite        audit manifest
 ```
+
+The configured `baseline_jsonl/` and `update_jsonl/` directories normally remain
+present but empty after a successful run.
 
 Validate the final schema:
 

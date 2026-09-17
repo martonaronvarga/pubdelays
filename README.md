@@ -57,7 +57,8 @@ pubdelays init-dirs
 Place existing raw files as documented in `docs/reference/file-layout.md`:
 
 ```text
-data/raw_data/pubmed/xmls/*.xml.gz
+data/raw_data/pubmed/baseline/*.xml.gz
+data/raw_data/pubmed/updatefiles/*.xml.gz
 data/raw_data/scimago/scimagojr 2015.csv ... scimagojr 2024.csv
 data/raw_data/web_of_science/scopus_source_list_2026_06.csv
 data/raw_data/directory_of_open_access_journals/doaj_2025_05_15.csv
@@ -82,12 +83,18 @@ The local transform stage uses shard-level parallelism, not one job per JSON fil
 Primary outputs:
 
 ```text
-data/temp_data/pubmed/jsonl/         # parsed PubMed shards
+data/temp_data/pubmed/resolved_jsonl/ # resolved PubMed shards
 data/temp_data/article_parquet/      # transformed article shards
 data/processed_data/processed.parquet# preferred analysis dataset
 data/processed_data/processed.csv    # export/collaboration dataset
 data/manifests/pipeline.sqlite       # audit manifest
 ```
+
+Parsing first creates `baseline_jsonl/` and `update_jsonl/` as temporary working
+sets. After `resolve-state` has written the live PubMed state successfully, it
+removes those unresolved JSONL shards to release disk space. The raw baseline and
+update XML files, resolved JSONL shards, state database, counts, and manifests are
+retained. A resolution failure does not trigger cleanup.
 
 ## Download PubMed data
 
@@ -131,12 +138,14 @@ pubdelays external-all --resume
 Parse XML:
 
 ```bash
-pubdelays parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
+pubdelays parse --source baseline --jobs 16 --format jsonl --parse-mesh-subterms --resume
+pubdelays parse --source updatefiles --jobs 16 --format jsonl --parse-mesh-subterms --resume
+pubdelays resolve-state --resume
 ```
 
 Parsing fails on malformed XML by default. Use `--recover-malformed-xml` only for explicit best-effort salvage runs. `jsonl` is the preferred full-scale output because it streams records; `json` writes one array and accumulates records in memory.
 
-Validate parsed JSONL:
+Validate resolved JSONL:
 
 ```bash
 pubdelays validate
@@ -224,13 +233,15 @@ Outputs are written through same-directory temporary files and atomically rename
 The main throughput path is:
 
 ```text
-PubMed .xml.gz -> streaming parser -> JSONL shards -> Polars transform shards -> Parquet -> aggregate
+baseline/update .xml.gz -> streaming parser -> temporary JSONL -> resolve-state
+  -> remove temporary JSONL -> resolved JSONL -> Polars transform shards -> Parquet -> aggregate
 ```
 
 Performance choices:
 
 - no decompression of PubMed XML to disk;
-- JSONL for parse shards, because it is append-free, line-oriented, resumable, and easy to validate;
+- temporary JSONL for parse shards, because it is append-free, line-oriented, resumable, and easy to validate;
+- automatic removal of unresolved parse shards after successful state resolution;
 - Parquet for transformed article shards and final analysis input;
 - Polars for all tabular preprocessing, joins, and aggregation;
 - SLURM modulo sharding for transform tasks, so each worker amortizes external metadata loading over many PubMed files;

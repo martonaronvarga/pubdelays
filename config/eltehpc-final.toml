@@ -4,8 +4,6 @@ parse_inputs = "data/manifests/runs/final_20260805_v3/parse_inputs.txt"
 transform_inputs = "data/manifests/runs/final_20260805_v3/transform_inputs.txt"
 
 [pubmed]
-xml_dir = "data/raw_data/pubmed/baseline"
-jsonl_dir = "data/temp_data/runs/final_20260805_v3/pubmed/jsonl"
 baseline_xml_dir = "data/raw_data/pubmed/baseline"
 update_xml_dir = "data/raw_data/pubmed/updatefiles"
 baseline_jsonl_dir = "data/temp_data/runs/final_20260805_v3/pubmed/baseline_jsonl"

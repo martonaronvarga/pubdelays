@@ -16,8 +16,13 @@ VALID_CONFIG: dict[str, Any] = {
         "transform_inputs": "data/manifests/transform_inputs.txt",
     },
     "pubmed": {
-        "xml_dir": "data/raw_data/pubmed/xmls",
-        "jsonl_dir": "data/temp_data/pubmed/jsonl",
+        "baseline_xml_dir": "data/raw_data/pubmed/baseline",
+        "update_xml_dir": "data/raw_data/pubmed/updatefiles",
+        "baseline_jsonl_dir": "data/temp_data/pubmed/baseline_jsonl",
+        "update_jsonl_dir": "data/temp_data/pubmed/update_jsonl",
+        "resolved_jsonl_dir": "data/temp_data/pubmed/resolved_jsonl",
+        "state_db": "data/temp_data/pubmed/state.sqlite",
+        "state_counts": "data/processed_data/pubmed_state_counts.json",
     },
     "external": {
         "raw": {
@@ -71,7 +76,7 @@ VALID_CONFIG: dict[str, Any] = {
         "report_dir": "data/processed_data/validation_tables",
         "filtered_output": "data/processed_data/processed_validated.parquet",
         "min_article_date": "2016-01-01",
-        "max_article_date": "2025-06-01",
+        "max_article_date": "2025-12-31",
         "min_delay_days": 1,
         "max_delay_days": 1095,
     },

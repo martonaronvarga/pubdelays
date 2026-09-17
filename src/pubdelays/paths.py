@@ -20,11 +20,18 @@ class ExpectedPath:
 def expected_input_paths(config: PipelineConfig) -> list[ExpectedPath]:
     return [
         ExpectedPath(
-            "PubMed XML baseline/update files",
-            config.path("pubmed.xml_dir"),
+            "PubMed baseline XML files",
+            config.path("pubmed.baseline_xml_dir"),
             "dir",
             True,
-            "Put .xml.gz files from NCBI PubMed baseline/updatefiles here; keep .md5 sidecars when available.",
+            "Download the NCBI PubMed baseline here; keep .md5 sidecars.",
+        ),
+        ExpectedPath(
+            "PubMed update XML files",
+            config.path("pubmed.update_xml_dir"),
+            "dir",
+            True,
+            "Download NCBI PubMed updatefiles here; keep .md5 sidecars.",
         ),
         ExpectedPath(
             "Scimago yearly CSV directory",
@@ -81,8 +88,22 @@ def expected_input_paths(config: PipelineConfig) -> list[ExpectedPath]:
 def expected_output_paths(config: PipelineConfig) -> list[ExpectedPath]:
     return [
         ExpectedPath(
-            "parsed JSONL shards",
-            config.path("pubmed.jsonl_dir"),
+            "parsed baseline JSONL shards",
+            config.path("pubmed.baseline_jsonl_dir"),
+            "dir",
+            False,
+            "Generated.",
+        ),
+        ExpectedPath(
+            "parsed update JSONL shards",
+            config.path("pubmed.update_jsonl_dir"),
+            "dir",
+            False,
+            "Generated.",
+        ),
+        ExpectedPath(
+            "resolved PubMed JSONL shards",
+            config.path("pubmed.resolved_jsonl_dir"),
             "dir",
             False,
             "Generated.",

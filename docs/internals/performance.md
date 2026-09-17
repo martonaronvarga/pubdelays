@@ -12,6 +12,7 @@ The expected workload is large enough that IO shape and worker boundaries matter
 
 - XML parsing must remain streaming through `parse_medline_xml()`.
 - Full-scale parser output should remain JSONL, not a single large JSON array.
+- Parsed baseline/update JSONL is temporary and must be removed after successful state resolution.
 - External metadata preprocessing should use Polars, not hand-rolled CSV loops.
 - Local `transform-shards` should load external metadata once per shard worker, not once per PubMed XML file.
 - SLURM transform work should use modulo job arrays, per-task manifests, and file outputs rather than shared worker state.
@@ -40,7 +41,9 @@ On Linux, `/usr/bin/time -v` records elapsed time and peak RSS. On systems witho
 
 ```bash
 $TIME pubdelays external-all --resume
-$TIME pubdelays parse --jobs 16 --format jsonl --parse-mesh-subterms --resume
+$TIME pubdelays parse --source baseline --jobs 16 --format jsonl --parse-mesh-subterms --resume
+$TIME pubdelays parse --source updatefiles --jobs 16 --format jsonl --parse-mesh-subterms --resume
+$TIME pubdelays resolve-state --resume
 $TIME pubdelays transform-shards --shards 64 --jobs 16 --format parquet --resume
 $TIME pubdelays aggregate-all --resume
 ```

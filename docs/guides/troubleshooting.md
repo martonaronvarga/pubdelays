@@ -11,7 +11,8 @@ icon: octicons/alert-16
 Check `config/default.toml` or your custom config first. Raw defaults include:
 
 ```text
-data/raw_data/pubmed/xmls
+data/raw_data/pubmed/baseline
+data/raw_data/pubmed/updatefiles
 data/raw_data/scimago
 data/raw_data/web_of_science/wos.csv
 data/raw_data/directory_of_open_access_journals/doaj_2025_05_15.csv

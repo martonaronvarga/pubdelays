@@ -83,7 +83,7 @@ from pubdelays.slurm import (
     submit_sbatch,
 )
 from pubdelays.smoke import run_live_smoke
-from pubdelays.state import resolve_pubmed_state
+from pubdelays.state import cleanup_unresolved_shards, resolve_pubmed_state
 from pubdelays.summaries import derive_summary_tables
 from pubdelays.transform import ExternalInputs, transform_files
 from pubdelays.ui import err, info, ok, print_kv_table, section, warn
@@ -355,7 +355,7 @@ def cmd_parse_one(args: argparse.Namespace) -> int:
         if args.output
         else output_path_for(
             Path(args.input),
-            cfg_path(args, "output_dir", "pubmed.jsonl_dir"),
+            cfg_path(args, "output_dir", "pubmed.baseline_jsonl_dir"),
             args.format,
         )
     )
@@ -371,23 +371,17 @@ def cmd_parse_one(args: argparse.Namespace) -> int:
 
 
 def cmd_parse(args: argparse.Namespace) -> int:
-    source = getattr(args, "source", "legacy")
+    source = getattr(args, "source", "baseline")
     input_key = {
         "baseline": "pubmed.baseline_xml_dir",
         "updatefiles": "pubmed.update_xml_dir",
-        "legacy": "pubmed.xml_dir",
     }[source]
     output_key = {
         "baseline": "pubmed.baseline_jsonl_dir",
         "updatefiles": "pubmed.update_jsonl_dir",
-        "legacy": "pubmed.jsonl_dir",
     }[source]
-    input_dir = cfg_path(
-        args, "input_dir", input_key, str(cfg(args).get("pubmed.xml_dir"))
-    )
-    output_dir = cfg_path(
-        args, "output_dir", output_key, str(cfg(args).get("pubmed.jsonl_dir"))
-    )
+    input_dir = cfg_path(args, "input_dir", input_key)
+    output_dir = cfg_path(args, "output_dir", output_key)
     xml_paths = list_xml_paths(input_dir)
     if not xml_paths:
         err(f"No XML files found in {input_dir}")
@@ -460,6 +454,7 @@ def cmd_resolve_state(args: argparse.Namespace) -> int:
     try:
         counts = resolve_pubmed_state(baseline, updates, output_dir, state_db=state_db)
         counts_output.parent.mkdir(parents=True, exist_ok=True)
+        counts.update(cleanup_unresolved_shards(baseline, updates, output_dir))
         with atomic_output_path(counts_output) as temporary:
             temporary.write_text(
                 json.dumps(counts, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -520,7 +515,9 @@ def cmd_validate(args: argparse.Namespace) -> int:
     manifest = manifest_from_args(args)
     started_at = utc_now()
     start_seconds = time.time()
-    input_path = Path(args.input) if args.input else cfg_path(args, "input", "pubmed.jsonl_dir")
+    input_path = (
+        Path(args.input) if args.input else cfg_path(args, "input", "pubmed.resolved_jsonl_dir")
+    )
     paths = list_json_paths(input_path) if input_path.is_dir() else [input_path]
     failures = 0
     total_records = 0
@@ -626,7 +623,6 @@ def cmd_download(args: argparse.Namespace) -> int:
         args,
         "output_dir",
         output_key,
-        str(cfg(args).get("pubmed.xml_dir", "data/raw_data/pubmed/xmls")),
     )
     try:
         links = index_links(base_url)
@@ -899,7 +895,7 @@ def cmd_transform(args: argparse.Namespace) -> int:
     metadata once per shard instead of once per PubMed XML file.
     """
 
-    input_path = cfg_path(args, "input", "pubmed.jsonl_dir")
+    input_path = cfg_path(args, "input", "pubmed.resolved_jsonl_dir")
     output_dir = cfg_path(args, "output_dir", "transform.article_shard_dir")
     inputs = limit_paths(list_json_paths(input_path) if input_path.is_dir() else [input_path], args.limit)
     if not inputs:
@@ -1286,8 +1282,12 @@ def cmd_list_inputs(args: argparse.Namespace) -> int:
 def cmd_init_dirs(args: argparse.Namespace) -> int:
     config = cfg(args)
     dirs = [
-        config.path("pubmed.xml_dir"),
-        config.path("pubmed.jsonl_dir"),
+        config.path("pubmed.baseline_xml_dir"),
+        config.path("pubmed.update_xml_dir"),
+        config.path("pubmed.baseline_jsonl_dir"),
+        config.path("pubmed.update_jsonl_dir"),
+        config.path("pubmed.resolved_jsonl_dir"),
+        config.path("pubmed.state_db").parent,
         config.path("external.raw.scimago_dir"),
         config.path("external.raw.web_of_science_csv").parent,
         config.path("external.raw.doaj_csv").parent,
@@ -1327,12 +1327,15 @@ def cmd_preflight(args: argparse.Namespace) -> int:
         ok(f"{expected.label}: {path}") if exists else warn(
             f"will create {expected.label}: {path} -- {expected.description}"
         )
-    xml_count = (
-        len(list_xml_paths(config.path("pubmed.xml_dir"))) if config.path("pubmed.xml_dir").exists() else 0
-    )
+    baseline_dir = config.path("pubmed.baseline_xml_dir")
+    update_dir = config.path("pubmed.update_xml_dir")
+    baseline_count = len(list_xml_paths(baseline_dir)) if baseline_dir.exists() else 0
+    update_count = len(list_xml_paths(update_dir)) if update_dir.exists() else 0
     print_kv_table(
         {
-            "xml_files": xml_count,
+            "baseline_xml_files": baseline_count,
+            "update_xml_files": update_count,
+            "xml_files": baseline_count + update_count,
             "missing_required_inputs": failures,
             "missing_optional_inputs": optional_missing,
         }
@@ -1511,7 +1514,7 @@ def transform_shard_worker(payload: dict[str, Any]) -> int:
 
 
 def cmd_transform_shards(args: argparse.Namespace) -> int:
-    json_dir = cfg_path(args, "input_dir", "pubmed.jsonl_dir")
+    json_dir = cfg_path(args, "input_dir", "pubmed.resolved_jsonl_dir")
     manifest_dir = cfg_path(
         args,
         "input_list",
@@ -2128,26 +2131,20 @@ def build_slurm_job(args: argparse.Namespace, stage: str) -> tuple[SlurmJob, dic
 
     if stage in {"parse", "parse-baseline", "parse-updatefiles"}:
         source = {
-            "parse": "legacy",
+            "parse": "baseline",
             "parse-baseline": "baseline",
             "parse-updatefiles": "updatefiles",
         }[stage]
         input_key = {
-            "legacy": "pubmed.xml_dir",
             "baseline": "pubmed.baseline_xml_dir",
             "updatefiles": "pubmed.update_xml_dir",
         }[source]
         output_key = {
-            "legacy": "pubmed.jsonl_dir",
             "baseline": "pubmed.baseline_jsonl_dir",
             "updatefiles": "pubmed.update_jsonl_dir",
         }[source]
-        input_dir = cfg_path(
-            args, "input_dir", input_key, str(config.get("pubmed.xml_dir"))
-        )
-        output_dir = cfg_path(
-            args, "output_dir", output_key, str(config.get("pubmed.jsonl_dir"))
-        )
+        input_dir = cfg_path(args, "input_dir", input_key)
+        output_dir = cfg_path(args, "output_dir", output_key)
         default_list = config.path("pipeline.parse_inputs")
         input_list = (
             Path(args.input_list)
@@ -2565,8 +2562,9 @@ def build_parser() -> argparse.ArgumentParser:
         prog="pubdelays",
         description="Run the PubMed publication-delay pipeline.",
         epilog=(
-            "Main workflow: init-dirs -> preflight -> download -> external-all -> "
-            "parse -> validate -> transform-shards -> validate-shards -> aggregate-all -> manifest summary"
+            "Main workflow: init-dirs -> preflight -> download baseline/updatefiles -> external-all -> "
+            "parse baseline/updatefiles -> resolve-state -> validate -> transform-shards -> "
+            "validate-shards -> aggregate-all -> manifest summary"
         ),
     )
     parser.add_argument(
@@ -2595,7 +2593,7 @@ def build_parser() -> argparse.ArgumentParser:
     parse_p.add_argument("--input-dir", default=None)
     parse_p.add_argument("--output-dir", default=None)
     parse_p.add_argument(
-        "--source", choices=["baseline", "updatefiles", "legacy"], default="legacy"
+        "--source", choices=["baseline", "updatefiles"], default="baseline"
     )
     parse_p.add_argument("--jobs", type=int, default=None)
     add_dry_run_arg(parse_p)
@@ -2603,7 +2601,8 @@ def build_parser() -> argparse.ArgumentParser:
     parse_p.set_defaults(func=cmd_parse)
 
     resolve_state = subparsers.add_parser(
-        "resolve-state", help="apply PubMed update files and DeleteCitation records by PMID"
+        "resolve-state",
+        help="apply PubMed updates by PMID and remove parsed input shards after success",
     )
     resolve_state.add_argument("--baseline", default=None)
     resolve_state.add_argument("--updates", default=None)

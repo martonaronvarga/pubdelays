@@ -37,8 +37,13 @@ manifest = "{manifest_path or 'data/manifests/pipeline.sqlite'}"
 parse_inputs = "data/manifests/parse_inputs.txt"
 transform_inputs = "data/manifests/transform_inputs.txt"
 [pubmed]
-xml_dir = "data/raw_data/pubmed/xmls"
-jsonl_dir = "data/temp_data/pubmed/jsonl"
+baseline_xml_dir = "data/raw_data/pubmed/baseline"
+update_xml_dir = "data/raw_data/pubmed/updatefiles"
+baseline_jsonl_dir = "data/temp_data/pubmed/baseline_jsonl"
+update_jsonl_dir = "data/temp_data/pubmed/update_jsonl"
+resolved_jsonl_dir = "data/temp_data/pubmed/resolved_jsonl"
+state_db = "data/temp_data/pubmed/state.sqlite"
+state_counts = "data/processed_data/pubmed_state_counts.json"
 [external.raw]
 scimago_dir = "data/raw_data/scimago"
 web_of_science_csv = "data/raw_data/web_of_science/wos.csv"
@@ -75,7 +80,7 @@ command = ["python", "pubdelays_analysis/outputs.py"]
 report_dir = "data/processed_data/validation_tables"
 filtered_output = "data/processed_data/processed_validated.parquet"
 min_article_date = "2016-01-01"
-max_article_date = "2025-06-01"
+max_article_date = "2025-12-31"
 min_delay_days = 1
 max_delay_days = 1095
 """.strip(),
@@ -233,7 +238,7 @@ def test_download_verifies_only_requested_md5_sidecars(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     config_path = write_minimal_download_config(tmp_path / "config.toml")
-    output_dir = tmp_path / "data/raw_data/pubmed/xmls"
+    output_dir = tmp_path / "data/raw_data/pubmed/baseline"
     output_dir.mkdir(parents=True)
     stale_sidecar = output_dir / "stale.xml.gz.md5"
     stale_sidecar.write_text("not a current download\n", encoding="utf-8")
@@ -276,8 +281,13 @@ manifest = "data/manifests/pipeline.sqlite"
 parse_inputs = "data/manifests/parse_inputs.txt"
 transform_inputs = "data/manifests/transform_inputs.txt"
 [pubmed]
-xml_dir = "data/raw_data/pubmed/xmls"
-jsonl_dir = "data/temp_data/pubmed/jsonl"
+baseline_xml_dir = "data/raw_data/pubmed/baseline"
+update_xml_dir = "data/raw_data/pubmed/updatefiles"
+baseline_jsonl_dir = "data/temp_data/pubmed/baseline_jsonl"
+update_jsonl_dir = "data/temp_data/pubmed/update_jsonl"
+resolved_jsonl_dir = "data/temp_data/pubmed/resolved_jsonl"
+state_db = "data/temp_data/pubmed/state.sqlite"
+state_counts = "data/processed_data/pubmed_state_counts.json"
 [external.raw]
 scimago_dir = "data/raw_data/scimago"
 web_of_science_csv = "data/raw_data/web_of_science/wos.csv"
@@ -321,7 +331,7 @@ command = ["python", "pubdelays_analysis/outputs.py", "--input", "data/processed
 report_dir = "data/processed_data/validation_tables"
 filtered_output = "data/processed_data/processed_validated.parquet"
 min_article_date = "2016-01-01"
-max_article_date = "2025-06-01"
+max_article_date = "2025-12-31"
 min_delay_days = 1
 max_delay_days = 1095
 """.strip(),
@@ -347,8 +357,13 @@ manifest = "data/manifests/pipeline.sqlite"
 parse_inputs = "data/manifests/parse_inputs.txt"
 transform_inputs = "data/manifests/transform_inputs.txt"
 [pubmed]
-xml_dir = "data/raw_data/pubmed/xmls"
-jsonl_dir = "data/temp_data/pubmed/jsonl"
+baseline_xml_dir = "data/raw_data/pubmed/baseline"
+update_xml_dir = "data/raw_data/pubmed/updatefiles"
+baseline_jsonl_dir = "data/temp_data/pubmed/baseline_jsonl"
+update_jsonl_dir = "data/temp_data/pubmed/update_jsonl"
+resolved_jsonl_dir = "data/temp_data/pubmed/resolved_jsonl"
+state_db = "data/temp_data/pubmed/state.sqlite"
+state_counts = "data/processed_data/pubmed_state_counts.json"
 [external.raw]
 scimago_dir = "data/raw_data/scimago"
 web_of_science_csv = "data/raw_data/web_of_science/wos.csv"
@@ -389,7 +404,7 @@ command = ["python", "pubdelays_analysis/outputs.py", "--input", "data/processed
 report_dir = "data/processed_data/validation_tables"
 filtered_output = "data/processed_data/processed_validated.parquet"
 min_article_date = "2016-01-01"
-max_article_date = "2025-06-01"
+max_article_date = "2025-12-31"
 min_delay_days = 1
 max_delay_days = 1095
 """.strip(),
@@ -409,8 +424,13 @@ manifest = "data/manifests/pipeline.sqlite"
 parse_inputs = "data/manifests/parse_inputs.txt"
 transform_inputs = "data/manifests/transform_inputs.txt"
 [pubmed]
-xml_dir = "data/raw_data/pubmed/xmls"
-jsonl_dir = "data/temp_data/pubmed/jsonl"
+baseline_xml_dir = "data/raw_data/pubmed/baseline"
+update_xml_dir = "data/raw_data/pubmed/updatefiles"
+baseline_jsonl_dir = "data/temp_data/pubmed/baseline_jsonl"
+update_jsonl_dir = "data/temp_data/pubmed/update_jsonl"
+resolved_jsonl_dir = "data/temp_data/pubmed/resolved_jsonl"
+state_db = "data/temp_data/pubmed/state.sqlite"
+state_counts = "data/processed_data/pubmed_state_counts.json"
 [external.raw]
 scimago_dir = "data/raw_data/scimago"
 web_of_science_csv = "data/raw_data/web_of_science/wos.csv"
@@ -452,7 +472,7 @@ command = ["python", "pubdelays_analysis/outputs.py", "--input", "data/processed
 report_dir = "data/processed_data/validation_tables"
 filtered_output = "data/processed_data/processed_validated.parquet"
 min_article_date = "2016-01-01"
-max_article_date = "2025-06-01"
+max_article_date = "2025-12-31"
 min_delay_days = 1
 max_delay_days = 1095
 """.strip(),
@@ -474,8 +494,13 @@ manifest = "data/manifests/pipeline.sqlite"
 parse_inputs = "data/manifests/parse_inputs.txt"
 transform_inputs = "data/manifests/transform_inputs.txt"
 [pubmed]
-xml_dir = "data/raw_data/pubmed/xmls"
-jsonl_dir = "data/temp_data/pubmed/jsonl"
+baseline_xml_dir = "data/raw_data/pubmed/baseline"
+update_xml_dir = "data/raw_data/pubmed/updatefiles"
+baseline_jsonl_dir = "data/temp_data/pubmed/baseline_jsonl"
+update_jsonl_dir = "data/temp_data/pubmed/update_jsonl"
+resolved_jsonl_dir = "data/temp_data/pubmed/resolved_jsonl"
+state_db = "data/temp_data/pubmed/state.sqlite"
+state_counts = "data/processed_data/pubmed_state_counts.json"
 [external.raw]
 scimago_dir = "data/raw_data/scimago"
 web_of_science_csv = "data/raw_data/web_of_science/wos.csv"
@@ -516,7 +541,7 @@ command = ["python", "pubdelays_analysis/outputs.py", "--input", "data/processed
 report_dir = "data/processed_data/validation_tables"
 filtered_output = "data/processed_data/processed_validated.parquet"
 min_article_date = "2016-01-01"
-max_article_date = "2025-06-01"
+max_article_date = "2025-12-31"
 min_delay_days = 1
 max_delay_days = 1095
 """.strip(),
@@ -539,8 +564,13 @@ manifest = "{manifest_path}"
 parse_inputs = "data/manifests/parse_inputs.txt"
 transform_inputs = "data/manifests/transform_inputs.txt"
 [pubmed]
-xml_dir = "data/raw_data/pubmed/xmls"
-jsonl_dir = "data/temp_data/pubmed/jsonl"
+baseline_xml_dir = "data/raw_data/pubmed/baseline"
+update_xml_dir = "data/raw_data/pubmed/updatefiles"
+baseline_jsonl_dir = "data/temp_data/pubmed/baseline_jsonl"
+update_jsonl_dir = "data/temp_data/pubmed/update_jsonl"
+resolved_jsonl_dir = "data/temp_data/pubmed/resolved_jsonl"
+state_db = "data/temp_data/pubmed/state.sqlite"
+state_counts = "data/processed_data/pubmed_state_counts.json"
 [external.raw]
 scimago_dir = "data/raw_data/scimago"
 web_of_science_csv = "data/raw_data/web_of_science/wos.csv"
@@ -581,7 +611,7 @@ command = ["python", "pubdelays_analysis/outputs.py", "--input", "data/processed
 report_dir = "data/processed_data/validation_tables"
 filtered_output = "data/processed_data/processed_validated.parquet"
 min_article_date = "2016-01-01"
-max_article_date = "2025-06-01"
+max_article_date = "2025-12-31"
 min_delay_days = 1
 max_delay_days = 1095
 """.strip(),

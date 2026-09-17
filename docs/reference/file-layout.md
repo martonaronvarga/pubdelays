@@ -11,8 +11,8 @@ All paths are repository-relative unless `config/default.toml` or `--config` poi
 ## Raw inputs
 
 ```text
-data/raw_data/pubmed/xmls/                          PubMed baseline/update XML or XML.GZ files
-data/raw_data/pubmed/xmls/*.xml.gz.md5              PubMed MD5 sidecars
+data/raw_data/pubmed/baseline/                      PubMed annual baseline XML/XML.GZ files and MD5 sidecars
+data/raw_data/pubmed/updatefiles/                   PubMed update XML/XML.GZ files and MD5 sidecars
 data/raw_data/scimago/scimagojr <year>.csv          Yearly SCImago exports
 data/raw_data/web_of_science/scopus_source_list_2026_06.csv  Scopus journal categories (legacy directory name)
 data/raw_data/directory_of_open_access_journals/    DOAJ journal CSV
@@ -27,7 +27,9 @@ The parser reads `.xml.gz` directly; do not decompress PubMed baseline files unl
 ## Generated intermediates
 
 ```text
-data/temp_data/pubmed/jsonl/                         One parsed JSONL shard per PubMed XML file
+data/temp_data/pubmed/baseline_jsonl/                Ephemeral parsed baseline shards; cleaned by resolve-state
+data/temp_data/pubmed/update_jsonl/                  Ephemeral parsed update/deletion shards; cleaned by resolve-state
+data/temp_data/pubmed/resolved_jsonl/                Live PubMed state after applying updates
 data/temp_data/article_parquet/                      Transformed article shards
 data/manifests/parse_inputs.txt                      SLURM parse array input list
 data/manifests/transform_inputs.txt                  SLURM transform array input list
@@ -35,6 +37,12 @@ data/manifests/pipeline.sqlite                       Collected SQLite manifest
 data/manifests/slurm/parse/*.sqlite                  Per-task parse manifests on HPC
 data/manifests/slurm/transform-shards/*.sqlite       Per-task transform manifests on HPC
 ```
+
+The two parsed-input directories are bounded-lifetime workspace. On successful
+`resolve-state`, their `.jsonl` files are removed and the directories are left in
+place for the next parse. Resolution failures leave the inputs available for
+diagnosis and retry. The raw XML directories and `resolved_jsonl/` are not part of
+this cleanup.
 
 ## Final outputs
 

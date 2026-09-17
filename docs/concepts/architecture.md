@@ -15,6 +15,7 @@ The active implementation is Python-first under `src/pubdelays/`. It has a thin 
 | `src/pubdelays/cli.py` | User and scheduler entry point | Parse arguments, load config, resolve paths, dispatch stages, append manifest rows. |
 | `src/pubdelays/config.py` | Configuration | Load TOML, validate required sections and path keys, resolve repository-relative paths. |
 | `src/pubdelays/parser/medline.py` | PubMed XML parsing | Stream `.xml`/`.xml.gz`, extract article dictionaries, emit deletion records. |
+| `src/pubdelays/state.py` | PubMed state reconstruction | Apply ordered updates/deletions, write the live state, and safely identify unresolved shards for cleanup. |
 | `src/pubdelays/external/*.py` | External metadata preprocessing | Normalize SCImago, WoS, DOAJ, NPI, Retraction Watch, and publisher CSVs with Polars. |
 | `src/pubdelays/transform/articles.py` | Article filtering and enrichment | Read parsed JSON/JSONL, apply date and journal filters, join lookup tables, write canonical article shards. |
 | `src/pubdelays/shards.py` | Shard identity and completeness | Parse `articles-shard-<id>-of-<total>.<format>` names and validate expected sets. |
@@ -26,11 +27,15 @@ The active implementation is Python-first under `src/pubdelays/`. It has a thin 
 
 ```mermaid
 flowchart LR
-  pubmed["PubMed XML/XML.GZ\nraw pubmed directory"] --> parser["parse_medline_xml()"]
-  parser --> parsed["JSONL or JSON parsed shards"]
+  baseline["baseline XML/XML.GZ"] --> parser["parse_medline_xml()"]
+  updates["update XML/XML.GZ"] --> parser
+  parser --> parsed["temporary parsed JSONL shards"]
+  parsed --> resolve["resolve_pubmed_state()"]
+  resolve --> resolved["resolved live JSONL"]
+  resolve -. success cleanup .-> removed["remove unresolved JSONL"]
   ext_raw["External raw CSVs"] --> preprocess["external preprocessors"]
   preprocess --> ext_processed["processed lookup CSVs"]
-  parsed --> transform["transform_files()"]
+  resolved --> transform["transform_files()"]
   ext_processed --> transform
   transform --> article_shards["canonical article shards"]
   article_shards --> validate["validate_article_shards()"]
@@ -47,6 +52,7 @@ The CLI is intentionally shallow: `main()` builds the parser, the selected comma
 ## Failure boundaries
 
 - Parser outputs and transform outputs are written through temporary files and renamed only after success.
+- Parsed baseline/update JSONL is deleted only after state reconstruction succeeds; raw XML and resolved outputs remain.
 - `--resume` skips only complete, non-empty outputs.
 - Local stages append to `data/manifests/pipeline.sqlite` by default.
 - SLURM parse and transform array tasks write per-task manifests under `data/manifests/slurm/` and are collected later.

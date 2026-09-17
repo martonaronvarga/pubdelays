@@ -14,8 +14,13 @@ parse_inputs = "data/manifests/parse_inputs.txt"
 transform_inputs = "data/manifests/transform_inputs.txt"
 
 [pubmed]
-xml_dir = "data/raw_data/pubmed/xmls"
-jsonl_dir = "data/temp_data/pubmed/jsonl"
+baseline_xml_dir = "data/raw_data/pubmed/baseline"
+update_xml_dir = "data/raw_data/pubmed/updatefiles"
+baseline_jsonl_dir = "data/temp_data/pubmed/baseline_jsonl"
+update_jsonl_dir = "data/temp_data/pubmed/update_jsonl"
+resolved_jsonl_dir = "data/temp_data/pubmed/resolved_jsonl"
+state_db = "data/temp_data/pubmed/state.sqlite"
+state_counts = "data/processed_data/pubmed_state_counts.json"
 
 [external.raw]
 scimago_dir = "data/raw_data/scimago"
@@ -58,7 +63,7 @@ command = ["python", "pubdelays_analysis/outputs.py", "--input", "data/processed
 report_dir = "data/processed_data/validation_tables"
 filtered_output = "data/processed_data/processed_validated.parquet"
 min_article_date = "2016-01-01"
-max_article_date = "2025-06-01"
+max_article_date = "2025-12-31"
 min_delay_days = 1
 max_delay_days = 1095
 """.strip(),
@@ -81,7 +86,7 @@ def test_top_level_help_describes_main_workflow() -> None:
 
 def test_parse_dry_run_does_not_write_outputs(tmp_path: Path, capsys: object) -> None:
     config = write_config(tmp_path / "config.toml")
-    xml_dir = tmp_path / "data/raw_data/pubmed/xmls"
+    xml_dir = tmp_path / "data/raw_data/pubmed/baseline"
     xml_dir.mkdir(parents=True)
     (xml_dir / "pubmed25n0001.xml").write_text("<PubmedArticleSet />", encoding="utf-8")
 
@@ -90,12 +95,12 @@ def test_parse_dry_run_does_not_write_outputs(tmp_path: Path, capsys: object) ->
 
     assert code == 0
     assert "dry-run parse" in output
-    assert not (tmp_path / "data/temp_data/pubmed/jsonl").exists()
+    assert not (tmp_path / "data/temp_data/pubmed/baseline_jsonl").exists()
 
 
 def test_transform_shards_dry_run_does_not_write_input_list(tmp_path: Path, capsys: object) -> None:
     config = write_config(tmp_path / "config.toml")
-    json_dir = tmp_path / "data/temp_data/pubmed/jsonl"
+    json_dir = tmp_path / "data/temp_data/pubmed/resolved_jsonl"
     json_dir.mkdir(parents=True)
     (json_dir / "records-1.jsonl").write_text("{}\n", encoding="utf-8")
     (json_dir / "records-2.jsonl").write_text("{}\n", encoding="utf-8")
